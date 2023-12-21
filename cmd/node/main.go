@@ -199,17 +199,17 @@ func run() int {
 
 		log.Info().
 			Str("role", role.String()).
-			Msg("Blockless Node starting")
+			Msg("Upshot Node Node starting")
 
 		err := node.Run(ctx)
 		if err != nil {
-			log.Error().Err(err).Msg("Blockless Node failed")
+			log.Error().Err(err).Msg("Upshot Node Node failed")
 			close(failed)
 		} else {
 			close(done)
 		}
 
-		log.Info().Msg("Blockless Node stopped")
+		log.Info().Msg("Upshot Node Node stopped")
 	}()
 
 	// If we're a head node - start the REST API.
@@ -256,11 +256,11 @@ func run() int {
 
 	select {
 	case <-sig:
-		log.Info().Msg("Blockless AVS stopping")
+		log.Info().Msg("Upshot Node stopping")
 	case <-done:
-		log.Info().Msg("Blockless AVS done")
+		log.Info().Msg("Upshot Node done")
 	case <-failed:
-		log.Info().Msg("Blockless AVS aborted")
+		log.Info().Msg("Upshot Node aborted")
 		return failure
 	}
 
