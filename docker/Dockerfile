@@ -6,7 +6,7 @@ WORKDIR /app
 
 ## curl, unzip other utilities
 RUN apt-get update && \
-  apt-get install --no-install-recommends --assume-yes curl unzip pv ca-certificates gnupg2 python3
+  apt-get install --no-install-recommends --assume-yes curl unzip pv ca-certificates gnupg2 python3 python3-pip
 
 # gomplete for updating config with env vars
 RUN curl -o ./gomplate -sSL https://github.com/hairyhenderson/gomplate/releases/download/v3.10.0/gomplate_linux-amd64
@@ -15,6 +15,7 @@ RUN chmod 755 gomplate
 # get the runtime
 RUN curl -o ./runtime.tar.gz -sSL https://github.com/blocklessnetwork/runtime/releases/download/v0.3.1/blockless-runtime.ubuntu-20.04.x86_64.tar.gz
 RUN mkdir /app/runtime && tar -xvkf ./runtime.tar.gz -C /app/runtime
+RUN python3 -m pip install --upgrade pip
 
 # get the upshot-extension
 RUN curl -L -s -H "Authorization: token ${ghcr_token}" -H 'Accept:application/octet-stream' "https://api.github.com/repos/upshot-tech/upshot-blockless-extension/releases/assets/142012669" -o upshot-extension.tar.gz
