@@ -51,5 +51,8 @@ ENV RUNETIME_PATH=/app/runtime
 ENV REST_API=8080
 ENV P2P_PORT=9527
 
+EXPOSE 8080 9527
+# VOLUME ${APP_PATH}
+
 ## run script
 ENTRYPOINT ["/app/run.sh"]
