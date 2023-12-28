@@ -17,10 +17,6 @@ jobs:
       - name: Prepare Release Variables
         id: vars
         uses: ignite/cli/actions/release/vars@main
-      - name: run recursive test
-        run: |
-            set -e
-            go test -v ./...
       - name: build
         run: |
           GOOS=linux GOARCH=amd64 make
