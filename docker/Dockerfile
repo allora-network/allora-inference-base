@@ -1,3 +1,13 @@
+FROM --platform=linux/amd64 golang:1.21-bookworm AS builder
+
+WORKDIR /src
+
+ADD . /src
+
+RUN go mod download && \
+    make all
+
+###########################
 FROM --platform=linux/amd64 ubuntu:latest 
 
 ARG ghcr_token
@@ -32,8 +42,8 @@ RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2
 
 ## setup 
 RUN mkdir /app/keys
-COPY ./dist/upshot-node upshot-node
-COPY ./dist/upshot-keys upshot-keys
+COPY --from=builder /src/dist/upshot-node upshot-node
+COPY --from=builder /src/dist/upshot-keys upshot-keys
 
 ## run script
 COPY ./docker/run.sh ./run.sh
