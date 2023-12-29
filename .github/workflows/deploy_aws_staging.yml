@@ -7,7 +7,6 @@ on:
     branches:
       - staging
       - vlad/ora-190-ensure-all-repos-are-deployable-on-aws-cloud-with-a-merge
-  workflow_dispatch:
 
 concurrency:
   group: ${{ github.ref  }}
