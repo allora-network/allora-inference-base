@@ -52,6 +52,7 @@ jobs:
           task-definition: infra/staging-task-def.json
           container-name: upshot-compute-node
           image: nginx:latest
+          
           # ${{ steps.compute-node-build-image.outputs.image }}
 
       - name: upshot-compute-node - Deploy Amazon ECS task definition
