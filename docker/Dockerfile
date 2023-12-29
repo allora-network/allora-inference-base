@@ -8,7 +8,7 @@ RUN go mod download && \
     make all
 
 ###########################
-FROM --platform=linux/amd64 ubuntu:latest 
+FROM --platform=linux/amd64 debian:bookworm-slim
 
 ARG ghcr_token
 
