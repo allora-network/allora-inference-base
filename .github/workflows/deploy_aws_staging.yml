@@ -57,6 +57,6 @@ jobs:
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
         with:
           task-definition: ${{ steps.compute-node-task-def.outputs.task-definition }}
-          service: upshot-compute-node-staging
+          service: upshot-compute-node
           cluster: upshot-backend-staging
           # wait-for-service-stability: true
