@@ -21,7 +21,7 @@
         }
     ],
     "taskRoleArn": "arn:aws:iam::696230526504:role/ECS_TASK_ROLE",
-    "family": "upshot-appchain-staging",
+    "family": "upshot-compute-node-staging",
     "requiresCompatibilities": [
         "FARGATE"
     ],
