@@ -80,8 +80,20 @@ if [ -n "$BOOT_NODES" ]; then
   bootnode_args="--boot-nodes $BOOT_NODES"
 fi
 
+if [ -n "$WEB3STORAGE_TOKEN" ]; then
+  if [ -n "$B7S_GATEWAY_URL" ]; then
+    if [ "$NODE_ROLE" = "worker" ]; then
+    # generate attributes
+      export UPSHOT_SUBTOPIC_1="foo"
+      ./b7s-attributes create --prefix UPSHOT_ --output ./attributes.bin
+      ./b7s-attributes update sign --signing-key $NODE_KEY_PATH ./attributes.bin
+      ./b7s-attributes upload --gateway-url $B7S_GATEWAY_URL ./attributes.bin
+    fi
+  fi
+fi
+
 if [ "$NODE_ROLE" = "head" ]; then
   ./upshot-node --peer-db /var/tmp/upshot/peerdb --function-db /var/tmp/upshot/function-db --log-level debug --port $P2P_PORT --role head --workspace $WORKSPACE_ROOT --private-key $NODE_KEY_PATH --rest-api :$REST_API $dialback_args $bootnode_args
 else
-  ./upshot-node --peer-db ./peer-database --function-db ./function-database--log-level debug --port $P2P_PORT --role worker --runtime-path /app/runtime --runtime-cli bls-runtime --workspace $WORKSPACE_ROOT --private-key $NODE_KEY_PATH $dialback_args $bootnode_args 
+  ./upshot-node --attributes --peer-db ./peer-database --function-db ./function-database--log-level debug --port $P2P_PORT --role worker --runtime-path /app/runtime --runtime-cli bls-runtime --workspace $WORKSPACE_ROOT --private-key $NODE_KEY_PATH $dialback_args $bootnode_args 
 fi
