@@ -17,9 +17,9 @@ RUN curl -o ./runtime.tar.gz -sSL https://github.com/blocklessnetwork/runtime/re
 RUN mkdir /app/runtime && tar -xvkf ./runtime.tar.gz -C /app/runtime
 
 # get attribution cli
-RUN curl -o ./attribute-cli.tar.gz -sSL https://github.com/blocklessnetwork/b7s-attributes/releases/download/v0.0.0/b7s-attributes-v0.0.0-linux-arm64.tar.gz
+RUN curl -o ./attribute-cli.tar.gz -sSL https://github.com/blocklessnetwork/b7s-attributes/releases/download/v0.0.0/b7s-attributes-v0.0.0-darwin-arm64.tar.gz
 RUN tar -xvkf ./attribute-cli.tar.gz -C /app/
-derek/ora-158-have-nodes-advertise-that-they-have-an-extension-by-default
+
 
 RUN python3 -m pip install --upgrade pip
 
