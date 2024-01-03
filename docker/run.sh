@@ -84,7 +84,7 @@ if [ -n "$WEB3STORAGE_TOKEN" ]; then
   if [ -n "$B7S_GATEWAY_URL" ]; then
     if [ "$NODE_ROLE" = "worker" ]; then
     # generate attributes
-      export UPSHOT_SUBTOPIC_1="foo"
+      export UPSHOT_SUBTOPICS="foo|foo2" # todo: this needs to be exposed to the docker file
       ./b7s-attributes create --prefix UPSHOT_ --output ./attributes.bin
       ./b7s-attributes update sign --signing-key $NODE_KEY_PATH ./attributes.bin
       ./b7s-attributes upload --gateway-url $B7S_GATEWAY_URL ./attributes.bin
