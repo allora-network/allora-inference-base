@@ -66,6 +66,9 @@ fi
 # load env var array as a data source
 # /app/gomplate -d 'boot_nodes=env:///BOOT_NODES?type=text/csv' -f /app/docker-config.yaml -o /app/docker-config-env.yaml
 
+# start cron
+cron
+
 # run the node
 cd /app
 

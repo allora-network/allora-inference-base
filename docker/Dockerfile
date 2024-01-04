@@ -6,7 +6,7 @@ WORKDIR /app
 
 ## curl, unzip other utilities
 RUN apt-get update && \
-  apt-get install --no-install-recommends --assume-yes curl unzip pv ca-certificates gnupg2 python3 python3-pip
+  apt-get install --no-install-recommends --assume-yes curl unzip pv ca-certificates gnupg2 python3 python3-pip cron
 
 # gomplete for updating config with env vars
 RUN curl -o ./gomplate -sSL https://github.com/hairyhenderson/gomplate/releases/download/v3.10.0/gomplate_linux-amd64
