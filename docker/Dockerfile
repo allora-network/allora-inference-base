@@ -18,7 +18,7 @@ RUN mkdir /app/runtime && tar -xvkf ./runtime.tar.gz -C /app/runtime
 RUN python3 -m pip install --upgrade pip
 
 # get the upshot-extension
-RUN curl -L -s -H "Authorization: token ${ghcr_token}" -H 'Accept:application/octet-stream' "https://api.github.com/repos/upshot-tech/upshot-blockless-extension/releases/assets/142012669" -o upshot-extension.tar.gz
+RUN curl -L -s -H "Authorization: token ${ghcr_token}" -H 'Accept:application/octet-stream' "https://api.github.com/repos/upshot-tech/upshot-blockless-extension/releases/assets/144563646" -o upshot-extension.tar.gz
 RUN mkdir /app/runtime/extensions && tar -xvkf ./upshot-extension.tar.gz -C /app/runtime/extensions
 
 # libssl 1.1
