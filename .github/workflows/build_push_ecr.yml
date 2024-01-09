@@ -1,6 +1,6 @@
 # This workflow will build and push a new container image to Amazon ECR,
 # and then will deploy a new task definition to Amazon ECS which will be run by Fargate when a release is created
-name: Deploy to Staging Amazon ECS
+name: Build and Push docker image to ECR
 
 on:
   push:
@@ -13,7 +13,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   deploy-staging:
-    name: Deploy to staging
+    name: Build and Push docker image
     runs-on: ubuntu-latest
     environment: staging
 
