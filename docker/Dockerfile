@@ -27,13 +27,13 @@ RUN apt update && \
     rm -rf /var/cache/apt/*
 
 # gomplete for updating config with env vars
-RUN GOMPLATE_VER=v3.11.6 && \
+RUN GOMPLATE_VER="v3.11.6" && \
     curl -o /usr/local/bin/gomplate -sSL https://github.com/hairyhenderson/gomplate/releases/download/${GOMPLATE_VER}/gomplate_linux-amd64 && \
     chmod 755 /usr/local/bin/gomplate
 
 # get the runtime
 ARG GH_TOKEN
-RUN BLS_RUNTIME_VER=v0.3.1 && \
+RUN BLS_RUNTIME_VER="v0.3.1" && \
     curl -o ./runtime.tar.gz -sSL https://github.com/blocklessnetwork/bls-runtime/releases/download/${BLS_RUNTIME_VER}/blockless-runtime.linux-latest.x86_64.tar.gz && \
     mkdir /app/runtime && \
     tar -xvkf ./runtime.tar.gz -C /app/runtime && \
