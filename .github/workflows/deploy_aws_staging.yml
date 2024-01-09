@@ -44,18 +44,18 @@ jobs:
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> "$GITHUB_OUTPUT"
 
-      - name: Fill in the new image ID in the Amazon ECS task definition
-        id: compute-node-task-def
-        uses: aws-actions/amazon-ecs-render-task-definition@v1
-        with:
-          task-definition: infra/staging-task-def.json
-          container-name: upshot-compute-node
-          image: ${{ steps.compute-node-build-image.outputs.image }}
+      # - name: Fill in the new image ID in the Amazon ECS task definition
+      #   id: compute-node-task-def
+      #   uses: aws-actions/amazon-ecs-render-task-definition@v1
+      #   with:
+      #     task-definition: infra/staging-task-def.json
+      #     container-name: upshot-compute-node
+      #     image: ${{ steps.compute-node-build-image.outputs.image }}
 
-      - name: upshot-compute-node - Deploy Amazon ECS task definition
-        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
-        with:
-          task-definition: ${{ steps.compute-node-task-def.outputs.task-definition }}
-          service: upshot-compute-node
-          cluster: upshot-backend-staging
-          # wait-for-service-stability: true
+      # - name: upshot-compute-node - Deploy Amazon ECS task definition
+      #   uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+      #   with:
+      #     task-definition: ${{ steps.compute-node-task-def.outputs.task-definition }}
+      #     service: upshot-compute-node
+      #     cluster: upshot-backend-staging
+      #     # wait-for-service-stability: true
