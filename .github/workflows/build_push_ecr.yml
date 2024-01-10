@@ -40,7 +40,11 @@ jobs:
           IMAGE_TAG: ${{ github.sha }}
         run: |
           # Build a docker container and push it to ECR so that it can be deployed to ECS.
-          docker build -f docker/Dockerfile --build-arg "GH_TOKEN=${{ secrets.GHCR_TOKEN }}" -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          # To build it with particular BLS_EXTENSION version pass --build-arg "BLS_EXTENSION_VER=RELEASE_NAME"
+          # If BLS_EXTENSION_VER is not passed will be built with the latest available version
+          docker build -f docker/Dockerfile \
+              --build-arg "GH_TOKEN=${{ secrets.GHCR_TOKEN }}" \
+              -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> "$GITHUB_OUTPUT"
 

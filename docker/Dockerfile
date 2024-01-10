@@ -22,9 +22,14 @@ RUN apt update && \
       curl \
       unzip \
       ca-certificates \
-      libssl-dev \
       gh && \
     rm -rf /var/cache/apt/*
+      # libssl-dev \  # - temporary use libssl 1.1 TODO: Should use fresher libssl
+
+# libssl 1.1
+RUN curl -o ./libssl.deb -sSL http://archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.0g-2ubuntu4_amd64.deb && \
+    dpkg -i ./libssl.deb && \
+    rm ./libssl.deb
 
 # gomplete for updating config with env vars
 RUN GOMPLATE_VER="v3.11.6" && \
@@ -32,21 +37,25 @@ RUN GOMPLATE_VER="v3.11.6" && \
     chmod 755 /usr/local/bin/gomplate
 
 # get the runtime
-ARG GH_TOKEN
-RUN BLS_RUNTIME_VER="v0.3.1" && \
-    curl -o ./runtime.tar.gz -sSL https://github.com/blocklessnetwork/bls-runtime/releases/download/${BLS_RUNTIME_VER}/blockless-runtime.linux-latest.x86_64.tar.gz && \
-    mkdir /app/runtime && \
-    tar -xvkf ./runtime.tar.gz -C /app/runtime && \
-    rm ./runtime.tar.gz
+RUN curl -o ./runtime.tar.gz -sSL https://github.com/blocklessnetwork/runtime/releases/download/v0.3.1/blockless-runtime.ubuntu-20.04.x86_64.tar.gz
+RUN mkdir /app/runtime && tar -xvkf ./runtime.tar.gz -C /app/runtime
+RUN python3 -m pip install --upgrade pip
 
 ARG GH_TOKEN
-# get the upshot-extension
-RUN BLS_EXTENSION_VER="dev.3" && \
-    gh release download \
-      --repo "upshot-tech/upshot-blockless-extension" \
-      --pattern '*linux-amd64.tar.gz' \
-      --output upshot-extension.tar.gz && \
-    mkdir /app/runtime/extensions && \
+ARG BLS_EXTENSION_VER
+# If BLS_EXTENSION_VER install the version else install latest
+RUN if [ -n $BLS_EXTENSION_VER]; then \
+      gh release download $BLS_EXTENSION_VER \
+        --repo "upshot-tech/upshot-blockless-extension" \
+        --pattern '*linux-amd64.tar.gz' \
+        --output upshot-extension.tar.gz; \
+    else \
+      gh release download $(gh release list --repo "upshot-tech/upshot-blockless-extension" | grep Latest | awk '{print($1)}') \
+        --repo "upshot-tech/upshot-blockless-extension" \
+        --pattern '*linux-amd64.tar.gz' \
+        --output upshot-extension.tar.gz; \
+    fi && \
+    mkdir -p /app/runtime/extensions && \
     tar -xvkf ./upshot-extension.tar.gz -C /app/runtime/extensions && \
     rm ./upshot-extension.tar.gz
 
