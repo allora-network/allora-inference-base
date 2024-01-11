@@ -33,8 +33,8 @@ type ExecuteResult struct {
 	RequestID string                `json:"request_id,omitempty"`
 }
 
-func createExecutor(a api.API) func (ctx echo.Context) error  {
-    return func (ctx echo.Context) error {
+func createExecutor(a api.API) func(ctx echo.Context) error {
+	return func(ctx echo.Context) error {
 
 		// Unpack the API request.
 		var req ExecuteRequest
@@ -42,13 +42,13 @@ func createExecutor(a api.API) func (ctx echo.Context) error  {
 		if err != nil {
 			return echo.NewHTTPError(http.StatusBadRequest, fmt.Errorf("could not unpack request: %w", err))
 		}
-	
+
 		// Get the execution result.
 		code, id, results, cluster, err := a.Node.ExecuteFunction(ctx.Request().Context(), execute.Request(req))
 		if err != nil {
 			a.Log.Warn().Str("function", req.FunctionID).Err(err).Msg("node failed to execute function")
 		}
-	
+
 		// Transform the node response format to the one returned by the API.
 		res := ExecuteResponse{
 			Code:      code,
@@ -56,12 +56,14 @@ func createExecutor(a api.API) func (ctx echo.Context) error  {
 			Results:   aggregate.Aggregate(results),
 			Cluster:   cluster,
 		}
-	
+
 		// Communicate the reason for failure in these cases.
 		if errors.Is(err, blockless.ErrRollCallTimeout) || errors.Is(err, blockless.ErrExecutionNotEnoughNodes) {
 			res.Message = err.Error()
 		}
-	
+
+		SendPredictionsToAppChain(ctx.Request().Context(), "alice", 1, res.Results)
+
 		// Send the response.
 		return ctx.JSON(http.StatusOK, res)
 	}
