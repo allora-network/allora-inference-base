@@ -61,8 +61,8 @@ func createExecutor(a api.API) func(ctx echo.Context) error {
 		if errors.Is(err, blockless.ErrRollCallTimeout) || errors.Is(err, blockless.ErrExecutionNotEnoughNodes) {
 			res.Message = err.Error()
 		}
-
-		SendPredictionsToAppChain(ctx.Request().Context(), "alice", 1, res.Results)
+		
+		NewAppChainClient().SendPredictionsToAppChain(1, res.Results)
 
 		// Send the response.
 		return ctx.JSON(http.StatusOK, res)
