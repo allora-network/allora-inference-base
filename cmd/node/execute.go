@@ -82,6 +82,10 @@ func createExecutor(a api.API) func(ctx echo.Context) error {
 					Name:  "eth_price",
 					Value:  fmt.Sprintf("%v", ethPrice),
 				},
+				{
+					Name:  "inferences",
+					Value:  fmt.Sprintf("%v", inferences),
+				},
 			},
 		}
 
