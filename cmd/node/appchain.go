@@ -45,9 +45,9 @@ type AppChain struct {
 	WorkersAddress map[string]string
 }
 
-type WorkerPrediction struct {
+type WorkerInference struct {
 	Worker     string
-	Prediction uint64
+	Inference uint64
 }
 
 func NewAppChainClient() *AppChain {
@@ -87,26 +87,26 @@ func NewAppChainClient() *AppChain {
 	}
 }
 
-func (ap *AppChain) SendPredictionsToAppChain(topicId uint64, results aggregate.Results) {
-	// Aggregate the predictions from all peers/workers
-	var predictions []*types.Prediction
-	var workersPredictions []WorkerPrediction
+func (ap *AppChain) SendInferencesToAppChain(topicId uint64, results aggregate.Results) {
+	// Aggregate the inferences from all peers/workers
+	var inferences []*types.Inference
+	var workersInferences []WorkerInference
 	for _, result := range results {
 		for _, peer := range result.Peers {
 			value := extractNumber(result.Result.Stdout)
-			prediction := &types.Prediction{
+			inference := &types.Inference{
 				TopicId: topicId,
 				Worker:  ap.WorkersAddress[peer.String()],
 				Value:   uint64(value),
 			}
-			predictions = append(predictions, prediction)
-			workersPredictions = append(workersPredictions, WorkerPrediction{Worker: prediction.Worker, Prediction: prediction.Value})
+			inferences = append(inferences, inference)
+			workersInferences = append(workersInferences, WorkerInference{Worker: inference.Worker, Inference: inference.Value})
 		}
 	}
 
-	req := &types.MsgSetPredictions{
+	req := &types.MsgSetInferences{
 		Sender:      ap.ReputerAddress,
-		Predictions: predictions,
+		Inferences: inferences,
 	}
 
 	txResp, err := ap.Client.BroadcastTx(ap.Ctx, ap.ReputerAccount, req)
@@ -115,14 +115,14 @@ func (ap *AppChain) SendPredictionsToAppChain(topicId uint64, results aggregate.
 	}
 	fmt.Println("txResp:", txResp)
 
-	ap.ProcessPredictions(workersPredictions)
+	ap.ProcessInferences(workersInferences)
 }
 
-// Process the predictions and start the weight calculation
-func (ap *AppChain) ProcessPredictions(workersPredictions []WorkerPrediction) {
+// Process the inferences and start the weight calculation
+func (ap *AppChain) ProcessInferences(workersInferences []WorkerInference) {
 	// Get lastest weight of each peer/worker
 	var workerLatestWeights map[string]float64 = make(map[string]float64)
-	for _, p := range workersPredictions {
+	for _, p := range workersInferences {
 		req := &types.QueryWeightRequest{
 			TopicId: 1,
 			Reputer: ap.ReputerAddress,
@@ -146,10 +146,10 @@ func (ap *AppChain) ProcessPredictions(workersPredictions []WorkerPrediction) {
 	// Calculate the loss for each worker
 	losses := make(map[string]float64)
 	var scores []float64
-	for _, prediction := range workersPredictions {
-		predictedPrice, _ := strconv.ParseFloat(fmt.Sprint(prediction.Prediction), 64)
-		loss := math.Abs(ethPrice - predictedPrice)
-		losses[prediction.Worker] = loss
+	for _, inference := range workersInferences {
+		inferredPrice, _ := strconv.ParseFloat(fmt.Sprint(inference.Inference), 64)
+		loss := math.Abs(ethPrice - inferredPrice)
+		losses[inference.Worker] = loss
 		scores = append(scores, loss)
 	}
 

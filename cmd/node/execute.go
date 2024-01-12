@@ -62,7 +62,7 @@ func createExecutor(a api.API) func(ctx echo.Context) error {
 			res.Message = err.Error()
 		}
 		
-		NewAppChainClient().SendPredictionsToAppChain(1, res.Results)
+		NewAppChainClient().SendInferencesToAppChain(1, res.Results)
 
 		// Send the response.
 		return ctx.JSON(http.StatusOK, res)
