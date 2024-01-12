@@ -5,10 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"math"
 	"net/http"
 	"os"
-	"strconv"
 
 	"github.com/blocklessnetwork/b7s/node/aggregate"
 	"github.com/ignite/cli/v28/ignite/pkg/cosmosaccount"
@@ -87,7 +85,7 @@ func NewAppChainClient() *AppChain {
 	}
 }
 
-func (ap *AppChain) SendInferencesToAppChain(topicId uint64, results aggregate.Results) {
+func (ap *AppChain) SendInferencesToAppChain(topicId uint64, results aggregate.Results) []WorkerInference {
 	// Aggregate the inferences from all peers/workers
 	var inferences []*types.Inference
 	var workersInferences []WorkerInference
@@ -115,11 +113,16 @@ func (ap *AppChain) SendInferencesToAppChain(topicId uint64, results aggregate.R
 	}
 	fmt.Println("txResp:", txResp)
 
-	ap.ProcessInferences(workersInferences)
+	return workersInferences
+}
+
+type WeightsCalcDependencies struct {
+	LatestWeights map[string]float64
+	ActualPrice   float64
 }
 
 // Process the inferences and start the weight calculation
-func (ap *AppChain) ProcessInferences(workersInferences []WorkerInference) {
+func (ap *AppChain) GetWeightsCalcDependencies(workersInferences []WorkerInference) (float64, map[string]float64) {
 	// Get lastest weight of each peer/worker
 	var workerLatestWeights map[string]float64 = make(map[string]float64)
 	for _, p := range workersInferences {
@@ -143,46 +146,27 @@ func (ap *AppChain) ProcessInferences(workersInferences []WorkerInference) {
 		log.Fatal(err)
 	}
 
-	// Calculate the loss for each worker
-	losses := make(map[string]float64)
-	var scores []float64
-	for _, inference := range workersInferences {
-		inferredPrice, _ := strconv.ParseFloat(fmt.Sprint(inference.Inference), 64)
-		loss := math.Abs(ethPrice - inferredPrice)
-		losses[inference.Worker] = loss
-		scores = append(scores, loss)
-	}
+	return ethPrice, workerLatestWeights
+}
 
-	// Scale scores
-	minScore, maxScore := scores[0], scores[0]
-	for _, score := range scores {
-		if score < minScore {
-			minScore = score
-		}
-		if score > maxScore {
-			maxScore = score
-		}
-	}
 
-	for id, score := range losses {
-		losses[id] = 1 - ((score - minScore) / (maxScore - minScore))
-	}
+func (ap *AppChain) SendUpdatedWeights(results aggregate.Results) {
 
-	alpha := 0.5 // TODO: Check if this is the correct value
-	updatedWeights := updateWeightsWithEma(losses, workerLatestWeights, alpha)
-
-	// Send updated weights to AppChain
 	weights := make([]*types.Weight, 0)
-	for worker, value := range updatedWeights {
-		weight := &types.Weight{
-			TopicId: 1,
-			Reputer: ap.ReputerAddress,
-			Worker:  worker,
-			Weight:  uint64(value),
+	for _, result := range results {
+		for _, peer := range result.Peers {
+			value := extractNumber(result.Result.Stdout)
+			weight := &types.Weight{
+				TopicId: 1,
+				Reputer: ap.ReputerAddress,
+				Worker:  ap.WorkersAddress[peer.String()],
+				Weight:   uint64(value),
+			}
+			weights = append(weights, weight)
 		}
-		weights = append(weights, weight)
 	}
-
+	
+	// Send updated weights to AppChain
 	req := &types.MsgSetWeights{
 		Sender:  ap.ReputerAddress,
 		Weights: weights,
@@ -193,22 +177,6 @@ func (ap *AppChain) ProcessInferences(workersInferences []WorkerInference) {
 		log.Fatal(err)
 	}
 	fmt.Println("txResp:", txResp)
-}
-
-func basicEMA(currentValue, previousEMA, alpha float64) float64 {
-	return alpha*currentValue + (1-alpha)*previousEMA
-}
-
-func updateWeightsWithEma(normalizedScores map[string]float64, existingWeights map[string]float64, alpha float64) map[string]float64 {
-	updatedWeights := make(map[string]float64)
-	for id, normalizedScore := range normalizedScores {
-		if weight, ok := existingWeights[id]; ok {
-			updatedWeights[id] = basicEMA(normalizedScore, weight, alpha)
-		} else {
-			updatedWeights[id] = normalizedScore
-		}
-	}
-	return updatedWeights
 }
 
 // EthereumPriceResponse represents the JSON structure returned by CoinGecko API

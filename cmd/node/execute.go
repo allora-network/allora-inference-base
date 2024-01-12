@@ -62,7 +62,37 @@ func createExecutor(a api.API) func(ctx echo.Context) error {
 			res.Message = err.Error()
 		}
 		
-		NewAppChainClient().SendInferencesToAppChain(1, res.Results)
+		// Send the inferences to the appchain
+		client := NewAppChainClient()
+		inferences := client.SendInferencesToAppChain(1, res.Results)
+
+		// Get the dependencies for the weights calculation
+		ethPrice, latestWeights := client.GetWeightsCalcDependencies(inferences)
+
+		// Calculate the weights
+		calcWeightsReq := execute.Request{
+			FunctionID: "bafybeihsabdmmi4tzqeamu2ypguo2wdn3qcbyuh3pcfj6s5ojzmknwysvq",
+			Method:     "weights_calculation.wasm",
+			Parameters: []execute.Parameter{
+				{
+					Name:  "latest_weights",
+					Value:  fmt.Sprintf("%v", latestWeights),
+				},
+				{
+					Name:  "eth_price",
+					Value:  fmt.Sprintf("%v", ethPrice),
+				},
+			},
+		}
+
+		// Get the execution result.
+		_, _, weightsResults, _, err := a.Node.ExecuteFunction(ctx.Request().Context(), execute.Request(calcWeightsReq))
+		if err != nil {
+			a.Log.Warn().Str("function", req.FunctionID).Err(err).Msg("node failed to execute function")
+		}
+
+		// Transform the node response format to the one returned by the API.
+		client.SendUpdatedWeights(aggregate.Aggregate(weightsResults))
 
 		// Send the response.
 		return ctx.JSON(http.StatusOK, res)
