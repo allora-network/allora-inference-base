@@ -268,7 +268,10 @@ require (
 	golang.org/x/text v0.14.0 // indirect
 )
 
-replace github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
+replace (
+	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
+	github.com/libp2p/go-libp2p-raft => ../go-libp2p-raft
+)
 
 replace github.com/libp2p/go-libp2p-raft => ./go-libp2p-raft
 
