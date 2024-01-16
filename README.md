@@ -4,17 +4,6 @@ This node allows model providers to participate providing inferences to the Upsh
 
 # Build locally
 
-
-***WARNING***
-
-This repo is currently relying on a replaced lib-p2p module.
-
-Clone the following repo as a sibling to this
-
-```bash
-git clone https://github.com/dmikey/go-libp2p-raft
-```
-
 Then to build
 
 ```
