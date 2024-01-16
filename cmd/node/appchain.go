@@ -171,7 +171,7 @@ func (ap *AppChain) GetWeightsCalcDependencies(workersInferences []WorkerInferen
 			}
 		}
 
-		workerLatestWeights[p.Worker] = float64(weight.Amount) / 100000.0
+		workerLatestWeights[p.Worker] = float64(weight.Amount) / 100000.0 // TODO: Change
 	}
 
 	// Get actual ETH price
@@ -261,7 +261,7 @@ func parseFloatToUint64Weights(input string) (uint64, error) {
 	}
 
 	// Truncate or round the floating-point number to an integer
-	roundedValue := uint64(floatValue * 100000)
+	roundedValue := uint64(floatValue * 100000)// TODO: Change
 
 	return roundedValue, nil
 }
