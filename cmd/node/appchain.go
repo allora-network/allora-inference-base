@@ -210,27 +210,6 @@ func (ap *AppChain) SendUpdatedWeights(results aggregate.Results) {
 		}
 	}
 
-	// for _, peer := range result.Peers {
-	// 	fmt.Println("Peer: ", peer)
-	// 	value, err := extractNumber(result.Result.Stdout)
-	// 	if err != nil || value == "" {
-	// 		fmt.Println("Error extracting number from stdout: ", err, result.Result.Stdout)
-	// 		value = "0"
-	// 	}
-	// 	parsed, err := parseFloatToUint64(value)
-	// 	if err != nil {
-	// 		fmt.Println("Error parsing uint: ", err)
-	// 	}
-	// 	weight := &types.Weight{
-	// 		TopicId: 1,
-	// 		Reputer: ap.ReputerAddress,
-	// 		Worker:  "upt16ar7k93c6razqcuvxdauzdlaz352sfjp2rpj3i",
-	// 		Weight:  parsed,
-	// 	}
-	// 	weights = append(weights, weight)
-	// }
-	// }
-
 	// Send updated weights to AppChain
 	req := &types.MsgSetWeights{
 		Sender:  ap.ReputerAddress,
@@ -301,14 +280,6 @@ func parseFloatToUint64(input string) (uint64, error) {
 }
 
 func extractNumber(stdout string) (string, error) {
-	fmt.Println("Extracting number from stdout: ", stdout)
-	// Unquote the escaped JSON string
-	// unquotedJSON, err := strconv.Unquote(stdout)
-	// if err != nil {
-	// 	fmt.Println("Error unquoting JSON string: ", err)
-	// 	return "", err
-	// }
-
 	// Parse the unquoted JSON string
 	var response Response
 	err := json.Unmarshal([]byte(stdout), &response)
