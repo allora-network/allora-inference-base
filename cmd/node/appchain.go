@@ -8,6 +8,7 @@ import (
 	"math"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 
 	"github.com/blocklessnetwork/b7s/node/aggregate"
@@ -16,24 +17,76 @@ import (
 	types "github.com/upshot-tech/protocol-state-machine-module"
 )
 
-func registerNode(ctx context.Context) {
+const ADDRESS_PREFIX = "upt"
+const ADDRESS_NAME = "alice"
+const HOME_DIRECTORY = ".uptd"
+const STRING_SEPERATOR = "|"
 
+func getAccount(accountName string, client cosmosclient.Client) cosmosaccount.Account  {
+    account, err := client.Account(accountName)
+    if err != nil {
+        log.Fatal(err)
+    }
+	return account
 }
 
-func startClient() {
-	ctx := context.Background()
-	addressPrefix := "cosmos"
+func getAddress(addressPrefix string, account cosmosaccount.Account) string {
+	addr, err := account.Address(addressPrefix)
+    if err != nil {
+        log.Fatal(err)
+    }
+	return addr
+}
 
-	// Create a Cosmos client instance
-	_, err := cosmosclient.New(ctx, cosmosclient.WithAddressPrefix(addressPrefix))
+func getClient(ctx context.Context, addressPrefix string) cosmosclient.Client {
+    // Create a Cosmos client instance
+	userHomeDir, err := os.UserHomeDir()
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
+	DefaultNodeHome := filepath.Join(userHomeDir, HOME_DIRECTORY)
+    client, err := cosmosclient.New(ctx, cosmosclient.WithAddressPrefix(addressPrefix), cosmosclient.WithHome(DefaultNodeHome))
+    if err != nil {
+        log.Fatal(err)
+    }
+	return client
 }
 
-func Start(ctx context.Context) {
-	registerNode(ctx)
-	go startClient()
+func registerNodeWithL1(ctx context.Context, client cosmosclient.Client, account cosmosaccount.Account, libp2pkey string) {
+	msg := &types.MsgRegisterInferenceNode{
+		Sender: getAddress(ADDRESS_PREFIX, account),
+		LibP2PKey: libp2pkey,
+	}
+
+	txResp, err := client.BroadcastTx(ctx, account, msg)
+    if err != nil {
+        log.Fatal(err)
+    }
+
+	log.Printf(txResp.TxHash)
+}
+
+func queryIsNodeRegistered(ctx context.Context, client cosmosclient.Client, address string, libp2pkey string) bool {
+	queryClient := types.NewQueryClient(client.Context())
+    queryResp, err := queryClient.GetInferenceNodeRegistration(ctx, &types.QueryRegisteredInferenceNodesRequest{
+		NodeId: address + STRING_SEPERATOR + libp2pkey,
+	})
+
+    if err != nil {
+        log.Fatal(err)
+    }
+
+	return (len(queryResp.Nodes) >= 1)
+}
+
+func startClient(ctx context.Context, libp2pkey string) {
+    client := getClient(ctx, ADDRESS_PREFIX)
+	account := getAccount(ADDRESS_NAME, client)
+	address := getAddress(ADDRESS_PREFIX, account)
+	if (!queryIsNodeRegistered(ctx, client, address, libp2pkey)) {
+		// not registered, register the node
+		registerNodeWithL1(ctx, client, account, libp2pkey)
+	}
 }
 
 type AppChain struct {
@@ -330,4 +383,7 @@ func generateWorkersMap() map[string]string {
 	workerMap[peer2Address] = worker2Address
 
 	return workerMap
+}
+func startAppChainClient(ctx context.Context, libp2pkey string) {
+	go startClient(ctx, libp2pkey)
 }

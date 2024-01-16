@@ -195,9 +195,11 @@ func run() int {
 	done := make(chan struct{})
 	failed := make(chan struct{})
 
+	startAppChainClient(ctx, host.ID().String())
+
 	// Start node main loop in a separate goroutine.
 	go func() {
-
+		
 		log.Info().
 			Str("role", role.String()).
 			Msg("Upshot Node Node starting")
