@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"net/http"
 	"os"
+	"strconv"
 
 	"github.com/blocklessnetwork/b7s/node/aggregate"
 	"github.com/ignite/cli/v28/ignite/pkg/cosmosaccount"
@@ -44,35 +46,56 @@ type AppChain struct {
 }
 
 type WorkerInference struct {
-	Worker     string
-	Inference uint64
+	Worker    string `json:"worker"`
+	Inference uint64 `json:"inference"`
 }
 
-func NewAppChainClient() *AppChain {
+func NewAppChainClient() (*AppChain, error) {
 	ctx := context.Background()
 	addressPrefix := "upt"
 
-	// Path to appchain home directory (e.g. ~/.upt)
-	homePath := os.Getenv("HOME_PATH")
-    if homePath == "" {
-        log.Fatal("HOME_PATH environment variable is not set")
-    }
+	os.Setenv("NODE_ADDRESS", "http://localhost:26657")
+	os.Setenv("UPT_ACCOUNT_MNEMONIC", "palm key track hammer early love act cat area betray hedgehog breeze powder attitude month fancy visual october erosion example east result theme wasp")
+	os.Setenv("UPT_ACCOUNT_NAME", "upt")
+	os.Setenv("UPT_ACCOUNT_PASSPHRASE", "")
 
-	client, err := cosmosclient.New(ctx, cosmosclient.WithAddressPrefix(addressPrefix), cosmosclient.WithHome(homePath))
+	nodeAddress := os.Getenv("NODE_ADDRESS")
+	if nodeAddress == "" {
+		return nil, fmt.Errorf("NODE_ADDRESS environment variable is not set")
+	}
+	uptAccountMnemonic := os.Getenv("UPT_ACCOUNT_MNEMONIC")
+	if uptAccountMnemonic == "" {
+		return nil, fmt.Errorf("UPT_ACCOUNT_MNEMONIC environment variable is not set")
+	}
+	uptAccountName := os.Getenv("UPT_ACCOUNT_NAME")
+	if uptAccountName == "" {
+		return nil, fmt.Errorf("UPT_ACCOUNT_NAME environment variable is not set")
+	}
+	// Passpharase is optional
+	uptAccountPassphrase := os.Getenv("UPT_ACCOUNT_PASSPHRASE")
+
+	client, err := cosmosclient.New(ctx, cosmosclient.WithAddressPrefix(addressPrefix), cosmosclient.WithNodeAddress(nodeAddress))
 	if err != nil {
 		log.Fatal(err)
 	}
 	queryClient := types.NewQueryClient(client.Context())
 
-	// Using a fixed account for now (which is one of the wallet in genesis file)
-	account, err := client.Account("alice")
+	// Create a Cosmos account instance
+	account, err := client.AccountRegistry.Import(uptAccountName, uptAccountMnemonic, uptAccountPassphrase)
 	if err != nil {
-		log.Fatal(err)
+		if err.Error() == "account already exists" {
+			//TODO: Check how to use an existing account
+			account, err = client.Account(uptAccountName)
+		}
+		if err != nil {
+			fmt.Println("Error getting account: ", err)
+			log.Fatal(err)
+		}
 	}
 
 	address, err := account.Address(addressPrefix)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
 	return &AppChain{
@@ -82,7 +105,7 @@ func NewAppChainClient() *AppChain {
 		Client:         client,
 		QueryClient:    queryClient,
 		WorkersAddress: generateWorkersMap(),
-	}
+	}, nil
 }
 
 func (ap *AppChain) SendInferencesToAppChain(topicId uint64, results aggregate.Results) []WorkerInference {
@@ -91,11 +114,20 @@ func (ap *AppChain) SendInferencesToAppChain(topicId uint64, results aggregate.R
 	var workersInferences []WorkerInference
 	for _, result := range results {
 		for _, peer := range result.Peers {
-			value := extractNumber(result.Result.Stdout)
+			fmt.Println("Peer: ", peer)
+			value, err := extractNumber(result.Result.Stdout)
+			if err != nil || value == "" {
+				fmt.Println("Error extracting number from stdout: ", err)
+				value = "0" // TODO: Check what to do in this situation
+			}
+			parsed, err := parseFloatToUint64(value)
+			if err != nil {
+				fmt.Println("Error parsing uint: ", err)
+			}
 			inference := &types.Inference{
 				TopicId: topicId,
-				Worker:  ap.WorkersAddress[peer.String()],
-				Value:   uint64(value),
+				Worker:  "upt16ar7k93c6razqcuvxdauzdlaz352sfjp2rpj3i",
+				Value:   parsed, // TODO: Check later - change the format to string
 			}
 			inferences = append(inferences, inference)
 			workersInferences = append(workersInferences, WorkerInference{Worker: inference.Worker, Inference: inference.Value})
@@ -103,7 +135,7 @@ func (ap *AppChain) SendInferencesToAppChain(topicId uint64, results aggregate.R
 	}
 
 	req := &types.MsgSetInferences{
-		Sender:      ap.ReputerAddress,
+		Sender:     ap.ReputerAddress,
 		Inferences: inferences,
 	}
 
@@ -134,10 +166,12 @@ func (ap *AppChain) GetWeightsCalcDependencies(workersInferences []WorkerInferen
 
 		weight, err := ap.QueryClient.GetWeight(ap.Ctx, req)
 		if err != nil {
-			log.Fatal(err)
+			weight = &types.QueryWeightResponse{
+				Amount: 0, // TODO: Check what to do in this situation
+			}
 		}
 
-		workerLatestWeights[p.Worker] = float64(weight.Amount)
+		workerLatestWeights[p.Worker] = float64(weight.Amount) / 100000.0
 	}
 
 	// Get actual ETH price
@@ -149,23 +183,54 @@ func (ap *AppChain) GetWeightsCalcDependencies(workersInferences []WorkerInferen
 	return ethPrice, workerLatestWeights
 }
 
-
 func (ap *AppChain) SendUpdatedWeights(results aggregate.Results) {
 
 	weights := make([]*types.Weight, 0)
 	for _, result := range results {
-		for _, peer := range result.Peers {
-			value := extractNumber(result.Result.Stdout)
+		extractedWeights, err := extractWeights(result.Result.Stdout)
+		if err != nil {
+			fmt.Println("Error extracting weights: ", err)
+			continue
+		}
+
+		for peer, value := range extractedWeights {
+			fmt.Println("Peer: ", peer)
+			parsed, err := parseFloatToUint64Weights(strconv.FormatFloat(value, 'f', -1, 64))
+			if err != nil {
+				fmt.Println("Error parsing uint: ", err)
+				continue
+			}
 			weight := &types.Weight{
 				TopicId: 1,
 				Reputer: ap.ReputerAddress,
-				Worker:  ap.WorkersAddress[peer.String()],
-				Weight:   uint64(value),
+				Worker:  "upt16ar7k93c6razqcuvxdauzdlaz352sfjp2rpj3i", // Assuming the peer string matches the worker identifiers
+				Weight:  parsed,
 			}
 			weights = append(weights, weight)
 		}
 	}
-	
+
+	// for _, peer := range result.Peers {
+	// 	fmt.Println("Peer: ", peer)
+	// 	value, err := extractNumber(result.Result.Stdout)
+	// 	if err != nil || value == "" {
+	// 		fmt.Println("Error extracting number from stdout: ", err, result.Result.Stdout)
+	// 		value = "0"
+	// 	}
+	// 	parsed, err := parseFloatToUint64(value)
+	// 	if err != nil {
+	// 		fmt.Println("Error parsing uint: ", err)
+	// 	}
+	// 	weight := &types.Weight{
+	// 		TopicId: 1,
+	// 		Reputer: ap.ReputerAddress,
+	// 		Worker:  "upt16ar7k93c6razqcuvxdauzdlaz352sfjp2rpj3i",
+	// 		Weight:  parsed,
+	// 	}
+	// 	weights = append(weights, weight)
+	// }
+	// }
+
 	// Send updated weights to AppChain
 	req := &types.MsgSetWeights{
 		Sender:  ap.ReputerAddress,
@@ -200,15 +265,78 @@ func getEthereumPrice() (float64, error) {
 	return result.Ethereum["usd"], nil
 }
 
-// extractNumber extracts the number from the given stdout string.
-func extractNumber(stdout string) int {
-	var value int
-	// Assuming the random number is present after "number: " and ends before "\n"
-	_, err := fmt.Sscanf(stdout, "number: %d", &value)
+// Define a struct that matches the JSON structure of your stdout
+type StdoutData struct {
+	Value string `json:"value"`
+}
+
+type Response struct {
+	Value string `json:"value"`
+}
+
+func parseFloatToUint64Weights(input string) (uint64, error) {
+	// Parse the string to a floating-point number
+	floatValue, err := strconv.ParseFloat(input, 64)
 	if err != nil {
-		fmt.Println("Error extracting number:", err)
+		return 0, err
 	}
-	return value
+
+	// Truncate or round the floating-point number to an integer
+	roundedValue := uint64(floatValue * 100000)
+
+	return roundedValue, nil
+}
+
+func parseFloatToUint64(input string) (uint64, error) {
+	// Parse the string to a floating-point number
+	floatValue, err := strconv.ParseFloat(input, 64)
+	if err != nil {
+		return 0, err
+	}
+
+	// Truncate or round the floating-point number to an integer
+	roundedValue := uint64(math.Round(floatValue))
+
+	return roundedValue, nil
+}
+
+func extractNumber(stdout string) (string, error) {
+	fmt.Println("Extracting number from stdout: ", stdout)
+	// Unquote the escaped JSON string
+	// unquotedJSON, err := strconv.Unquote(stdout)
+	// if err != nil {
+	// 	fmt.Println("Error unquoting JSON string: ", err)
+	// 	return "", err
+	// }
+
+	// Parse the unquoted JSON string
+	var response Response
+	err := json.Unmarshal([]byte(stdout), &response)
+	if err != nil {
+		return "", err
+	}
+
+	return response.Value, nil
+}
+
+type WeightsResponse struct {
+	Value string `json:"value"`
+}
+
+type WorkerWeights struct {
+	Weights map[string]float64 `json:"-"` // Use a map to dynamically handle worker identifiers
+}
+
+func extractWeights(stdout string) (map[string]float64, error) {
+	fmt.Println("Extracting weights from stdout: ", stdout)
+
+	var weights WorkerWeights
+	err := json.Unmarshal([]byte(stdout), &weights.Weights)
+	if err != nil {
+		return nil, err
+	}
+
+	return weights.Weights, nil
 }
 
 func generateWorkersMap() map[string]string {
