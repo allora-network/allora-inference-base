@@ -5,17 +5,16 @@ name: Build and Push docker image to ECR
 on:
   push:
     branches:
-      - staging
-      - vlad/ora-190-ensure-all-repos-are-deployable-on-aws-cloud-with-a-merge
+      - main
+  pull_request:
 
 concurrency:
-  group: ${{ github.ref  }}
+  group: ${{ github.ref }}
   cancel-in-progress: true
 jobs:
-  deploy-staging:
+  build-push:
     name: Build and Push docker image
     runs-on: ubuntu-latest
-    environment: staging
 
     steps:
       - name: Checkout
@@ -33,22 +32,28 @@ jobs:
         uses: aws-actions/amazon-ecr-login@v1
 
       - name: Build, tag, and push image to Amazon ECR
-        id: compute-node-build-image
+        id: build-push-image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: upshot-compute-node-staging
-          IMAGE_TAG: ${{ github.sha }}
+          ECR_REPOSITORY: ${{github.event.repository.name}}       # Naming convention: ECR registry name == GITHUB repo name
+          MAIN_BRANCH: main                                       # Images from this branch will be tagged as "latest"
         run: |
+          IMAGE_TAG="${GITHUB_SHA:0:8}"
+          EXTRA_IMAGE_TAGS="dev-latest"
+
+          #! Add latest tag only if on MAIN_BRANCH branch
+          if [[ ${GITHUB_REF} == "refs/heads/${MAIN_BRANCH}" ]]; then
+            EXTRA_IMAGE_TAGS="${EXTRA_IMAGE_TAGS};latest"
+          fi
+
           # Build a docker container and push it to ECR so that it can be deployed to ECS.
-          # To build it with particular BLS_EXTENSION version pass --build-arg "BLS_EXTENSION_VER=RELEASE_NAME"
-          # If BLS_EXTENSION_VER is not passed will be built with the latest available version
           docker build -f docker/Dockerfile \
               --build-arg "GH_TOKEN=${{ secrets.GHCR_TOKEN }}" \
               -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> "$GITHUB_OUTPUT"
 
-          # Tag and push with latest
-          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
-
+          # Build and PUSH additional tags
+          for tag in $(echo $EXTRA_IMAGE_TAGS| tr ";" "\n"); do
+            docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:$tag
+            docker push $ECR_REGISTRY/$ECR_REPOSITORY:$tag
+          done
