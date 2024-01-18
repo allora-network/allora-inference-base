@@ -26,8 +26,10 @@ Then to build
 
 ```
 GOOS=linux GOARCH=amd64 make
-docker build -f docker/Dockerfile -t upshot:dev --build-arg "ghcr_token=${YOU_GH_TOKEN}" . 
+docker build -f docker/Dockerfile -t upshot:dev --build-arg "GH_TOKEN=${YOUR_GH_TOKEN}" --build-arg "BLS_EXTENSION_VER=${BLS_UPSHOT_EXTENSION_VERSION}" . 
 ```
+
+where `YOUR_GH_TOKEN` is you Github token, and optionally `BLS_EXTENSION_VER` is the release version of the [Upshot blockless extension](https://github.com/upshot-tech/upshot-blockless-extension) to use (will use latest if not set).
 
 # Debugging Locally Using VSCode.
 
