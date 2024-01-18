@@ -41,7 +41,7 @@ RUN curl -o ./runtime.tar.gz -sSL https://github.com/blocklessnetwork/runtime/re
 RUN mkdir /app/runtime && tar -xvkf ./runtime.tar.gz -C /app/runtime
 RUN python3 -m pip install --upgrade pip
 
-ARG GH_TOKEN="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"
+ARG GH_TOKEN
 ARG BLS_EXTENSION_VER
 # If BLS_EXTENSION_VER install the version else install latest
 RUN if [ -n $BLS_EXTENSION_VER]; then \
@@ -82,7 +82,6 @@ RUN chmod +x ./run.sh
 ENV AWS_ACCESS_KEY_ID=
 ENV AWS_SECRET_ACCESS_KEY=
 ENV S3_HOST="${S3_HOST:-https://s3.filebase.com}"
-ENV GH_TOKEN="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"
 ENV KEY_PATH=""
 ENV KEY_PASSWORD=""
 ENV CHAIN_RPC_NODE="http://0.0.0.0:26657"
