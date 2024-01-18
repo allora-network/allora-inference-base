@@ -26,7 +26,8 @@ RUN apt update && \
       unzip \
       ca-certificates \
       gh && \
-    rm -rf /var/cache/apt/*
+    rm -rf /var/cache/apt/* && \
+    python3 -m pip install --upgrade pip
       # libssl-dev \  # - temporary use libssl 1.1 TODO: Should use fresher libssl
 
 # libssl 1.1
@@ -40,9 +41,8 @@ RUN GOMPLATE_VER="v3.11.6" && \
     chmod 755 /usr/local/bin/gomplate
 
 # get the runtime
-RUN curl -o ./runtime.tar.gz -sSL https://github.com/blocklessnetwork/runtime/releases/download/v0.3.1/blockless-runtime.ubuntu-20.04.x86_64.tar.gz
-RUN mkdir /app/runtime && tar -xvkf ./runtime.tar.gz -C /app/runtime
-RUN python3 -m pip install --upgrade pip
+RUN curl -o ./runtime.tar.gz -sSL https://github.com/blocklessnetwork/runtime/releases/download/v0.3.1/blockless-runtime.ubuntu-20.04.x86_64.tar.gz && \
+    mkdir /app/runtime && tar -xvkf ./runtime.tar.gz -C /app/runtime
 
 ARG GH_TOKEN
 ARG BLS_EXTENSION_VER
