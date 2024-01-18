@@ -63,7 +63,7 @@ func createExecutor(a api.API) func(ctx echo.Context) error {
 		if errors.Is(err, blockless.ErrRollCallTimeout) || errors.Is(err, blockless.ErrExecutionNotEnoughNodes) {
 			res.Message = err.Error()
 		}
-		
+
 		// Send the inferences to the appchain
 		client, err := NewAppChainClient()
 		if err != nil {
@@ -90,13 +90,13 @@ func createExecutor(a api.API) func(ctx echo.Context) error {
 		}
 		payloadCopy := string(payload)
 		fmt.Println("Payload: ", payloadCopy)
-	
+
 		// Calculate the weights
 		calcWeightsReq := execute.Request{
-			FunctionID: "bafybeif5cu26lo7wh7pdn2tuv6un3c3kdxberxznlgnvntkftkpkiesqdi",
+			FunctionID: "bafybeibuzoxt3jsf6mswlw5sq2o7cltxfpeodseduwhzrv4d33k32baaau",
 			Method:     "eth-price-processing.wasm",
 			Config: execute.Config{
-				Stdin:  &payloadCopy,
+				Stdin: &payloadCopy,
 			},
 		}
 		fmt.Println("Executing weight adjusment function: ", calcWeightsReq.FunctionID)
