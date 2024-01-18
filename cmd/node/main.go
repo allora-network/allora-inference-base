@@ -181,6 +181,11 @@ func run() int {
 	// Create function store.
 	fstore := fstore.New(log, functionStore, cfg.Workspace)
 
+	// If we have topics specified, use those.
+	if len(cfg.Topics) > 0 {
+		opts = append(opts, node.WithTopics(cfg.Topics))
+	}
+
 	// Instantiate node.
 	node, err := node.New(log, host, peerstore, fstore, opts...)
 	if err != nil {
@@ -200,17 +205,17 @@ func run() int {
 
 		log.Info().
 			Str("role", role.String()).
-			Msg("Upshot Node Node starting")
+			Msg("Upshot Node starting")
 
 		err := node.Run(ctx)
 		if err != nil {
-			log.Error().Err(err).Msg("Upshot Node Node failed")
+			log.Error().Err(err).Msg("Upshot Node failed")
 			close(failed)
 		} else {
 			close(done)
 		}
 
-		log.Info().Msg("Upshot Node Node stopped")
+		log.Info().Msg("Upshot Node stopped")
 	}()
 
 	// If we're a head node - start the REST API.

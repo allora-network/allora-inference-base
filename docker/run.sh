@@ -80,8 +80,13 @@ if [ -n "$BOOT_NODES" ]; then
   bootnode_args="--boot-nodes $BOOT_NODES"
 fi
 
+topic_args=""
+if [ -n "$TOPICS" ]; then
+  topic_args="--topic $TOPICS"
+fi
+
 if [ "$NODE_ROLE" = "head" ]; then
   ./upshot-node --peer-db /var/tmp/upshot/peerdb --function-db /var/tmp/upshot/function-db --log-level debug --port $P2P_PORT --role head --workspace $WORKSPACE_ROOT --private-key $NODE_KEY_PATH --rest-api :$REST_API $dialback_args $bootnode_args
 else
-  ./upshot-node --peer-db ./peer-database --function-db ./function-database--log-level debug --port $P2P_PORT --role worker --runtime-path /app/runtime --runtime-cli bls-runtime --workspace $WORKSPACE_ROOT --private-key $NODE_KEY_PATH $dialback_args $bootnode_args 
+  ./upshot-node --peer-db ./peer-database --function-db ./function-database --log-level debug --port $P2P_PORT --role worker --runtime-path /app/runtime --runtime-cli bls-runtime --workspace $WORKSPACE_ROOT --private-key $NODE_KEY_PATH $dialback_args $bootnode_args $topic_args
 fi

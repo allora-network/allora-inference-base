@@ -255,7 +255,7 @@ require (
 )
 
 require (
-	github.com/blocklessnetwork/b7s v0.4.5
+	github.com/blocklessnetwork/b7s v0.4.6-0.20240112135439-7ed12207f6af
 	github.com/labstack/gommon v0.4.2 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
