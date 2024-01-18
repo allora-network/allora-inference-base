@@ -1,5 +1,5 @@
 name: Build Pipeline for Test
-'on':
+on:
   - pull_request
 concurrency:
   group: ${{ github.head_ref || github.run_id }}
