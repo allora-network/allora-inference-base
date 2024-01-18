@@ -54,11 +54,6 @@ func NewAppChainClient() (*AppChain, error) {
 	ctx := context.Background()
 	addressPrefix := "upt"
 
-	os.Setenv("NODE_ADDRESS", "http://localhost:26657")
-	os.Setenv("UPT_ACCOUNT_MNEMONIC", "palm key track hammer early love act cat area betray hedgehog breeze powder attitude month fancy visual october erosion example east result theme wasp")
-	os.Setenv("UPT_ACCOUNT_NAME", "upt")
-	os.Setenv("UPT_ACCOUNT_PASSPHRASE", "")
-
 	nodeAddress := os.Getenv("NODE_ADDRESS")
 	if nodeAddress == "" {
 		return nil, fmt.Errorf("NODE_ADDRESS environment variable is not set")
@@ -261,7 +256,7 @@ func parseFloatToUint64Weights(input string) (uint64, error) {
 	}
 
 	// Truncate or round the floating-point number to an integer
-	roundedValue := uint64(floatValue * 100000)// TODO: Change
+	roundedValue := uint64(floatValue * 100000) // TODO: Change
 
 	return roundedValue, nil
 }
