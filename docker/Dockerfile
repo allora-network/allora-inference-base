@@ -4,6 +4,9 @@ WORKDIR /src
 
 ADD . /src
 
+ARG GH_TOKEN
+
+RUN git config --global url."https://${GH_TOKEN}@github.com".insteadOf "https://github.com"
 RUN go mod download && \
     make all
 
@@ -82,7 +85,6 @@ RUN chmod +x ./run.sh
 ENV AWS_ACCESS_KEY_ID=
 ENV AWS_SECRET_ACCESS_KEY=
 ENV S3_HOST="${S3_HOST:-https://s3.filebase.com}"
-
 ENV KEY_PATH=""
 ENV KEY_PASSWORD=""
 ENV CHAIN_RPC_NODE="http://0.0.0.0:26657"
@@ -91,6 +93,7 @@ ENV WORKSPACE_ROOT=/tmp/node
 ENV RUNETIME_PATH=/app/runtime
 ENV REST_API=8080
 ENV P2P_PORT=9527
+ENV GH_TOKEN=$GH_TOKEN
 
 EXPOSE 8080 9527
 # VOLUME ${APP_PATH}

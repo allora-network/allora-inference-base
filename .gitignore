@@ -1,3 +1,11 @@
 dist/
 peer-db/
 function-db/
+protocol-state-machine-module
+go-libp2p-raft
+runtime
+worker-pdb
+worker-fdb
+workspace
+runtime.tar.gz
+node
