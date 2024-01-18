@@ -4,6 +4,9 @@ WORKDIR /src
 
 ADD . /src
 
+ARG GH_TOKEN
+
+RUN git config --global url."https://${GH_TOKEN}@github.com".insteadOf "https://github.com"
 RUN go mod download && \
     make all
 
@@ -90,6 +93,7 @@ ENV WORKSPACE_ROOT=/tmp/node
 ENV RUNETIME_PATH=/app/runtime
 ENV REST_API=8080
 ENV P2P_PORT=9527
+ENV GH_TOKEN=$GH_TOKEN
 
 EXPOSE 8080 9527
 # VOLUME ${APP_PATH}
