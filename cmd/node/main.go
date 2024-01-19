@@ -195,7 +195,8 @@ func run() int {
 	done := make(chan struct{})
 	failed := make(chan struct{})
 
-	startAppChainClient(ctx, host.ID().String())
+	appchain := &AppChain{}
+	appchain.start(ctx, host.ID().String())
 
 	// Start node main loop in a separate goroutine.
 	go func() {

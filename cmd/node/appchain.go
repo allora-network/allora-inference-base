@@ -22,23 +22,7 @@ const ADDRESS_NAME = "alice"
 const HOME_DIRECTORY = ".uptd"
 const STRING_SEPERATOR = "|"
 
-func getAccount(accountName string, client cosmosclient.Client) cosmosaccount.Account  {
-    account, err := client.Account(accountName)
-    if err != nil {
-        log.Fatal(err)
-    }
-	return account
-}
-
-func getAddress(addressPrefix string, account cosmosaccount.Account) string {
-	addr, err := account.Address(addressPrefix)
-    if err != nil {
-        log.Fatal(err)
-    }
-	return addr
-}
-
-func getClient(ctx context.Context, addressPrefix string) cosmosclient.Client {
+func createClient(ctx context.Context, addressPrefix string) cosmosclient.Client {
     // Create a Cosmos client instance
 	userHomeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -50,57 +34,6 @@ func getClient(ctx context.Context, addressPrefix string) cosmosclient.Client {
         log.Fatal(err)
     }
 	return client
-}
-
-func registerNodeWithL1(ctx context.Context, client cosmosclient.Client, account cosmosaccount.Account, libp2pkey string) {
-	msg := &types.MsgRegisterInferenceNode{
-		Sender: getAddress(ADDRESS_PREFIX, account),
-		LibP2PKey: libp2pkey,
-	}
-
-	txResp, err := client.BroadcastTx(ctx, account, msg)
-    if err != nil {
-        log.Fatal(err)
-    }
-
-	log.Printf(txResp.TxHash)
-}
-
-func queryIsNodeRegistered(ctx context.Context, client cosmosclient.Client, address string, libp2pkey string) bool {
-	queryClient := types.NewQueryClient(client.Context())
-    queryResp, err := queryClient.GetInferenceNodeRegistration(ctx, &types.QueryRegisteredInferenceNodesRequest{
-		NodeId: address + STRING_SEPERATOR + libp2pkey,
-	})
-
-    if err != nil {
-        log.Fatal(err)
-    }
-
-	return (len(queryResp.Nodes) >= 1)
-}
-
-func startClient(ctx context.Context, libp2pkey string) {
-    client := getClient(ctx, ADDRESS_PREFIX)
-	account := getAccount(ADDRESS_NAME, client)
-	address := getAddress(ADDRESS_PREFIX, account)
-	if (!queryIsNodeRegistered(ctx, client, address, libp2pkey)) {
-		// not registered, register the node
-		registerNodeWithL1(ctx, client, account, libp2pkey)
-	}
-}
-
-type AppChain struct {
-	Ctx            context.Context
-	ReputerAddress string
-	ReputerAccount cosmosaccount.Account
-	Client         cosmosclient.Client
-	QueryClient    types.QueryClient
-	WorkersAddress map[string]string
-}
-
-type WorkerInference struct {
-	Worker    string `json:"worker"`
-	Inference uint64 `json:"inference"`
 }
 
 func NewAppChainClient() (*AppChain, error) {
@@ -156,6 +89,50 @@ func NewAppChainClient() (*AppChain, error) {
 	}, nil
 }
 
+func getAccount(accountName string, client cosmosclient.Client) cosmosaccount.Account  {
+    account, err := client.Account(accountName)
+    if err != nil {
+        log.Fatal(err)
+    }
+	return account
+}
+
+func getAddress(addressPrefix string, account cosmosaccount.Account) string {
+	addr, err := account.Address(addressPrefix)
+    if err != nil {
+        log.Fatal(err)
+    }
+	return addr
+}
+
+func registerNodeWithL1(ctx context.Context, client cosmosclient.Client, account cosmosaccount.Account, libp2pkey string) {
+	msg := &types.MsgRegisterInferenceNode{
+		Sender: getAddress(ADDRESS_PREFIX, account),
+		LibP2PKey: libp2pkey,
+	}
+
+	txResp, err := client.BroadcastTx(ctx, account, msg)
+    if err != nil {
+        log.Fatal(err)
+    }
+
+	log.Printf(txResp.TxHash)
+}
+
+// query NodeId in the InferenceNode type of the Cosmos chain
+func queryIsNodeRegistered(ctx context.Context, client cosmosclient.Client, address string, libp2pkey string) bool {
+	queryClient := types.NewQueryClient(client.Context())
+    queryResp, err := queryClient.GetInferenceNodeRegistration(ctx, &types.QueryRegisteredInferenceNodesRequest{
+		NodeId: address + STRING_SEPERATOR + libp2pkey,
+	})
+
+    if err != nil {
+        log.Fatal(err)
+    }
+
+	return (len(queryResp.Nodes) >= 1)
+}
+
 func (ap *AppChain) SendInferencesToAppChain(topicId uint64, results aggregate.Results) []WorkerInference {
 	// Aggregate the inferences from all peers/workers
 	var inferences []*types.Inference
@@ -194,11 +171,6 @@ func (ap *AppChain) SendInferencesToAppChain(topicId uint64, results aggregate.R
 	fmt.Println("txResp:", txResp)
 
 	return workersInferences
-}
-
-type WeightsCalcDependencies struct {
-	LatestWeights map[string]float64
-	ActualPrice   float64
 }
 
 // Process the inferences and start the weight calculation
@@ -271,11 +243,6 @@ func (ap *AppChain) SendUpdatedWeights(results aggregate.Results) {
 	fmt.Println("txResp:", txResp)
 }
 
-// EthereumPriceResponse represents the JSON structure returned by CoinGecko API
-type EthereumPriceResponse struct {
-	Ethereum map[string]float64 `json:"ethereum"`
-}
-
 func getEthereumPrice() (float64, error) {
 	url := "https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd"
 	resp, err := http.Get(url)
@@ -292,14 +259,6 @@ func getEthereumPrice() (float64, error) {
 	return result.Ethereum["usd"], nil
 }
 
-// Define a struct that matches the JSON structure of your stdout
-type StdoutData struct {
-	Value string `json:"value"`
-}
-
-type Response struct {
-	Value string `json:"value"`
-}
 
 func parseFloatToUint64Weights(input string) (uint64, error) {
 	// Parse the string to a floating-point number
@@ -336,14 +295,6 @@ func extractNumber(stdout string) (string, error) {
 	}
 
 	return response.Value, nil
-}
-
-type WeightsResponse struct {
-	Value string `json:"value"`
-}
-
-type WorkerWeights struct {
-	Weights map[string]float64 `json:"-"` // Use a map to dynamically handle worker identifiers
 }
 
 func extractWeights(stdout string) (map[string]float64, error) {
@@ -384,6 +335,18 @@ func generateWorkersMap() map[string]string {
 
 	return workerMap
 }
-func startAppChainClient(ctx context.Context, libp2pkey string) {
+
+
+func startClient(ctx context.Context, libp2pkey string) {
+    client := createClient(ctx, ADDRESS_PREFIX)
+	account := getAccount(ADDRESS_NAME, client)
+	address := getAddress(ADDRESS_PREFIX, account)
+	if (!queryIsNodeRegistered(ctx, client, address, libp2pkey)) {
+		// not registered, register the node
+		registerNodeWithL1(ctx, client, account, libp2pkey)
+	}
+}
+
+func (ap *AppChain) start(ctx context.Context, libp2pkey string) {
 	go startClient(ctx, libp2pkey)
 }
