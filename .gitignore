@@ -8,4 +8,4 @@ worker-pdb
 worker-fdb
 workspace
 runtime.tar.gz
-node
+cmd/node/node

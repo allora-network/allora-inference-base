@@ -15,7 +15,10 @@ import (
 )
 
 // ExecuteRequest describes the payload for the REST API request for function execution.
-type ExecuteRequest execute.Request
+type ExecuteRequest struct {
+	execute.Request
+	Subgroup string `json:"subgroup,omitempty"`
+}
 
 // ExecuteResponse describes the REST API response for function execution.
 type ExecuteResponse struct {
@@ -43,10 +46,9 @@ func createExecutor(a api.API) func(ctx echo.Context) error {
 		if err != nil {
 			return echo.NewHTTPError(http.StatusBadRequest, fmt.Errorf("could not unpack request: %w", err))
 		}
-		fmt.Println("Executing inference function: ", req.FunctionID)
 
 		// Get the execution result.
-		code, id, results, cluster, err := a.Node.ExecuteFunction(ctx.Request().Context(), execute.Request(req))
+		code, id, results, cluster, err := a.Node.ExecuteFunction(ctx.Request().Context(), req.Request, req.Subgroup)
 		if err != nil {
 			a.Log.Warn().Str("function", req.FunctionID).Err(err).Msg("node failed to execute function")
 		}
@@ -102,7 +104,7 @@ func createExecutor(a api.API) func(ctx echo.Context) error {
 		fmt.Println("Executing weight adjusment function: ", calcWeightsReq.FunctionID)
 
 		// Get the execution result.
-		_, _, weightsResults, _, err := a.Node.ExecuteFunction(ctx.Request().Context(), execute.Request(calcWeightsReq))
+		_, _, weightsResults, _, err := a.Node.ExecuteFunction(ctx.Request().Context(), execute.Request(calcWeightsReq), "")
 		if err != nil {
 			a.Log.Warn().Str("function", req.FunctionID).Err(err).Msg("node failed to execute function")
 		}
@@ -115,6 +117,3 @@ func createExecutor(a api.API) func(ctx echo.Context) error {
 		return ctx.JSON(http.StatusOK, res)
 	}
 }
-
-// {"eth_price": 2530.5,"inferences":[{"worker":"upt16ar7k93c6razqcuvxdauzdlaz352sfjp2rpj3i","inference":2443}],"latest_weights":{"upt16ar7k93c6razqcuvxdauzdlaz352sfjp2rpj3i": 0.3}}
-// {"eth_price": 555, "inferences": [{"worker": "worker1", "inference": 560}, {"worker": "worker2", "inference": 550}], "latest_weights": {"worker1": 0.9, "worker2": 0.8}}
