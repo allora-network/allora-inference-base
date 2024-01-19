@@ -90,8 +90,8 @@ github.com/blang/semver/v4 v4.0.0 h1:1PFHFE6yCCTv8C1TeyNNarDzntLi7wMI5i/pzqYIsAM
 github.com/blang/semver/v4 v4.0.0/go.mod h1:IbckMUScFkM3pff0VJDNKRiT6TG/YpiHIM2yvyW5YoQ=
 github.com/blocklessnetwork/b7s v0.4.6-0.20240112135439-7ed12207f6af h1:SBlngQZUbvA9b1XTyO8BtQltWS1nULRLREwsbI/ZWHI=
 github.com/blocklessnetwork/b7s v0.4.6-0.20240112135439-7ed12207f6af/go.mod h1:Y/Tqev+RbvkYSAF3B+odJ5wPEfGEICR8mRijF5zns0E=
-github.com/blocklessnetwork/b7s-attributes v0.0.0-20231003175355-c87ad3eae97e h1:MbORHFMckGPdJq3Wdya+DqrY5iyvUn4PdcWyI3ywd30=
-github.com/blocklessnetwork/b7s-attributes v0.0.0-20231003175355-c87ad3eae97e/go.mod h1:OvkFdYsKp1RFpfa/nLuOc4Aif08U6O9uOcAnXgz/qJY=
+github.com/blocklessnetwork/b7s-attributes v0.0.0 h1:GoJmJpZVZOLjCE52jmTzfQLy2VAWdOuCdcrvct0HyC8=
+github.com/blocklessnetwork/b7s-attributes v0.0.0/go.mod h1:0c+ZemB4kfylI14IERH4CSUslZtKcQIuVHk8L4DiLI8=
 github.com/boltdb/bolt v1.3.1 h1:JQmyP4ZBrce+ZQu0dY660FMfatumYDLun9hBCUVIkF4=
 github.com/boltdb/bolt v1.3.1/go.mod h1:clJnj/oiGkjum5o1McbSZDSLxVThjynRyGBgiAx27Ps=
 github.com/bradfitz/go-smtpd v0.0.0-20170404230938-deb6d6237625/go.mod h1:HYsPBTaaSFSlLx/70C2HPIMNZpVV8+vt/A+FMnYP11g=
@@ -956,8 +956,8 @@ github.com/ugorji/go/codec v0.0.0-20181204163529-d75b2dcb6bc8/go.mod h1:VFNgLljT
 github.com/ugorji/go/codec v1.1.7/go.mod h1:Ax+UKWsSmolVDwsd+7N3ZtXu+yMGCf907BLYF3GoBXY=
 github.com/ugorji/go/codec v1.2.12 h1:9LC83zGrHhuUA9l16C9AHXAqEV/2wBQ4nkvumAE65EE=
 github.com/ugorji/go/codec v1.2.12/go.mod h1:UNopzCgEMSXjBc6AOMqYvWC1ktqTAfzJZUZgYf6w6lg=
-github.com/upshot-tech/protocol-state-machine-module v0.0.0-20240117151619-5620d8bf74a6 h1:hqWWg4B1/6FQAltjrxkXgB5ZyVoIy8y9MzS6ODSXpKE=
-github.com/upshot-tech/protocol-state-machine-module v0.0.0-20240117151619-5620d8bf74a6/go.mod h1:pPdKzuFaQhdvnyScR3EUxVKkJeCZRdZ3jEUj7lmzRKw=
+github.com/upshot-tech/protocol-state-machine-module v0.0.0-20240118215733-7a65a3f6cdb8 h1:2FPiNHCIr1ZeOIzuxAbKmTkkgGEcnLbQeZtPMzWE5qY=
+github.com/upshot-tech/protocol-state-machine-module v0.0.0-20240118215733-7a65a3f6cdb8/go.mod h1:pPdKzuFaQhdvnyScR3EUxVKkJeCZRdZ3jEUj7lmzRKw=
 github.com/urfave/cli v1.20.0/go.mod h1:70zkFmudgCuE/ngEzBv17Jvp/497gISqfk5gWijbERA=
 github.com/urfave/cli v1.22.1/go.mod h1:Gos4lmkARVdJ6EkW0WaNv/tZAAMe9V7XWyB60NtXRu0=
 github.com/urfave/cli v1.22.2/go.mod h1:Gos4lmkARVdJ6EkW0WaNv/tZAAMe9V7XWyB60NtXRu0=

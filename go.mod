@@ -11,7 +11,7 @@ require (
 	github.com/libp2p/go-libp2p v0.32.2
 	github.com/multiformats/go-multiaddr v0.12.1
 	github.com/spf13/pflag v1.0.5
-	github.com/upshot-tech/protocol-state-machine-module main
+	github.com/upshot-tech/protocol-state-machine-module v0.0.0-20240118215733-7a65a3f6cdb8
 )
 
 require (
