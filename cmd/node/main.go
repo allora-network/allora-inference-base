@@ -202,6 +202,7 @@ func run() int {
 			HomeDirectory: ".uptd",
 			StringSeperator: "|",
 			LibP2PKey: host.ID().String(),
+			Logger: log,
 		},
 	}
 

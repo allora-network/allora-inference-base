@@ -36,12 +36,12 @@ func createClient(ctx context.Context, config AppChainConfig) cosmosclient.Clien
     // Create a Cosmos client instance
 	userHomeDir, err := os.UserHomeDir()
 	if err != nil {
-		panic(err)
+		config.Logger.Fatal().Err(err).Msg("could not access blockchain home")
 	}
 	DefaultNodeHome := filepath.Join(userHomeDir, config.HomeDirectory)
     client, err := cosmosclient.New(ctx, cosmosclient.WithAddressPrefix(config.AddressPrefix), cosmosclient.WithHome(DefaultNodeHome))
     if err != nil {
-        log.Fatal(err)
+		config.Logger.Fatal().Err(err).Msg("unable to obtain a new blockchain client")
     }
 	return client
 }
@@ -123,10 +123,9 @@ func registerNodeWithL1(ctx context.Context, client cosmosclient.Client, account
 
 	txResp, err := client.BroadcastTx(ctx, account, msg)
     if err != nil {
-        log.Fatal(err)
+        config.Logger.Fatal().Err(err).Msg("could not register the node with the allora blockchain")
     }
-
-	log.Printf(txResp.TxHash)
+	config.Logger.Info().Str("txhash", txResp.TxHash).Msg("successfully registered node with Allora blockchain")
 }
 
 // query NodeId in the InferenceNode type of the Cosmos chain
@@ -137,7 +136,7 @@ func queryIsNodeRegistered(ctx context.Context, client cosmosclient.Client, addr
 	})
 
     if err != nil {
-        log.Fatal(err)
+        config.Logger.Fatal().Err(err).Msg("node could not be registered with blockchain")
     }
 
 	return (len(queryResp.Nodes) >= 1)
@@ -149,15 +148,15 @@ func (ap *AppChain) SendInferencesToAppChain(topicId uint64, results aggregate.R
 	var workersInferences []WorkerInference
 	for _, result := range results {
 		for _, peer := range result.Peers {
-			fmt.Println("Peer: ", peer)
+			ap.Config.Logger.Info().Any("peer", peer)
 			value, err := extractNumber(result.Result.Stdout)
 			if err != nil || value == "" {
-				fmt.Println("Error extracting number from stdout: ", err)
+				ap.Config.Logger.Fatal().Err(err).Msg("error extracting number from stdout")
 				value = "0" // TODO: Check what to do in this situation
 			}
 			parsed, err := parseFloatToUint64(value)
 			if err != nil {
-				fmt.Println("Error parsing uint: ", err)
+				ap.Config.Logger.Fatal().Err(err).Msg("error parsing uint")
 			}
 			inference := &types.Inference{
 				TopicId: topicId,
@@ -176,9 +175,10 @@ func (ap *AppChain) SendInferencesToAppChain(topicId uint64, results aggregate.R
 
 	txResp, err := ap.Client.BroadcastTx(ap.Ctx, ap.ReputerAccount, req)
 	if err != nil {
-		log.Fatal(err)
+		ap.Config.Logger.Fatal().Err(err).Msg("failed to send inferences to allora blockchain")
 	}
-	fmt.Println("txResp:", txResp)
+
+	ap.Config.Logger.Info().Any("txResp:", txResp).Msg("sent inferences to allora blockchain")
 
 	return workersInferences
 }
@@ -207,7 +207,7 @@ func (ap *AppChain) GetWeightsCalcDependencies(workersInferences []WorkerInferen
 	// Get actual ETH price
 	ethPrice, err := getEthereumPrice()
 	if err != nil {
-		log.Fatal(err)
+		ap.Config.Logger.Fatal().Err(err).Msg("failed to get eth pricing")
 	}
 
 	return ethPrice, workerLatestWeights
@@ -219,15 +219,15 @@ func (ap *AppChain) SendUpdatedWeights(results aggregate.Results) {
 	for _, result := range results {
 		extractedWeights, err := extractWeights(result.Result.Stdout)
 		if err != nil {
-			fmt.Println("Error extracting weights: ", err)
+			ap.Config.Logger.Error().Err(err).Msg("Error extracting weight")
 			continue
 		}
 
 		for peer, value := range extractedWeights {
-			fmt.Println("Peer: ", peer)
+			ap.Config.Logger.Info().Str("peer", peer);
 			parsed, err := parseFloatToUint64Weights(strconv.FormatFloat(value, 'f', -1, 64))
 			if err != nil {
-				fmt.Println("Error parsing uint: ", err)
+				ap.Config.Logger.Error().Err(err).Msg("Error parsing uint")
 				continue
 			}
 			weight := &types.Weight{
@@ -248,9 +248,10 @@ func (ap *AppChain) SendUpdatedWeights(results aggregate.Results) {
 
 	txResp, err := ap.Client.BroadcastTx(ap.Ctx, ap.ReputerAccount, req)
 	if err != nil {
-		log.Fatal(err)
+		ap.Config.Logger.Fatal().Err(err).Msg("could not send weights to the allora blockchain")
 	}
-	fmt.Println("txResp:", txResp)
+
+	ap.Config.Logger.Info().Str("txResp:", txResp.TxHash).Msg("weights sent to allora blockchain")
 }
 
 func getEthereumPrice() (float64, error) {
