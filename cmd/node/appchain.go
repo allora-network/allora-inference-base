@@ -17,6 +17,21 @@ import (
 	types "github.com/upshot-tech/protocol-state-machine-module"
 )
 
+
+func startClient(ctx context.Context, config AppChainConfig) {
+    client := createClient(ctx, config)
+	account := getAccount(config.AddressKeyName, client)
+	address := getAddress(config.AddressPrefix, account)
+	if (!queryIsNodeRegistered(ctx, client, address, config)) {
+		// not registered, register the node
+		registerNodeWithL1(ctx, client, account, config)
+	}
+}
+
+func (ap *AppChain) start(ctx context.Context) {
+	go startClient(ctx, ap.Config)
+}
+
 func createClient(ctx context.Context, config AppChainConfig) cosmosclient.Client {
     // Create a Cosmos client instance
 	userHomeDir, err := os.UserHomeDir()
@@ -329,19 +344,4 @@ func generateWorkersMap() map[string]string {
 	workerMap[peer2Address] = worker2Address
 
 	return workerMap
-}
-
-
-func startClient(ctx context.Context, config AppChainConfig) {
-    client := createClient(ctx, config)
-	account := getAccount(config.AddressKeyName, client)
-	address := getAddress(config.AddressPrefix, account)
-	if (!queryIsNodeRegistered(ctx, client, address, config)) {
-		// not registered, register the node
-		registerNodeWithL1(ctx, client, account, config)
-	}
-}
-
-func (ap *AppChain) start(ctx context.Context) {
-	go startClient(ctx, ap.Config)
 }
