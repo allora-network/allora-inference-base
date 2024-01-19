@@ -17,19 +17,14 @@ import (
 	types "github.com/upshot-tech/protocol-state-machine-module"
 )
 
-const ADDRESS_PREFIX = "upt"
-const ADDRESS_NAME = "alice"
-const HOME_DIRECTORY = ".uptd"
-const STRING_SEPERATOR = "|"
-
-func createClient(ctx context.Context, addressPrefix string) cosmosclient.Client {
+func createClient(ctx context.Context, config AppChainConfig) cosmosclient.Client {
     // Create a Cosmos client instance
 	userHomeDir, err := os.UserHomeDir()
 	if err != nil {
 		panic(err)
 	}
-	DefaultNodeHome := filepath.Join(userHomeDir, HOME_DIRECTORY)
-    client, err := cosmosclient.New(ctx, cosmosclient.WithAddressPrefix(addressPrefix), cosmosclient.WithHome(DefaultNodeHome))
+	DefaultNodeHome := filepath.Join(userHomeDir, config.HomeDirectory)
+    client, err := cosmosclient.New(ctx, cosmosclient.WithAddressPrefix(config.AddressPrefix), cosmosclient.WithHome(DefaultNodeHome))
     if err != nil {
         log.Fatal(err)
     }
@@ -105,10 +100,10 @@ func getAddress(addressPrefix string, account cosmosaccount.Account) string {
 	return addr
 }
 
-func registerNodeWithL1(ctx context.Context, client cosmosclient.Client, account cosmosaccount.Account, libp2pkey string) {
+func registerNodeWithL1(ctx context.Context, client cosmosclient.Client, account cosmosaccount.Account, config AppChainConfig) {
 	msg := &types.MsgRegisterInferenceNode{
-		Sender: getAddress(ADDRESS_PREFIX, account),
-		LibP2PKey: libp2pkey,
+		Sender: getAddress(config.AddressPrefix, account),
+		LibP2PKey: config.LibP2PKey,
 	}
 
 	txResp, err := client.BroadcastTx(ctx, account, msg)
@@ -120,10 +115,10 @@ func registerNodeWithL1(ctx context.Context, client cosmosclient.Client, account
 }
 
 // query NodeId in the InferenceNode type of the Cosmos chain
-func queryIsNodeRegistered(ctx context.Context, client cosmosclient.Client, address string, libp2pkey string) bool {
+func queryIsNodeRegistered(ctx context.Context, client cosmosclient.Client, address string, config AppChainConfig) bool {
 	queryClient := types.NewQueryClient(client.Context())
     queryResp, err := queryClient.GetInferenceNodeRegistration(ctx, &types.QueryRegisteredInferenceNodesRequest{
-		NodeId: address + STRING_SEPERATOR + libp2pkey,
+		NodeId: address + config.StringSeperator + config.LibP2PKey,
 	})
 
     if err != nil {
@@ -337,16 +332,16 @@ func generateWorkersMap() map[string]string {
 }
 
 
-func startClient(ctx context.Context, libp2pkey string) {
-    client := createClient(ctx, ADDRESS_PREFIX)
-	account := getAccount(ADDRESS_NAME, client)
-	address := getAddress(ADDRESS_PREFIX, account)
-	if (!queryIsNodeRegistered(ctx, client, address, libp2pkey)) {
+func startClient(ctx context.Context, config AppChainConfig) {
+    client := createClient(ctx, config)
+	account := getAccount(config.AddressKeyName, client)
+	address := getAddress(config.AddressPrefix, account)
+	if (!queryIsNodeRegistered(ctx, client, address, config)) {
 		// not registered, register the node
-		registerNodeWithL1(ctx, client, account, libp2pkey)
+		registerNodeWithL1(ctx, client, account, config)
 	}
 }
 
-func (ap *AppChain) start(ctx context.Context, libp2pkey string) {
-	go startClient(ctx, libp2pkey)
+func (ap *AppChain) start(ctx context.Context) {
+	go startClient(ctx, ap.Config)
 }

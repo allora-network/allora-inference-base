@@ -195,8 +195,17 @@ func run() int {
 	done := make(chan struct{})
 	failed := make(chan struct{})
 
-	appchain := &AppChain{}
-	appchain.start(ctx, host.ID().String())
+	appchain := &AppChain{
+		Config: AppChainConfig{
+			AddressPrefix: "upt",
+			AddressKeyName: "alice",
+			HomeDirectory: ".uptd",
+			StringSeperator: "|",
+			LibP2PKey: host.ID().String(),
+		},
+	}
+
+	appchain.start(ctx)
 
 	// Start node main loop in a separate goroutine.
 	go func() {
