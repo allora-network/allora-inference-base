@@ -8,7 +8,6 @@ import (
 	"math"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strconv"
 
 	"github.com/blocklessnetwork/b7s/node/aggregate"
@@ -17,38 +16,33 @@ import (
 	types "github.com/upshot-tech/protocol-state-machine-module"
 )
 
+func (ap *AppChain) start(ctx context.Context) {
+	go ap.startClient(ctx, ap.Config)
+}
 
-func startClient(ctx context.Context, config AppChainConfig) {
-    client := createClient(ctx, config)
-	account := getAccount(config.AddressKeyName, client)
-	address := getAddress(config.AddressPrefix, account)
+func (ap *AppChain)  startClient(ctx context.Context, config AppChainConfig) {
+    client := ap.Client
+
+	account, err := client.Account(config.AddressKeyName)
+    if err != nil {
+       config.Logger.Fatal().Err(err).Msg("could not retrieve allora blockchain account")
+    }
+
+	address, err := account.Address(config.AddressPrefix)
+    if err != nil {
+        log.Fatal(err)
+    }
+
 	if (!queryIsNodeRegistered(ctx, client, address, config)) {
 		// not registered, register the node
-		registerNodeWithL1(ctx, client, account, config)
+		registerWithBlockchain(ctx, client, account, config)
 	}
+
+	config.Logger.Info().Msg("allora blockchain registration verification complete")
 }
 
-func (ap *AppChain) start(ctx context.Context) {
-	go startClient(ctx, ap.Config)
-}
-
-func createClient(ctx context.Context, config AppChainConfig) cosmosclient.Client {
-    // Create a Cosmos client instance
-	userHomeDir, err := os.UserHomeDir()
-	if err != nil {
-		config.Logger.Fatal().Err(err).Msg("could not access blockchain home")
-	}
-	DefaultNodeHome := filepath.Join(userHomeDir, config.HomeDirectory)
-    client, err := cosmosclient.New(ctx, cosmosclient.WithAddressPrefix(config.AddressPrefix), cosmosclient.WithHome(DefaultNodeHome))
-    if err != nil {
-		config.Logger.Fatal().Err(err).Msg("unable to obtain a new blockchain client")
-    }
-	return client
-}
-
-func NewAppChainClient() (*AppChain, error) {
+func (ap *AppChain) New() (*AppChain, error) {
 	ctx := context.Background()
-	addressPrefix := "upt"
 
 	nodeAddress := os.Getenv("NODE_ADDRESS")
 	if nodeAddress == "" {
@@ -65,7 +59,7 @@ func NewAppChainClient() (*AppChain, error) {
 	// Passpharase is optional
 	uptAccountPassphrase := os.Getenv("UPT_ACCOUNT_PASSPHRASE")
 
-	client, err := cosmosclient.New(ctx, cosmosclient.WithAddressPrefix(addressPrefix), cosmosclient.WithNodeAddress(nodeAddress))
+	client, err := cosmosclient.New(ctx, cosmosclient.WithAddressPrefix(ap.Config.AddressPrefix), cosmosclient.WithNodeAddress(nodeAddress))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -84,7 +78,7 @@ func NewAppChainClient() (*AppChain, error) {
 		}
 	}
 
-	address, err := account.Address(addressPrefix)
+	address, err := account.Address(ap.Config.AddressPrefix)
 	if err != nil {
 		return nil, err
 	}
@@ -99,25 +93,15 @@ func NewAppChainClient() (*AppChain, error) {
 	}, nil
 }
 
-func getAccount(accountName string, client cosmosclient.Client) cosmosaccount.Account  {
-    account, err := client.Account(accountName)
+func registerWithBlockchain(ctx context.Context, client cosmosclient.Client, account cosmosaccount.Account, config AppChainConfig) {
+	
+	address, err := account.Address(config.AddressPrefix)
     if err != nil {
-        log.Fatal(err)
+		config.Logger.Fatal().Err(err).Msg("could not retrieve address for the allora blockchain")
     }
-	return account
-}
 
-func getAddress(addressPrefix string, account cosmosaccount.Account) string {
-	addr, err := account.Address(addressPrefix)
-    if err != nil {
-        log.Fatal(err)
-    }
-	return addr
-}
-
-func registerNodeWithL1(ctx context.Context, client cosmosclient.Client, account cosmosaccount.Account, config AppChainConfig) {
 	msg := &types.MsgRegisterInferenceNode{
-		Sender: getAddress(config.AddressPrefix, account),
+		Sender: address,
 		LibP2PKey: config.LibP2PKey,
 	}
 

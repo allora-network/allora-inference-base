@@ -34,7 +34,7 @@ type ExecuteResult struct {
 	RequestID string                `json:"request_id,omitempty"`
 }
 
-func createExecutor(a api.API) func(ctx echo.Context) error {
+func createExecutor(a api.API, appChainClient AppChain) func(ctx echo.Context) error {
 	return func(ctx echo.Context) error {
 
 		// Unpack the API request.
@@ -64,20 +64,17 @@ func createExecutor(a api.API) func(ctx echo.Context) error {
 			res.Message = err.Error()
 		}
 
-		// Send the inferences to the appchain
-		client, err := NewAppChainClient()
-		if err != nil {
-			return fmt.Errorf("could not create appchain client: %w", err)
-		}
-		fmt.Println("Sending inferences to appchain")
-		inferences := client.SendInferencesToAppChain(1, res.Results)
-		fmt.Println("Inferences sent to appchain :: ", inferences)
+		a.Log.Info().Msg("Sending inferences to appchain")
+		inferences := appChainClient.SendInferencesToAppChain(1, res.Results)
+		a.Log.Debug().Any("inferences", inferences).Msg("Inferences sent to appchain")
 		// Get the dependencies for the weights calculation
-		ethPrice, latestWeights := client.GetWeightsCalcDependencies(inferences)
+		ethPrice, latestWeights := appChainClient.GetWeightsCalcDependencies(inferences)
 
 		fmt.Println("ETH price: ", ethPrice)
-		fmt.Println("Latest weights: ", latestWeights)
-		fmt.Println("Inferences: ", inferences)
+
+		a.Log.Debug().Float64("eth price", ethPrice)
+		a.Log.Debug().Any("latest weights", latestWeights)
+		a.Log.Debug().Any("inferences", inferences)
 
 		// Format the payload for the weights calculation
 		var weightsReq map[string]interface{} = make(map[string]interface{})
@@ -89,7 +86,7 @@ func createExecutor(a api.API) func(ctx echo.Context) error {
 			fmt.Println("Error marshalling weights request: ", err)
 		}
 		payloadCopy := string(payload)
-		fmt.Println("Payload: ", payloadCopy)
+		a.Log.Debug().Any("payload: ", payloadCopy)
 
 		// Calculate the weights
 		calcWeightsReq := execute.Request{
@@ -99,17 +96,17 @@ func createExecutor(a api.API) func(ctx echo.Context) error {
 				Stdin: &payloadCopy,
 			},
 		}
-		fmt.Println("Executing weight adjusment function: ", calcWeightsReq.FunctionID)
+		a.Log.Debug().Any("Executing weight adjusment function: ", calcWeightsReq.FunctionID)
 
 		// Get the execution result.
 		_, _, weightsResults, _, err := a.Node.ExecuteFunction(ctx.Request().Context(), execute.Request(calcWeightsReq))
 		if err != nil {
 			a.Log.Warn().Str("function", req.FunctionID).Err(err).Msg("node failed to execute function")
 		}
-		fmt.Println("Weights results: ", weightsResults)
+		a.Log.Debug().Any("weights results", weightsResults)
 
 		// Transform the node response format to the one returned by the API.
-		client.SendUpdatedWeights(aggregate.Aggregate(weightsResults))
+		appChainClient.SendUpdatedWeights(aggregate.Aggregate(weightsResults))
 
 		// Send the response.
 		return ctx.JSON(http.StatusOK, res)
