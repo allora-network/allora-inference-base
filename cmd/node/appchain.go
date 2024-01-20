@@ -110,6 +110,7 @@ func registerWithBlockchain(ctx context.Context, client cosmosclient.Client, acc
     if err != nil {
         config.Logger.Fatal().Err(err).Msg("could not register the node with the allora blockchain")
     }
+
 	config.Logger.Info().Str("txhash", txResp.TxHash).Msg("successfully registered node with Allora blockchain")
 }
 
