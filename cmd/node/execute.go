@@ -43,7 +43,8 @@ func createExecutor(a api.API, appChainClient AppChain) func(ctx echo.Context) e
 		if err != nil {
 			return echo.NewHTTPError(http.StatusBadRequest, fmt.Errorf("could not unpack request: %w", err))
 		}
-		fmt.Println("Executing inference function: ", req.FunctionID)
+
+		a.Log.Debug().Str("Executing inference function: ", req.FunctionID)
 
 		// Get the execution result.
 		code, id, results, cluster, err := a.Node.ExecuteFunction(ctx.Request().Context(), execute.Request(req))
@@ -70,8 +71,7 @@ func createExecutor(a api.API, appChainClient AppChain) func(ctx echo.Context) e
 		// Get the dependencies for the weights calculation
 		ethPrice, latestWeights := appChainClient.GetWeightsCalcDependencies(inferences)
 
-		fmt.Println("ETH price: ", ethPrice)
-
+		a.Log.Debug().Float64("ETH price: ", ethPrice)
 		a.Log.Debug().Float64("eth price", ethPrice)
 		a.Log.Debug().Any("latest weights", latestWeights)
 		a.Log.Debug().Any("inferences", inferences)
@@ -83,7 +83,7 @@ func createExecutor(a api.API, appChainClient AppChain) func(ctx echo.Context) e
 		weightsReq["latest_weights"] = latestWeights
 		payload, err := json.Marshal(weightsReq)
 		if err != nil {
-			fmt.Println("Error marshalling weights request: ", err)
+			a.Log.Error().Err(err).Msg("error marshalling weights request")
 		}
 		payloadCopy := string(payload)
 		a.Log.Debug().Any("payload: ", payloadCopy)

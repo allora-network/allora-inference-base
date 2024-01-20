@@ -71,9 +71,10 @@ func (ap *AppChain) New() (*AppChain, error) {
 		if err.Error() == "account already exists" {
 			//TODO: Check how to use an existing account
 			account, err = client.Account(uptAccountName)
-		}
+		} 
+		
 		if err != nil {
-			fmt.Println("Error getting account: ", err)
+			ap.Config.Logger.Error().Err(err).Msg("error getting account")
 			log.Fatal(err)
 		}
 	}
