@@ -44,20 +44,20 @@ func (ap *AppChain)  startClient(ctx context.Context, config AppChainConfig) {
 func (ap *AppChain) New() (*AppChain, error) {
 	ctx := context.Background()
 
-	nodeAddress := os.Getenv("NODE_ADDRESS")
+	nodeAddress := ap.Config.LibP2PKey
 	if nodeAddress == "" {
 		return nil, fmt.Errorf("NODE_ADDRESS environment variable is not set")
 	}
-	uptAccountMnemonic := os.Getenv("UPT_ACCOUNT_MNEMONIC")
+	uptAccountMnemonic := ap.Config.AddressRestoreMnemonic
 	if uptAccountMnemonic == "" {
 		return nil, fmt.Errorf("UPT_ACCOUNT_MNEMONIC environment variable is not set")
 	}
-	uptAccountName := os.Getenv("UPT_ACCOUNT_NAME")
+	uptAccountName := ap.Config.AddressKeyName
 	if uptAccountName == "" {
 		return nil, fmt.Errorf("UPT_ACCOUNT_NAME environment variable is not set")
 	}
 	// Passpharase is optional
-	uptAccountPassphrase := os.Getenv("UPT_ACCOUNT_PASSPHRASE")
+	uptAccountPassphrase := ap.Config.AddressAccountPassphrase
 
 	client, err := cosmosclient.New(ctx, cosmosclient.WithAddressPrefix(ap.Config.AddressPrefix), cosmosclient.WithNodeAddress(nodeAddress))
 	if err != nil {

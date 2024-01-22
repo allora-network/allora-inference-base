@@ -14,7 +14,6 @@ import (
 	"github.com/ziflex/lecho/v3"
 
 	"github.com/blocklessnetwork/b7s/api"
-	"github.com/blocklessnetwork/b7s/config"
 	"github.com/blocklessnetwork/b7s/executor"
 	"github.com/blocklessnetwork/b7s/executor/limits"
 	"github.com/blocklessnetwork/b7s/fstore"
@@ -195,17 +194,10 @@ func run() int {
 	done := make(chan struct{})
 	failed := make(chan struct{})
 
+	cfg.AppChainConfig.AddressPrefix = "upt"
 	appchain := &AppChain{
-		Config: AppChainConfig{
-			AddressPrefix: "upt",
-			AddressKeyName: "alice",
-			HomeDirectory: ".uptd",
-			StringSeperator: "|",
-			LibP2PKey: host.ID().String(),
-			Logger: log,
-		},
+		Config: cfg.AppChainConfig,
 	}
-
 	appchain.start(ctx)
 
 	// Start node main loop in a separate goroutine.
@@ -288,6 +280,6 @@ func run() int {
 	return success
 }
 
-func needLimiter(cfg *config.Config) bool {
+func needLimiter(cfg *alloraCfg) bool {
 	return cfg.CPUPercentage != 1.0 || cfg.MemoryMaxKB > 0
 }
