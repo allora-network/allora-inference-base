@@ -14,6 +14,7 @@ import (
 	"github.com/ziflex/lecho/v3"
 
 	"github.com/blocklessnetwork/b7s/api"
+	"github.com/blocklessnetwork/b7s/config"
 	"github.com/blocklessnetwork/b7s/executor"
 	"github.com/blocklessnetwork/b7s/executor/limits"
 	"github.com/blocklessnetwork/b7s/fstore"
@@ -199,15 +200,9 @@ func run() int {
 	done := make(chan struct{})
 	failed := make(chan struct{})
 
-	cfg.AppChainConfig.AddressPrefix = "upt"
-	appchain := &AppChain{
-		Config: cfg.AppChainConfig,
-	}
-	appchain.start(ctx)
-
 	// Start node main loop in a separate goroutine.
 	go func() {
-		
+
 		log.Info().
 			Str("role", role.String()).
 			Msg("Upshot Node starting")
@@ -245,7 +240,7 @@ func run() int {
 
 		// Set endpoint handlers.
 		server.GET("/api/v1/health", api.Health)
-		server.POST("/api/v1/functions/execute", createExecutor(*api, *appchain))
+		server.POST("/api/v1/functions/execute", createExecutor(*api))
 		server.POST("/api/v1/functions/install", api.Install)
 		server.POST("/api/v1/functions/requests/result", api.ExecutionResult)
 
@@ -285,6 +280,6 @@ func run() int {
 	return success
 }
 
-func needLimiter(cfg *alloraCfg) bool {
+func needLimiter(cfg *config.Config) bool {
 	return cfg.CPUPercentage != 1.0 || cfg.MemoryMaxKB > 0
 }
