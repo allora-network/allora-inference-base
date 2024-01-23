@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/spf13/pflag"
 
+	"github.com/blocklessnetwork/b7s/config"
 	"github.com/blocklessnetwork/b7s/node"
 )
 
@@ -14,12 +15,13 @@ const (
 	defaultFunctionDB   = "function-db"
 	defaultConcurrency  = uint(node.DefaultConcurrency)
 	defaultUseWebsocket = false
+
 	defaultRole = "worker"
 )
 
-func parseFlags() *alloraCfg {
+func parseFlags() *config.Config {
 
-	var cfg alloraCfg
+	var cfg config.Config
 
 	pflag.StringVarP(&cfg.Log.Level, "log-level", "l", "info", "log level to use")
 
@@ -53,11 +55,6 @@ func parseFlags() *alloraCfg {
 	// Limit configuration.
 	pflag.Float64Var(&cfg.CPUPercentage, "cpu-percentage-limit", 1.0, "amount of CPU time allowed for Blockless Functions in the 0-1 range, 1 being unlimited")
 	pflag.Int64Var(&cfg.MemoryMaxKB, "memory-limit", 0, "memory limit (kB) for Blockless Functions")
-
-	// Cosmos L1 configuration
-	pflag.StringVarP(&cfg.AppChainConfig.AddressKeyName, "allora-chain-key-name", "", "", "The name of a key stored in the Allora Blockchain Wallet")
-	pflag.StringVarP(&cfg.AppChainConfig.AddressRestoreMnemonic, "allora-chain-restore-mnemonic", "", "", "The restore mnemonic for an Allora Blockchain Wallet")
-	pflag.StringVarP(&cfg.AppChainConfig.AddressAccountPassphrase, "allora-chain-account-password", "", "", "The password for an Allora Blockchain Wallet Key")
 
 	pflag.CommandLine.SortFlags = false
 
