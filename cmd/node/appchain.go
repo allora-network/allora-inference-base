@@ -10,66 +10,58 @@ import (
 	"os"
 	"strconv"
 
+	cosmossdk_io_math "cosmossdk.io/math"
+
 	"github.com/blocklessnetwork/b7s/node/aggregate"
 	"github.com/ignite/cli/v28/ignite/pkg/cosmosaccount"
 	"github.com/ignite/cli/v28/ignite/pkg/cosmosclient"
 	types "github.com/upshot-tech/protocol-state-machine-module"
 )
 
-func registerNode(ctx context.Context) {
-
+func (ap *AppChain) start(ctx context.Context) {
+	go ap.startClient(ctx, ap.Config)
 }
 
-func startClient() {
-	ctx := context.Background()
-	addressPrefix := "cosmos"
+func (ap *AppChain)  startClient(ctx context.Context, config AppChainConfig) {
+    client := ap.Client
 
-	// Create a Cosmos client instance
-	_, err := cosmosclient.New(ctx, cosmosclient.WithAddressPrefix(addressPrefix))
-	if err != nil {
-		log.Fatal(err)
+	account, err := client.Account(config.AddressKeyName)
+    if err != nil {
+       config.Logger.Fatal().Err(err).Msg("could not retrieve allora blockchain account")
+    }
+
+	address, err := account.Address(config.AddressPrefix)
+    if err != nil {
+        log.Fatal(err)
+    }
+
+	if (!queryIsNodeRegistered(ctx, client, address, config)) {
+		// not registered, register the node
+		registerWithBlockchain(ctx, client, account, config)
 	}
+
+	config.Logger.Info().Msg("allora blockchain registration verification complete")
 }
 
-func Start(ctx context.Context) {
-	registerNode(ctx)
-	go startClient()
-}
-
-type AppChain struct {
-	Ctx            context.Context
-	ReputerAddress string
-	ReputerAccount cosmosaccount.Account
-	Client         cosmosclient.Client
-	QueryClient    types.QueryClient
-	WorkersAddress map[string]string
-}
-
-type WorkerInference struct {
-	Worker    string `json:"worker"`
-	Inference uint64 `json:"inference"`
-}
-
-func NewAppChainClient() (*AppChain, error) {
+func (ap *AppChain) New() (*AppChain, error) {
 	ctx := context.Background()
-	addressPrefix := "upt"
 
-	nodeAddress := os.Getenv("NODE_ADDRESS")
+	nodeAddress := ap.Config.LibP2PKey
 	if nodeAddress == "" {
 		return nil, fmt.Errorf("NODE_ADDRESS environment variable is not set")
 	}
-	uptAccountMnemonic := os.Getenv("UPT_ACCOUNT_MNEMONIC")
+	uptAccountMnemonic := ap.Config.AddressRestoreMnemonic
 	if uptAccountMnemonic == "" {
 		return nil, fmt.Errorf("UPT_ACCOUNT_MNEMONIC environment variable is not set")
 	}
-	uptAccountName := os.Getenv("UPT_ACCOUNT_NAME")
+	uptAccountName := ap.Config.AddressKeyName
 	if uptAccountName == "" {
 		return nil, fmt.Errorf("UPT_ACCOUNT_NAME environment variable is not set")
 	}
 	// Passpharase is optional
-	uptAccountPassphrase := os.Getenv("UPT_ACCOUNT_PASSPHRASE")
+	uptAccountPassphrase := ap.Config.AddressAccountPassphrase
 
-	client, err := cosmosclient.New(ctx, cosmosclient.WithAddressPrefix(addressPrefix), cosmosclient.WithNodeAddress(nodeAddress))
+	client, err := cosmosclient.New(ctx, cosmosclient.WithAddressPrefix(ap.Config.AddressPrefix), cosmosclient.WithNodeAddress(nodeAddress))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -81,14 +73,15 @@ func NewAppChainClient() (*AppChain, error) {
 		if err.Error() == "account already exists" {
 			//TODO: Check how to use an existing account
 			account, err = client.Account(uptAccountName)
-		}
+		} 
+		
 		if err != nil {
-			fmt.Println("Error getting account: ", err)
+			ap.Config.Logger.Error().Err(err).Msg("error getting account")
 			log.Fatal(err)
 		}
 	}
 
-	address, err := account.Address(addressPrefix)
+	address, err := account.Address(ap.Config.AddressPrefix)
 	if err != nil {
 		return nil, err
 	}
@@ -103,26 +96,59 @@ func NewAppChainClient() (*AppChain, error) {
 	}, nil
 }
 
+func registerWithBlockchain(ctx context.Context, client cosmosclient.Client, account cosmosaccount.Account, config AppChainConfig) {
+	
+	address, err := account.Address(config.AddressPrefix)
+    if err != nil {
+		config.Logger.Fatal().Err(err).Msg("could not retrieve address for the allora blockchain")
+    }
+
+	msg := &types.MsgRegisterWorker{
+		Owner: address,
+	}
+
+	txResp, err := client.BroadcastTx(ctx, account, msg)
+    if err != nil {
+        config.Logger.Fatal().Err(err).Msg("could not register the node with the allora blockchain")
+    }
+
+	config.Logger.Info().Str("txhash", txResp.TxHash).Msg("successfully registered node with Allora blockchain")
+}
+
+// query NodeId in the InferenceNode type of the Cosmos chain
+func queryIsNodeRegistered(ctx context.Context, client cosmosclient.Client, address string, config AppChainConfig) bool {
+	// queryClient := types.NewQueryClient(client.Context())
+    // queryResp, err := queryClient.GetInferenceNodeRegistration(ctx, &types.QueryRegisteredInferenceNodesRequest{
+	// 	NodeId: address + config.StringSeperator + config.LibP2PKey,
+	// })
+
+    // if err != nil {
+    //     config.Logger.Fatal().Err(err).Msg("node could not be registered with blockchain")
+    // }
+	// (len(queryResp.Nodes) >= 1) 
+	return false
+}
+
 func (ap *AppChain) SendInferencesToAppChain(topicId uint64, results aggregate.Results) []WorkerInference {
 	// Aggregate the inferences from all peers/workers
 	var inferences []*types.Inference
 	var workersInferences []WorkerInference
 	for _, result := range results {
 		for _, peer := range result.Peers {
-			fmt.Println("Peer: ", peer)
+			ap.Config.Logger.Info().Any("peer", peer)
 			value, err := extractNumber(result.Result.Stdout)
 			if err != nil || value == "" {
-				fmt.Println("Error extracting number from stdout: ", err)
+				ap.Config.Logger.Fatal().Err(err).Msg("error extracting number from stdout")
 				value = "0" // TODO: Check what to do in this situation
 			}
 			parsed, err := parseFloatToUint64(value)
 			if err != nil {
-				fmt.Println("Error parsing uint: ", err)
+				ap.Config.Logger.Fatal().Err(err).Msg("error parsing uint")
 			}
 			inference := &types.Inference{
 				TopicId: topicId,
 				Worker:  "upt16ar7k93c6razqcuvxdauzdlaz352sfjp2rpj3i",
-				Value:   parsed, // TODO: Check later - change the format to string
+				Value:   cosmossdk_io_math.NewUint(parsed), // TODO: Check later - change the format to string
 			}
 			inferences = append(inferences, inference)
 			workersInferences = append(workersInferences, WorkerInference{Worker: inference.Worker, Inference: inference.Value})
@@ -136,16 +162,12 @@ func (ap *AppChain) SendInferencesToAppChain(topicId uint64, results aggregate.R
 
 	txResp, err := ap.Client.BroadcastTx(ap.Ctx, ap.ReputerAccount, req)
 	if err != nil {
-		log.Fatal(err)
+		ap.Config.Logger.Fatal().Err(err).Msg("failed to send inferences to allora blockchain")
 	}
-	fmt.Println("txResp:", txResp)
+
+	ap.Config.Logger.Info().Any("txResp:", txResp).Msg("sent inferences to allora blockchain")
 
 	return workersInferences
-}
-
-type WeightsCalcDependencies struct {
-	LatestWeights map[string]float64
-	ActualPrice   float64
 }
 
 // Process the inferences and start the weight calculation
@@ -162,17 +184,17 @@ func (ap *AppChain) GetWeightsCalcDependencies(workersInferences []WorkerInferen
 		weight, err := ap.QueryClient.GetWeight(ap.Ctx, req)
 		if err != nil {
 			weight = &types.QueryWeightResponse{
-				Amount: 0, // TODO: Check what to do in this situation
+				Amount: cosmossdk_io_math.NewUint(0), // TODO: Check what to do in this situation
 			}
 		}
 
-		workerLatestWeights[p.Worker] = float64(weight.Amount) / 100000.0 // TODO: Change
+		workerLatestWeights[p.Worker] = float64(weight.Amount.Uint64()) / 100000.0 // TODO: Change
 	}
 
 	// Get actual ETH price
 	ethPrice, err := getEthereumPrice()
 	if err != nil {
-		log.Fatal(err)
+		ap.Config.Logger.Fatal().Err(err).Msg("failed to get eth pricing")
 	}
 
 	return ethPrice, workerLatestWeights
@@ -184,22 +206,22 @@ func (ap *AppChain) SendUpdatedWeights(results aggregate.Results) {
 	for _, result := range results {
 		extractedWeights, err := extractWeights(result.Result.Stdout)
 		if err != nil {
-			fmt.Println("Error extracting weights: ", err)
+			ap.Config.Logger.Error().Err(err).Msg("Error extracting weight")
 			continue
 		}
 
 		for peer, value := range extractedWeights {
-			fmt.Println("Peer: ", peer)
+			ap.Config.Logger.Info().Str("peer", peer);
 			parsed, err := parseFloatToUint64Weights(strconv.FormatFloat(value, 'f', -1, 64))
 			if err != nil {
-				fmt.Println("Error parsing uint: ", err)
+				ap.Config.Logger.Error().Err(err).Msg("Error parsing uint")
 				continue
 			}
 			weight := &types.Weight{
 				TopicId: 1,
 				Reputer: ap.ReputerAddress,
 				Worker:  "upt16ar7k93c6razqcuvxdauzdlaz352sfjp2rpj3i", // Assuming the peer string matches the worker identifiers
-				Weight:  parsed,
+				Weight:  cosmossdk_io_math.NewUint(parsed),
 			}
 			weights = append(weights, weight)
 		}
@@ -213,14 +235,10 @@ func (ap *AppChain) SendUpdatedWeights(results aggregate.Results) {
 
 	txResp, err := ap.Client.BroadcastTx(ap.Ctx, ap.ReputerAccount, req)
 	if err != nil {
-		log.Fatal(err)
+		ap.Config.Logger.Fatal().Err(err).Msg("could not send weights to the allora blockchain")
 	}
-	fmt.Println("txResp:", txResp)
-}
 
-// EthereumPriceResponse represents the JSON structure returned by CoinGecko API
-type EthereumPriceResponse struct {
-	Ethereum map[string]float64 `json:"ethereum"`
+	ap.Config.Logger.Info().Str("txResp:", txResp.TxHash).Msg("weights sent to allora blockchain")
 }
 
 func getEthereumPrice() (float64, error) {
@@ -239,14 +257,6 @@ func getEthereumPrice() (float64, error) {
 	return result.Ethereum["usd"], nil
 }
 
-// Define a struct that matches the JSON structure of your stdout
-type StdoutData struct {
-	Value string `json:"value"`
-}
-
-type Response struct {
-	Value string `json:"value"`
-}
 
 func parseFloatToUint64Weights(input string) (uint64, error) {
 	// Parse the string to a floating-point number
@@ -283,14 +293,6 @@ func extractNumber(stdout string) (string, error) {
 	}
 
 	return response.Value, nil
-}
-
-type WeightsResponse struct {
-	Value string `json:"value"`
-}
-
-type WorkerWeights struct {
-	Weights map[string]float64 `json:"-"` // Use a map to dynamically handle worker identifiers
 }
 
 func extractWeights(stdout string) (map[string]float64, error) {
