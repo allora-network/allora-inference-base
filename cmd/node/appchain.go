@@ -10,6 +10,8 @@ import (
 	"os"
 	"strconv"
 
+	cosmossdk_io_math "cosmossdk.io/math"
+
 	"github.com/blocklessnetwork/b7s/node/aggregate"
 	"github.com/ignite/cli/v28/ignite/pkg/cosmosaccount"
 	"github.com/ignite/cli/v28/ignite/pkg/cosmosclient"
@@ -101,9 +103,8 @@ func registerWithBlockchain(ctx context.Context, client cosmosclient.Client, acc
 		config.Logger.Fatal().Err(err).Msg("could not retrieve address for the allora blockchain")
     }
 
-	msg := &types.MsgRegisterInferenceNode{
-		Sender: address,
-		LibP2PKey: config.LibP2PKey,
+	msg := &types.MsgRegisterWorker{
+		Owner: address,
 	}
 
 	txResp, err := client.BroadcastTx(ctx, account, msg)
@@ -116,16 +117,16 @@ func registerWithBlockchain(ctx context.Context, client cosmosclient.Client, acc
 
 // query NodeId in the InferenceNode type of the Cosmos chain
 func queryIsNodeRegistered(ctx context.Context, client cosmosclient.Client, address string, config AppChainConfig) bool {
-	queryClient := types.NewQueryClient(client.Context())
-    queryResp, err := queryClient.GetInferenceNodeRegistration(ctx, &types.QueryRegisteredInferenceNodesRequest{
-		NodeId: address + config.StringSeperator + config.LibP2PKey,
-	})
+	// queryClient := types.NewQueryClient(client.Context())
+    // queryResp, err := queryClient.GetInferenceNodeRegistration(ctx, &types.QueryRegisteredInferenceNodesRequest{
+	// 	NodeId: address + config.StringSeperator + config.LibP2PKey,
+	// })
 
-    if err != nil {
-        config.Logger.Fatal().Err(err).Msg("node could not be registered with blockchain")
-    }
-
-	return (len(queryResp.Nodes) >= 1)
+    // if err != nil {
+    //     config.Logger.Fatal().Err(err).Msg("node could not be registered with blockchain")
+    // }
+	// (len(queryResp.Nodes) >= 1) 
+	return false
 }
 
 func (ap *AppChain) SendInferencesToAppChain(topicId uint64, results aggregate.Results) []WorkerInference {
@@ -147,7 +148,7 @@ func (ap *AppChain) SendInferencesToAppChain(topicId uint64, results aggregate.R
 			inference := &types.Inference{
 				TopicId: topicId,
 				Worker:  "upt16ar7k93c6razqcuvxdauzdlaz352sfjp2rpj3i",
-				Value:   parsed, // TODO: Check later - change the format to string
+				Value:   cosmossdk_io_math.NewUint(parsed), // TODO: Check later - change the format to string
 			}
 			inferences = append(inferences, inference)
 			workersInferences = append(workersInferences, WorkerInference{Worker: inference.Worker, Inference: inference.Value})
@@ -183,11 +184,11 @@ func (ap *AppChain) GetWeightsCalcDependencies(workersInferences []WorkerInferen
 		weight, err := ap.QueryClient.GetWeight(ap.Ctx, req)
 		if err != nil {
 			weight = &types.QueryWeightResponse{
-				Amount: 0, // TODO: Check what to do in this situation
+				Amount: cosmossdk_io_math.NewUint(0), // TODO: Check what to do in this situation
 			}
 		}
 
-		workerLatestWeights[p.Worker] = float64(weight.Amount) / 100000.0 // TODO: Change
+		workerLatestWeights[p.Worker] = float64(weight.Amount.Uint64()) / 100000.0 // TODO: Change
 	}
 
 	// Get actual ETH price
@@ -220,7 +221,7 @@ func (ap *AppChain) SendUpdatedWeights(results aggregate.Results) {
 				TopicId: 1,
 				Reputer: ap.ReputerAddress,
 				Worker:  "upt16ar7k93c6razqcuvxdauzdlaz352sfjp2rpj3i", // Assuming the peer string matches the worker identifiers
-				Weight:  parsed,
+				Weight:  cosmossdk_io_math.NewUint(parsed),
 			}
 			weights = append(weights, weight)
 		}

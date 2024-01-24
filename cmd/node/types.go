@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 
+	cosmossdk_io_math "cosmossdk.io/math"
 	"github.com/blocklessnetwork/b7s/config"
 	"github.com/ignite/cli/v28/ignite/pkg/cosmosaccount"
 	"github.com/ignite/cli/v28/ignite/pkg/cosmosclient"
@@ -38,7 +39,7 @@ type AppChainConfig struct {
 
 type WorkerInference struct {
 	Worker    string `json:"worker"`
-	Inference uint64 `json:"inference"`
+	Inference cosmossdk_io_math.Uint `json:"inference"`
 }
 
 type WeightsResponse struct {
