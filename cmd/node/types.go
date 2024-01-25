@@ -50,21 +50,16 @@ type WorkerWeights struct {
 	Weights map[string]float64 `json:"-"` // Use a map to dynamically handle worker identifiers
 }
 
-type WeightsCalcDependencies struct {
-	LatestWeights map[string]float64
-	ActualPrice   float64
-}
-
-// EthereumPriceResponse represents the JSON structure returned by CoinGecko API
-type EthereumPriceResponse struct {
-	Ethereum map[string]float64 `json:"ethereum"`
-}
-
-// Define a struct that matches the JSON structure of your stdout
-type StdoutData struct {
-	Value string `json:"value"`
+type ResponseInfo struct {
+	Mode string `json:"mode"`
+	TopicId uint64 `json:"topicId"`
 }
 
 type Response struct {
 	Value string `json:"value"`
 }
+
+var (
+	inferenceType = "inferences"
+	weightsType   = "weights"
+)

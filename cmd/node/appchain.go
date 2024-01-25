@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"math"
-	"net/http"
 	"os"
 	"strconv"
 
@@ -129,7 +128,7 @@ func queryIsNodeRegistered(ctx context.Context, client cosmosclient.Client, addr
 	return false
 }
 
-func (ap *AppChain) SendInferencesToAppChain(topicId uint64, results aggregate.Results) []WorkerInference {
+func (ap *AppChain) SendInferences(topicId uint64, results aggregate.Results) []WorkerInference {
 	// Aggregate the inferences from all peers/workers
 	var inferences []*types.Inference
 	var workersInferences []WorkerInference
@@ -139,7 +138,7 @@ func (ap *AppChain) SendInferencesToAppChain(topicId uint64, results aggregate.R
 			value, err := extractNumber(result.Result.Stdout)
 			if err != nil || value == "" {
 				ap.Config.Logger.Fatal().Err(err).Msg("error extracting number from stdout")
-				value = "0" // TODO: Check what to do in this situation
+				value = "0"
 			}
 			parsed, err := parseFloatToUint64(value)
 			if err != nil {
@@ -148,14 +147,14 @@ func (ap *AppChain) SendInferencesToAppChain(topicId uint64, results aggregate.R
 			inference := &types.Inference{
 				TopicId: topicId,
 				Worker:  "upt16ar7k93c6razqcuvxdauzdlaz352sfjp2rpj3i",
-				Value:   cosmossdk_io_math.NewUint(parsed), // TODO: Check later - change the format to string
+				Value:   cosmossdk_io_math.NewUint(parsed),
 			}
 			inferences = append(inferences, inference)
 			workersInferences = append(workersInferences, WorkerInference{Worker: inference.Worker, Inference: inference.Value})
 		}
 	}
 
-	req := &types.MsgSetInferences{
+	req := &types.MsgProcessInferences{
 		Sender:     ap.ReputerAddress,
 		Inferences: inferences,
 	}
@@ -170,37 +169,7 @@ func (ap *AppChain) SendInferencesToAppChain(topicId uint64, results aggregate.R
 	return workersInferences
 }
 
-// Process the inferences and start the weight calculation
-func (ap *AppChain) GetWeightsCalcDependencies(workersInferences []WorkerInference) (float64, map[string]float64) {
-	// Get lastest weight of each peer/worker
-	var workerLatestWeights map[string]float64 = make(map[string]float64)
-	for _, p := range workersInferences {
-		req := &types.QueryWeightRequest{
-			TopicId: 1,
-			Reputer: ap.ReputerAddress,
-			Worker:  p.Worker,
-		}
-
-		weight, err := ap.QueryClient.GetWeight(ap.Ctx, req)
-		if err != nil {
-			weight = &types.QueryWeightResponse{
-				Amount: cosmossdk_io_math.NewUint(0), // TODO: Check what to do in this situation
-			}
-		}
-
-		workerLatestWeights[p.Worker] = float64(weight.Amount.Uint64()) / 100000.0 // TODO: Change
-	}
-
-	// Get actual ETH price
-	ethPrice, err := getEthereumPrice()
-	if err != nil {
-		ap.Config.Logger.Fatal().Err(err).Msg("failed to get eth pricing")
-	}
-
-	return ethPrice, workerLatestWeights
-}
-
-func (ap *AppChain) SendUpdatedWeights(results aggregate.Results) {
+func (ap *AppChain) SendUpdatedWeights(topicId uint64, results aggregate.Results) {
 
 	weights := make([]*types.Weight, 0)
 	for _, result := range results {
@@ -218,7 +187,7 @@ func (ap *AppChain) SendUpdatedWeights(results aggregate.Results) {
 				continue
 			}
 			weight := &types.Weight{
-				TopicId: 1,
+				TopicId: topicId,
 				Reputer: ap.ReputerAddress,
 				Worker:  "upt16ar7k93c6razqcuvxdauzdlaz352sfjp2rpj3i", // Assuming the peer string matches the worker identifiers
 				Weight:  cosmossdk_io_math.NewUint(parsed),
@@ -240,23 +209,6 @@ func (ap *AppChain) SendUpdatedWeights(results aggregate.Results) {
 
 	ap.Config.Logger.Info().Str("txResp:", txResp.TxHash).Msg("weights sent to allora blockchain")
 }
-
-func getEthereumPrice() (float64, error) {
-	url := "https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd"
-	resp, err := http.Get(url)
-	if err != nil {
-		return 0, err
-	}
-	defer resp.Body.Close()
-
-	var result EthereumPriceResponse
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return 0, err
-	}
-
-	return result.Ethereum["usd"], nil
-}
-
 
 func parseFloatToUint64Weights(input string) (uint64, error) {
 	// Parse the string to a floating-point number
