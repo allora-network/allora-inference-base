@@ -35,6 +35,7 @@ type AppChainConfig struct {
 	StringSeperator string // string seperator used for key identifiers in cosmos
 	LibP2PKey 		string // the libp2p key used to sign offchain communications 
 	Logger 			zerolog.Logger
+	SubmitTx		bool   // do we need to commit these to the chain, might be a reason not to
 }
 
 type WorkerInference struct {

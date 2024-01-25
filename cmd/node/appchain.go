@@ -8,6 +8,7 @@ import (
 	"math"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 
 	cosmossdk_io_math "cosmossdk.io/math"
@@ -22,25 +23,46 @@ func (ap *AppChain) start(ctx context.Context) {
 	go ap.startClient(ctx, ap.Config)
 }
 
-func (ap *AppChain)  startClient(ctx context.Context, config AppChainConfig) {
-    client := ap.Client
+func (ap *AppChain)  startClient(ctx context.Context, config AppChainConfig) error {
+	userHomeDir, err := os.UserHomeDir()
+	if err != nil {
+		config.Logger.Warn().Err(err).Msg("could not get home directory for app chain")
+		return err
+	}
 
-	account, err := client.Account(config.AddressKeyName)
+	DefaultNodeHome := filepath.Join(userHomeDir, ".uptd")
+	client, _ := cosmosclient.New(ctx, cosmosclient.WithAddressPrefix(ap.Config.AddressPrefix), cosmosclient.WithHome(DefaultNodeHome))
+	
+	// this is terrible, no isConnected as part of this code path
+	if(len(client.Context().ChainID) < 1) {
+		return fmt.Errorf("client can not connect to allora blockchain")
+	}
+
+	account, err := client.Account(ap.Config.AddressKeyName)
     if err != nil {
-       config.Logger.Fatal().Err(err).Msg("could not retrieve allora blockchain account")
-    }
+	 	ap.Config.SubmitTx = false
+       	config.Logger.Warn().Err(err).Msg("could not retrieve allora blockchain account, transactions will not be submitted to chain")
+		return err
+	}
 
 	address, err := account.Address(config.AddressPrefix)
     if err != nil {
-        log.Fatal(err)
-    }
-
-	if (!queryIsNodeRegistered(ctx, client, address, config)) {
-		// not registered, register the node
-		registerWithBlockchain(ctx, client, account, config)
+		ap.Config.SubmitTx = false
+        config.Logger.Warn().Err(err).Msg("could not retrieve allora blockchain address, transactions will not be submitted to chain")
+		return err
 	}
 
-	config.Logger.Info().Msg("allora blockchain registration verification complete")
+	if(config.SubmitTx) {
+		if (!queryIsNodeRegistered(ctx, client, address, config)) {
+			// not registered, register the node
+			registerWithBlockchain(ctx, client, account, config)
+		}
+		config.Logger.Info().Msg("allora blockchain registration verification complete")
+	} else {
+		config.Logger.Warn().Err(err).Msg("could not retrieve allora blockchain address, transactions will not be submitted to chain")
+	}
+
+	return nil
 }
 
 func (ap *AppChain) New() (*AppChain, error) {
