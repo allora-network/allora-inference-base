@@ -104,7 +104,7 @@ func registerWithBlockchain(ctx context.Context, client cosmosclient.Client, acc
     }
 
 	msg := &types.MsgRegisterWorker{
-		Owner: address,
+		Creator: address,
 	}
 
 	txResp, err := client.BroadcastTx(ctx, account, msg)
