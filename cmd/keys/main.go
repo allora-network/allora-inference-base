@@ -28,6 +28,8 @@ func main() {
 
 	pflag.StringVarP(&flagOutputDir, "output", "o", ".", "directory where keys should be stored")
 
+	pflag.Parse()
+
 	// Initialize output directory
 	err := os.MkdirAll(flagOutputDir, os.ModePerm)
 	if err != nil {
