@@ -14,12 +14,10 @@ export UPT_ACCOUNT_PASSPHRASE="1234567890"
 
 ***WARNING***
 
-This repo is currently relying on a replaced lib-p2p module.
-
-Clone the following repo as a sibling to this
+This repo is currently relying on a private module, current development requires
 
 ```bash
-git clone https://github.com/dmikey/go-libp2p-raft
+export GOPRIVATE=github.com/upshot-tech/upshot-appchain   
 ```
 
 Then to build
