@@ -200,9 +200,12 @@ func run() int {
 	failed := make(chan struct{})
 
 	cfg.AppChainConfig.AddressPrefix = "upt"
+	cfg.AppChainConfig.Logger = log
+
 	appchain := &AppChain{
 		Config: cfg.AppChainConfig,
 	}
+	
 	appchain.start(ctx)
 
 	// Start node main loop in a separate goroutine.
