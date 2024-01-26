@@ -1,8 +1,6 @@
 package main
 
 import (
-	"context"
-
 	cosmossdk_io_math "cosmossdk.io/math"
 	"github.com/blocklessnetwork/b7s/config"
 	"github.com/ignite/cli/v28/ignite/pkg/cosmosaccount"
@@ -17,7 +15,6 @@ type alloraCfg struct {
 }
 
 type AppChain struct {
-	Ctx            context.Context
 	ReputerAddress string
 	ReputerAccount cosmosaccount.Account
 	Client         cosmosclient.Client

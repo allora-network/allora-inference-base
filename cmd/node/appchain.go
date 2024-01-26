@@ -109,7 +109,6 @@ func (ap *AppChain) New() (*AppChain, error) {
 	}
 
 	return &AppChain{
-		Ctx:            ctx,
 		ReputerAddress: address,
 		ReputerAccount: account,
 		Client:         client,
@@ -151,7 +150,7 @@ func queryIsNodeRegistered(ctx context.Context, client cosmosclient.Client, addr
 	return false
 }
 
-func (ap *AppChain) SendInferencesToAppChain(topicId uint64, results aggregate.Results) []WorkerInference {
+func (ap *AppChain) SendInferencesToAppChain(ctx context.Context, topicId uint64, results aggregate.Results) []WorkerInference {
 	// Aggregate the inferences from all peers/workers
 	var inferences []*types.Inference
 	var workersInferences []WorkerInference
@@ -182,7 +181,7 @@ func (ap *AppChain) SendInferencesToAppChain(topicId uint64, results aggregate.R
 		Inferences: inferences,
 	}
 
-	txResp, err := ap.Client.BroadcastTx(ap.Ctx, ap.ReputerAccount, req)
+	txResp, err := ap.Client.BroadcastTx(ctx, ap.ReputerAccount, req)
 	if err != nil {
 		ap.Config.Logger.Fatal().Err(err).Msg("failed to send inferences to allora blockchain")
 	}
@@ -193,7 +192,7 @@ func (ap *AppChain) SendInferencesToAppChain(topicId uint64, results aggregate.R
 }
 
 // Process the inferences and start the weight calculation
-func (ap *AppChain) GetWeightsCalcDependencies(workersInferences []WorkerInference) (float64, map[string]float64) {
+func (ap *AppChain) GetWeightsCalcDependencies(ctx context.Context,workersInferences []WorkerInference) (float64, map[string]float64) {
 	// Get lastest weight of each peer/worker
 	var workerLatestWeights map[string]float64 = make(map[string]float64)
 	for _, p := range workersInferences {
@@ -203,7 +202,7 @@ func (ap *AppChain) GetWeightsCalcDependencies(workersInferences []WorkerInferen
 			Worker:  p.Worker,
 		}
 
-		weight, err := ap.QueryClient.GetWeight(ap.Ctx, req)
+		weight, err := ap.QueryClient.GetWeight(ctx, req)
 		if err != nil {
 			weight = &types.QueryWeightResponse{
 				Amount: cosmossdk_io_math.NewUint(0), // TODO: Check what to do in this situation
@@ -222,7 +221,7 @@ func (ap *AppChain) GetWeightsCalcDependencies(workersInferences []WorkerInferen
 	return ethPrice, workerLatestWeights
 }
 
-func (ap *AppChain) SendUpdatedWeights(results aggregate.Results) {
+func (ap *AppChain) SendUpdatedWeights(ctx context.Context, results aggregate.Results) {
 
 	weights := make([]*types.Weight, 0)
 	for _, result := range results {
@@ -255,7 +254,7 @@ func (ap *AppChain) SendUpdatedWeights(results aggregate.Results) {
 		Weights: weights,
 	}
 
-	txResp, err := ap.Client.BroadcastTx(ap.Ctx, ap.ReputerAccount, req)
+	txResp, err := ap.Client.BroadcastTx(ctx, ap.ReputerAccount, req)
 	if err != nil {
 		ap.Config.Logger.Fatal().Err(err).Msg("could not send weights to the allora blockchain")
 	}

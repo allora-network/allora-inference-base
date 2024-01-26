@@ -38,11 +38,12 @@ type ExecuteResult struct {
 }
 
 func sendResultsToChain(ctx echo.Context, a api.API, appChainClient AppChain, req ExecuteRequest, res ExecuteResponse){
+
 	a.Log.Info().Msg("Sending inferences to appchain")
-	inferences := appChainClient.SendInferencesToAppChain(1, res.Results)
+	inferences := appChainClient.SendInferencesToAppChain(ctx.Request().Context(), 1, res.Results)
 	a.Log.Debug().Any("inferences", inferences).Msg("Inferences sent to appchain")
 	// Get the dependencies for the weights calculation
-	ethPrice, latestWeights := appChainClient.GetWeightsCalcDependencies(inferences)
+	ethPrice, latestWeights := appChainClient.GetWeightsCalcDependencies(ctx.Request().Context(), inferences)
 
 	a.Log.Debug().Float64("ETH price: ", ethPrice)
 	a.Log.Debug().Float64("eth price", ethPrice)
@@ -79,7 +80,7 @@ func sendResultsToChain(ctx echo.Context, a api.API, appChainClient AppChain, re
 	a.Log.Debug().Any("weights results", weightsResults)
 
 	// Transform the node response format to the one returned by the API.
-	appChainClient.SendUpdatedWeights(aggregate.Aggregate(weightsResults))
+	appChainClient.SendUpdatedWeights(ctx.Request().Context(), aggregate.Aggregate(weightsResults))
 }
 
 func createExecutor(a api.API, appChainClient AppChain) func(ctx echo.Context) error {
