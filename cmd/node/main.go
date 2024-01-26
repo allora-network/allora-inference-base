@@ -200,13 +200,12 @@ func run() int {
 	failed := make(chan struct{})
 
 	cfg.AppChainConfig.AddressPrefix = "upt"
-	
-	appchain := &AppChain{
-		Logger: log,
-		Config: cfg.AppChainConfig,
-	}
-	
-	appchain.start(ctx)
+	cfg.AppChainConfig.LibP2PKey = host.ID().String()
+
+	appchain, err := NewAppChain(cfg.AppChainConfig, log)
+	if err != nil {
+		appchain.init(ctx)
+	} 
 
 	// Start node main loop in a separate goroutine.
 	go func() {

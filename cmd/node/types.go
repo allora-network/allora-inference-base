@@ -20,7 +20,7 @@ type AppChain struct {
 	Client         cosmosclient.Client
 	QueryClient    types.QueryClient
 	WorkersAddress map[string]string
-	Config AppChainConfig
+	Config 			AppChainConfig
 	Logger 			zerolog.Logger
 }
 

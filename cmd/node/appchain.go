@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"math"
 	"net/http"
 	"os"
@@ -16,29 +15,96 @@ import (
 	"github.com/blocklessnetwork/b7s/node/aggregate"
 	"github.com/ignite/cli/v28/ignite/pkg/cosmosaccount"
 	"github.com/ignite/cli/v28/ignite/pkg/cosmosclient"
+	"github.com/rs/zerolog"
 	types "github.com/upshot-tech/protocol-state-machine-module"
 )
 
-func (ap *AppChain) start(ctx context.Context) {
-	go ap.startClient(ctx, ap.Config)
+func (ap *AppChain) init(ctx context.Context) {
+	err := ap.startClient(ctx, ap.Config)
+	if err !=nil {
+		ap.Logger.Error().Err(err).Msg("error starting the allora blockchain client")
+	}
 }
 
-func (ap *AppChain)  startClient(ctx context.Context, config AppChainConfig) error {
+
+func restoreAccount(ctx context.Context, ap AppChain) (cosmosaccount.Account, error) {
+
+	var account cosmosaccount.Account
+	uptAccountMnemonic := ap.Config.AddressRestoreMnemonic
+	uptAccountName := ap.Config.AddressKeyName
+	if uptAccountName == "" {
+		return account, fmt.Errorf("allora-chain-key-name flag is not set")
+	}
+
+	// Passpharase is optional
+	uptAccountPassphrase := ap.Config.AddressAccountPassphrase
+
+	// Create a Cosmos account instance
+	account, err := ap.Client.AccountRegistry.Import(uptAccountName, uptAccountMnemonic, uptAccountPassphrase)
+	if err != nil {
+		return account, err
+	}
+
+	return account, nil
+}
+
+func createClient(ctx context.Context, ap AppChain) (cosmosclient.Client, error) {
+	var client cosmosclient.Client
 	userHomeDir, err := os.UserHomeDir()
+
 	if err != nil {
 		ap.Logger.Warn().Err(err).Msg("could not get home directory for app chain")
-		return err
+		return client, err
 	}
 
 	DefaultNodeHome := filepath.Join(userHomeDir, ".uptd")
-	client, _ := cosmosclient.New(ctx, cosmosclient.WithAddressPrefix(ap.Config.AddressPrefix), cosmosclient.WithHome(DefaultNodeHome))
+	client, _ = cosmosclient.New(ctx, cosmosclient.WithAddressPrefix(ap.Config.AddressPrefix), cosmosclient.WithHome(DefaultNodeHome))
 	
 	// this is terrible, no isConnected as part of this code path
 	if(len(client.Context().ChainID) < 1) {
-		return fmt.Errorf("client can not connect to allora blockchain")
+		return client, fmt.Errorf("client can not connect to allora blockchain")
 	}
 
-	account, err := client.Account(ap.Config.AddressKeyName)
+	_, err = getAccount(ap)
+    if err != nil {
+	 	ap.Config.SubmitTx = false
+       	ap.Logger.Warn().Err(err).Msg("could not retrieve allora blockchain account, transactions will not be submitted to chain")
+		return client, err
+	}
+
+	return client, nil
+}
+
+func getAccount(ap AppChain) (cosmosaccount.Account, error) {
+	var account cosmosaccount.Account
+
+	if(len(ap.Config.AddressRestoreMnemonic) > 0) {
+		account, err := restoreAccount(context.Background(), ap)
+		if err != nil {
+			ap.Config.SubmitTx = false
+			  ap.Logger.Warn().Err(err).Msg("could not *restore* allora blockchain account, transactions will not be submitted to chain")
+		   return account, err
+	   }
+	} else {
+		account, err := ap.Client.Account(ap.Config.AddressKeyName)
+		if err != nil {
+			ap.Config.SubmitTx = false
+			  ap.Logger.Warn().Err(err).Msg("could not retrieve allora blockchain account, transactions will not be submitted to chain")
+		   return account, err
+	   }
+	}
+
+	return account, nil
+}
+
+func (ap *AppChain)  startClient(ctx context.Context, config AppChainConfig) error {
+
+	client, err := createClient(ctx, *ap);
+	if err != nil {
+		return err
+	}
+
+	account, err := getAccount(*ap)
     if err != nil {
 	 	ap.Config.SubmitTx = false
        	ap.Logger.Warn().Err(err).Msg("could not retrieve allora blockchain account, transactions will not be submitted to chain")
@@ -65,42 +131,26 @@ func (ap *AppChain)  startClient(ctx context.Context, config AppChainConfig) err
 	return nil
 }
 
-func (ap *AppChain) New() (*AppChain, error) {
+func NewAppChain(config AppChainConfig, logger zerolog.Logger) (*AppChain, error) {
+
+	ap := &AppChain{
+		Logger: logger,
+		Config: config,
+	}
+
 	ctx := context.Background()
 
-	nodeAddress := ap.Config.LibP2PKey
-	if nodeAddress == "" {
-		return nil, fmt.Errorf("NODE_ADDRESS environment variable is not set")
-	}
-	uptAccountMnemonic := ap.Config.AddressRestoreMnemonic
-	if uptAccountMnemonic == "" {
-		return nil, fmt.Errorf("UPT_ACCOUNT_MNEMONIC environment variable is not set")
-	}
-	uptAccountName := ap.Config.AddressKeyName
-	if uptAccountName == "" {
-		return nil, fmt.Errorf("UPT_ACCOUNT_NAME environment variable is not set")
-	}
-	// Passpharase is optional
-	uptAccountPassphrase := ap.Config.AddressAccountPassphrase
+	client, err := createClient(ctx, *ap);
 
-	client, err := cosmosclient.New(ctx, cosmosclient.WithAddressPrefix(ap.Config.AddressPrefix), cosmosclient.WithNodeAddress(nodeAddress))
 	if err != nil {
-		log.Fatal(err)
+		return ap, err
 	}
+
 	queryClient := types.NewQueryClient(client.Context())
 
-	// Create a Cosmos account instance
-	account, err := client.AccountRegistry.Import(uptAccountName, uptAccountMnemonic, uptAccountPassphrase)
+	account, err := getAccount(*ap)
 	if err != nil {
-		if err.Error() == "account already exists" {
-			//TODO: Check how to use an existing account
-			account, err = client.Account(uptAccountName)
-		} 
-		
-		if err != nil {
-			ap.Logger.Error().Err(err).Msg("error getting account")
-			log.Fatal(err)
-		}
+		return nil, err
 	}
 
 	address, err := account.Address(ap.Config.AddressPrefix)
