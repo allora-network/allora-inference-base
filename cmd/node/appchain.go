@@ -192,7 +192,7 @@ func (ap *AppChain) SendInferencesToAppChain(ctx context.Context, topicId uint64
 }
 
 // Process the inferences and start the weight calculation
-func (ap *AppChain) GetWeightsCalcDependencies(ctx context.Context,workersInferences []WorkerInference) (float64, map[string]float64) {
+func (ap *AppChain) GetWeightsCalcDependencies(ctx context.Context, workersInferences []WorkerInference) (float64, map[string]float64) {
 	// Get lastest weight of each peer/worker
 	var workerLatestWeights map[string]float64 = make(map[string]float64)
 	for _, p := range workersInferences {
