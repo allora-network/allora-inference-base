@@ -26,7 +26,7 @@ func (ap *AppChain) start(ctx context.Context) {
 func (ap *AppChain)  startClient(ctx context.Context, config AppChainConfig) error {
 	userHomeDir, err := os.UserHomeDir()
 	if err != nil {
-		config.Logger.Warn().Err(err).Msg("could not get home directory for app chain")
+		ap.Logger.Warn().Err(err).Msg("could not get home directory for app chain")
 		return err
 	}
 
@@ -41,25 +41,25 @@ func (ap *AppChain)  startClient(ctx context.Context, config AppChainConfig) err
 	account, err := client.Account(ap.Config.AddressKeyName)
     if err != nil {
 	 	ap.Config.SubmitTx = false
-       	config.Logger.Warn().Err(err).Msg("could not retrieve allora blockchain account, transactions will not be submitted to chain")
+       	ap.Logger.Warn().Err(err).Msg("could not retrieve allora blockchain account, transactions will not be submitted to chain")
 		return err
 	}
 
 	address, err := account.Address(config.AddressPrefix)
     if err != nil {
 		ap.Config.SubmitTx = false
-        config.Logger.Warn().Err(err).Msg("could not retrieve allora blockchain address, transactions will not be submitted to chain")
+        ap.Logger.Warn().Err(err).Msg("could not retrieve allora blockchain address, transactions will not be submitted to chain")
 		return err
 	}
 
 	if(config.SubmitTx) {
 		if (!queryIsNodeRegistered(ctx, client, address, config)) {
 			// not registered, register the node
-			registerWithBlockchain(ctx, client, account, config)
+			registerWithBlockchain(ctx, client, account, *ap)
 		}
-		config.Logger.Info().Msg("allora blockchain registration verification complete")
+		ap.Logger.Info().Msg("allora blockchain registration verification complete")
 	} else {
-		config.Logger.Warn().Err(err).Msg("could not retrieve allora blockchain address, transactions will not be submitted to chain")
+		ap.Logger.Warn().Err(err).Msg("could not retrieve allora blockchain address, transactions will not be submitted to chain")
 	}
 
 	return nil
@@ -98,7 +98,7 @@ func (ap *AppChain) New() (*AppChain, error) {
 		} 
 		
 		if err != nil {
-			ap.Config.Logger.Error().Err(err).Msg("error getting account")
+			ap.Logger.Error().Err(err).Msg("error getting account")
 			log.Fatal(err)
 		}
 	}
@@ -117,11 +117,11 @@ func (ap *AppChain) New() (*AppChain, error) {
 	}, nil
 }
 
-func registerWithBlockchain(ctx context.Context, client cosmosclient.Client, account cosmosaccount.Account, config AppChainConfig) {
+func registerWithBlockchain(ctx context.Context, client cosmosclient.Client, account cosmosaccount.Account, ap AppChain) {
 	
-	address, err := account.Address(config.AddressPrefix)
+	address, err := account.Address(ap.Config.AddressPrefix)
     if err != nil {
-		config.Logger.Fatal().Err(err).Msg("could not retrieve address for the allora blockchain")
+		ap.Logger.Fatal().Err(err).Msg("could not retrieve address for the allora blockchain")
     }
 
 	msg := &types.MsgRegisterWorker{
@@ -130,10 +130,10 @@ func registerWithBlockchain(ctx context.Context, client cosmosclient.Client, acc
 
 	txResp, err := client.BroadcastTx(ctx, account, msg)
     if err != nil {
-        config.Logger.Fatal().Err(err).Msg("could not register the node with the allora blockchain")
+        ap.Logger.Fatal().Err(err).Msg("could not register the node with the allora blockchain")
     }
 
-	config.Logger.Info().Str("txhash", txResp.TxHash).Msg("successfully registered node with Allora blockchain")
+	ap.Logger.Info().Str("txhash", txResp.TxHash).Msg("successfully registered node with Allora blockchain")
 }
 
 // query NodeId in the InferenceNode type of the Cosmos chain
@@ -156,15 +156,15 @@ func (ap *AppChain) SendInferencesToAppChain(ctx context.Context, topicId uint64
 	var workersInferences []WorkerInference
 	for _, result := range results {
 		for _, peer := range result.Peers {
-			ap.Config.Logger.Info().Any("peer", peer)
+			ap.Logger.Info().Any("peer", peer)
 			value, err := extractNumber(result.Result.Stdout)
 			if err != nil || value == "" {
-				ap.Config.Logger.Fatal().Err(err).Msg("error extracting number from stdout")
+				ap.Logger.Fatal().Err(err).Msg("error extracting number from stdout")
 				value = "0" // TODO: Check what to do in this situation
 			}
 			parsed, err := parseFloatToUint64(value)
 			if err != nil {
-				ap.Config.Logger.Fatal().Err(err).Msg("error parsing uint")
+				ap.Logger.Fatal().Err(err).Msg("error parsing uint")
 			}
 			inference := &types.Inference{
 				TopicId: topicId,
@@ -183,10 +183,10 @@ func (ap *AppChain) SendInferencesToAppChain(ctx context.Context, topicId uint64
 
 	txResp, err := ap.Client.BroadcastTx(ctx, ap.ReputerAccount, req)
 	if err != nil {
-		ap.Config.Logger.Fatal().Err(err).Msg("failed to send inferences to allora blockchain")
+		ap.Logger.Fatal().Err(err).Msg("failed to send inferences to allora blockchain")
 	}
 
-	ap.Config.Logger.Info().Any("txResp:", txResp).Msg("sent inferences to allora blockchain")
+	ap.Logger.Info().Any("txResp:", txResp).Msg("sent inferences to allora blockchain")
 
 	return workersInferences
 }
@@ -215,7 +215,7 @@ func (ap *AppChain) GetWeightsCalcDependencies(ctx context.Context, workersInfer
 	// Get actual ETH price
 	ethPrice, err := getEthereumPrice()
 	if err != nil {
-		ap.Config.Logger.Fatal().Err(err).Msg("failed to get eth pricing")
+		ap.Logger.Fatal().Err(err).Msg("failed to get eth pricing")
 	}
 
 	return ethPrice, workerLatestWeights
@@ -227,15 +227,15 @@ func (ap *AppChain) SendUpdatedWeights(ctx context.Context, results aggregate.Re
 	for _, result := range results {
 		extractedWeights, err := extractWeights(result.Result.Stdout)
 		if err != nil {
-			ap.Config.Logger.Error().Err(err).Msg("Error extracting weight")
+			ap.Logger.Error().Err(err).Msg("Error extracting weight")
 			continue
 		}
 
 		for peer, value := range extractedWeights {
-			ap.Config.Logger.Info().Str("peer", peer);
+			ap.Logger.Info().Str("peer", peer);
 			parsed, err := parseFloatToUint64Weights(strconv.FormatFloat(value, 'f', -1, 64))
 			if err != nil {
-				ap.Config.Logger.Error().Err(err).Msg("Error parsing uint")
+				ap.Logger.Error().Err(err).Msg("Error parsing uint")
 				continue
 			}
 			weight := &types.Weight{
@@ -256,10 +256,10 @@ func (ap *AppChain) SendUpdatedWeights(ctx context.Context, results aggregate.Re
 
 	txResp, err := ap.Client.BroadcastTx(ctx, ap.ReputerAccount, req)
 	if err != nil {
-		ap.Config.Logger.Fatal().Err(err).Msg("could not send weights to the allora blockchain")
+		ap.Logger.Fatal().Err(err).Msg("could not send weights to the allora blockchain")
 	}
 
-	ap.Config.Logger.Info().Str("txResp:", txResp.TxHash).Msg("weights sent to allora blockchain")
+	ap.Logger.Info().Str("txResp:", txResp.TxHash).Msg("weights sent to allora blockchain")
 }
 
 func getEthereumPrice() (float64, error) {

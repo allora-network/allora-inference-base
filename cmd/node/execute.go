@@ -119,7 +119,7 @@ func createExecutor(a api.API, appChainClient AppChain) func(ctx echo.Context) e
 			// don't block the return to the consumer to send these to chain
 			go sendResultsToChain(ctx, a, appChainClient, req, res)
 		} else {
-			appChainClient.Config.Logger.Debug().Msg("inference results would have been submitted to chain")
+			appChainClient.Logger.Debug().Msg("inference results would have been submitted to chain")
 		}
 
 		// Send the response.

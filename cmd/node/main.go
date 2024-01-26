@@ -200,9 +200,9 @@ func run() int {
 	failed := make(chan struct{})
 
 	cfg.AppChainConfig.AddressPrefix = "upt"
-	cfg.AppChainConfig.Logger = log
-
+	
 	appchain := &AppChain{
+		Logger: log,
 		Config: cfg.AppChainConfig,
 	}
 	
