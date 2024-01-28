@@ -60,8 +60,8 @@ jobs:
           done
 
           # compute-node HEADS
-          ECR_REPOSITORY="${ECR_REPOSITORY}-heads"
-          docker build --pull -f docker/Dockerfile_heads \
+          ECR_REPOSITORY="${ECR_REPOSITORY}-head"
+          docker build --pull -f docker/Dockerfile_head \
               --build-arg "GH_TOKEN=${{ secrets.GHCR_TOKEN }}" \
               -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
