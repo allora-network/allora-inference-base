@@ -46,6 +46,20 @@ jobs:
             EXTRA_IMAGE_TAGS="${EXTRA_IMAGE_TAGS};latest"
           fi
 
+          # compute-node HEADS
+          ECR_REPOSITORY_HEAD="${ECR_REPOSITORY}-head"
+
+          docker build --pull -f docker/Dockerfile_head \
+              --build-arg "GH_TOKEN=${{ secrets.GHCR_TOKEN }}" \
+              -t $ECR_REPOSITORY_HEAD/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker push $ECR_REPOSITORY_HEAD/$ECR_REPOSITORY:$IMAGE_TAG
+
+          # Build and PUSH additional tags
+          for tag in $(echo $EXTRA_IMAGE_TAGS| tr ";" "\n"); do
+            docker tag $ECR_REPOSITORY_HEAD/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REPOSITORY_HEAD/$ECR_REPOSITORY:$tag
+            docker push $ECR_REPOSITORY_HEAD/$ECR_REPOSITORY:$tag
+          done
+
           # Build a docker container and push it to ECR so that it can be deployed to ECS.
           # compute-node workers
           docker build --pull -f docker/Dockerfile \
@@ -58,17 +72,3 @@ jobs:
             docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:$tag
             docker push $ECR_REGISTRY/$ECR_REPOSITORY:$tag
           done
-
-          # compute-node HEADS
-          ECR_REPOSITORY="${ECR_REPOSITORY}-head"
-          docker build --pull -f docker/Dockerfile_head \
-              --build-arg "GH_TOKEN=${{ secrets.GHCR_TOKEN }}" \
-              -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-
-          # Build and PUSH additional tags
-          for tag in $(echo $EXTRA_IMAGE_TAGS| tr ";" "\n"); do
-            docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:$tag
-            docker push $ECR_REGISTRY/$ECR_REPOSITORY:$tag
-          done
-
