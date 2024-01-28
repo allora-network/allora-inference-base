@@ -23,8 +23,6 @@ RUN apt update && \
     apt -y dist-upgrade && \
     apt install -y --no-install-recommends \
       tzdata \
-      curl \
-      unzip \
       ca-certificates && \
     rm -rf /var/cache/apt/*
 
