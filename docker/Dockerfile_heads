@@ -1,17 +1,22 @@
 FROM --platform=linux/amd64 golang:1.21-bookworm AS builder
 
 WORKDIR /src
-
 ADD . /src
 
 ARG GH_TOKEN
 
 RUN git config --global url."https://${GH_TOKEN}@github.com".insteadOf "https://github.com"
+ENV GOPRIVATE="github.com/upshot-tech/"
+
 RUN go mod download && \
     make all
 
 ###########################
 FROM --platform=linux/amd64 debian:bookworm-slim
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    USERNAME=appuser \
+    APP_PATH=/data
 
 ## curl, unzip other utilities
 RUN apt update && \
@@ -26,6 +31,12 @@ RUN apt update && \
 COPY --from=builder /src/dist/upshot-node /usr/local/bin/upshot-node
 COPY --from=builder /src/dist/upshot-keys /usr/local/bin/upshot-keys
 
+RUN groupadd -g 1001 ${USERNAME} \
+    && useradd -m -d ${APP_PATH} -u 1001 -g 1001 ${USERNAME}
+
+USER ${USERNAME}
+
+VOLUME ${APP_PATH}
 EXPOSE 8080 9527
 
 ENTRYPOINT ["upshot-node"]
