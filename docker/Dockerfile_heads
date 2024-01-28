@@ -1,0 +1,31 @@
+FROM --platform=linux/amd64 golang:1.21-bookworm AS builder
+
+WORKDIR /src
+
+ADD . /src
+
+ARG GH_TOKEN
+
+RUN git config --global url."https://${GH_TOKEN}@github.com".insteadOf "https://github.com"
+RUN go mod download && \
+    make all
+
+###########################
+FROM --platform=linux/amd64 debian:bookworm-slim
+
+## curl, unzip other utilities
+RUN apt update && \
+    apt -y dist-upgrade && \
+    apt install -y --no-install-recommends \
+      tzdata \
+      curl \
+      unzip \
+      ca-certificates && \
+    rm -rf /var/cache/apt/*
+
+COPY --from=builder /src/dist/upshot-node /usr/local/bin/upshot-node
+COPY --from=builder /src/dist/upshot-keys /usr/local/bin/upshot-keys
+
+EXPOSE 8080 9527
+
+ENTRYPOINT ["upshot-node"]
