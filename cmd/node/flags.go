@@ -58,6 +58,7 @@ func parseFlags() *alloraCfg {
 	pflag.StringVarP(&cfg.AppChainConfig.AddressKeyName, "allora-chain-key-name", "", "", "The name of a key stored in the Allora Blockchain Wallet")
 	pflag.StringVarP(&cfg.AppChainConfig.AddressRestoreMnemonic, "allora-chain-restore-mnemonic", "", "", "The restore mnemonic for an Allora Blockchain Wallet")
 	pflag.StringVarP(&cfg.AppChainConfig.AddressAccountPassphrase, "allora-chain-account-password", "", "", "The password for an Allora Blockchain Wallet Key")
+	pflag.StringVarP(&cfg.AppChainConfig.NodeRPCAddress, "allora-node-rpc-address", "", "127.0.0.1:26656", "The address for the client to connect to a node.")
 
 	pflag.CommandLine.SortFlags = false
 

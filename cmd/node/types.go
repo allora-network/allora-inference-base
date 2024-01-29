@@ -25,6 +25,7 @@ type AppChain struct {
 }
 
 type AppChainConfig struct {
+	NodeRPCAddress  string // rpc node to attach to
 	AddressPrefix   string // prefix for the cosmos addresses
 	AddressKeyName  string // load a address by key from the keystore
 	AddressRestoreMnemonic  string

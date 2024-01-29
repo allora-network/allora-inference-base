@@ -58,7 +58,11 @@ func createClient(ctx context.Context, ap AppChain) (cosmosclient.Client, error)
 	}
 
 	DefaultNodeHome := filepath.Join(userHomeDir, ".uptd")
-	client, _ = cosmosclient.New(ctx, cosmosclient.WithAddressPrefix(ap.Config.AddressPrefix), cosmosclient.WithHome(DefaultNodeHome))
+	client, _ = cosmosclient.New(ctx, 
+		cosmosclient.WithAddressPrefix(ap.Config.AddressPrefix), 
+		cosmosclient.WithHome(DefaultNodeHome),
+		// cosmosclient.WithNodeAddress(ap.Config.NodeRPCAddress),
+	)
 	
 	// this is terrible, no isConnected as part of this code path
 	if(len(client.Context().ChainID) < 1) {
@@ -131,14 +135,12 @@ func (ap *AppChain)  startClient(ctx context.Context, config AppChainConfig) err
 	return nil
 }
 
-func NewAppChain(config AppChainConfig, logger zerolog.Logger) (*AppChain, error) {
+func NewAppChain(ctx context.Context, config AppChainConfig, logger zerolog.Logger) (*AppChain, error) {
 
 	ap := &AppChain{
 		Logger: logger,
 		Config: config,
 	}
-
-	ctx := context.Background()
 
 	client, err := createClient(ctx, *ap);
 
