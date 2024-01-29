@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"time"
 
 	"github.com/cockroachdb/pebble"
 	"github.com/labstack/echo/v4"
@@ -40,7 +41,7 @@ func run() int {
 	signal.Notify(sig, os.Interrupt)
 
 	// Initialize logging.
-	log := zerolog.New(os.Stderr).With().Timestamp().Logger().Level(zerolog.DebugLevel)
+	log := zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339}).With().Timestamp().Logger().Level(zerolog.DebugLevel)
 
 	// Parse CLI flags and validate that the configuration is valid.
 	cfg := parseFlags()
