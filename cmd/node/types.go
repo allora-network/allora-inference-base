@@ -54,16 +54,15 @@ type WeightsCalcDependencies struct {
 	ActualPrice   float64
 }
 
-// EthereumPriceResponse represents the JSON structure returned by CoinGecko API
-type EthereumPriceResponse struct {
-	Ethereum map[string]float64 `json:"ethereum"`
-}
-
-// Define a struct that matches the JSON structure of your stdout
-type StdoutData struct {
-	Value string `json:"value"`
+type ResponseInfo struct {
+	FunctionType string `json:"type"`
 }
 
 type Response struct {
 	Value string `json:"value"`
 }
+
+var (
+	inferenceType = "inferences"
+	weightsType   = "weights"
+)
