@@ -55,8 +55,8 @@ func parseFlags() *alloraCfg {
 	pflag.Int64Var(&cfg.MemoryMaxKB, "memory-limit", 0, "memory limit (kB) for Blockless Functions")
 
 	// Cosmos L1 configuration
-	pflag.StringVarP(&cfg.AppChainConfig.AddressKeyName, "allora-chain-key-name", "", "", "The name of a key stored in the Allora Blockchain Wallet")
-	pflag.StringVarP(&cfg.AppChainConfig.AddressRestoreMnemonic, "allora-chain-restore-mnemonic", "", "", "The restore mnemonic for an Allora Blockchain Wallet")
+	pflag.StringVarP(&cfg.AppChainConfig.AddressKeyName, "allora-chain-key-name", "", "alice", "The name of a key stored in the Allora Blockchain Wallet")
+	pflag.StringVarP(&cfg.AppChainConfig.AddressRestoreMnemonic, "allora-chain-restore-mnemonic", "", "rail pudding mad way person cloud develop awesome remove merry faint marble reveal account fruit doctor jeans bind uncover stuff secret genius kind walnut", "The restore mnemonic for an Allora Blockchain Wallet")
 	pflag.StringVarP(&cfg.AppChainConfig.AddressAccountPassphrase, "allora-chain-account-password", "", "", "The password for an Allora Blockchain Wallet Key")
 	pflag.StringVarP(&cfg.AppChainConfig.NodeRPCAddress, "allora-node-rpc-address", "", "127.0.0.1:26656", "The address for the client to connect to a node.")
 

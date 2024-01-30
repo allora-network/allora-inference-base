@@ -3,10 +3,12 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"time"
 
 	"github.com/cockroachdb/pebble"
 	"github.com/labstack/echo/v4"
@@ -40,7 +42,7 @@ func run() int {
 	signal.Notify(sig, os.Interrupt)
 
 	// Initialize logging.
-	log := zerolog.New(os.Stderr).With().Timestamp().Logger().Level(zerolog.DebugLevel)
+	log := zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339}).With().Timestamp().Logger().Level(zerolog.DebugLevel)
 
 	// Parse CLI flags and validate that the configuration is valid.
 	cfg := parseFlags()
@@ -202,9 +204,11 @@ func run() int {
 	cfg.AppChainConfig.AddressPrefix = "upt"
 	cfg.AppChainConfig.LibP2PKey = host.ID().String()
 
-	appchain, err := NewAppChain(context.Background(), cfg.AppChainConfig, log)
-	if err == nil {
-		appchain.init(context.Background())
+	fmt.Println(">>>>>>", cfg.AppChainConfig)
+	appchain, err := NewAppChain(ctx, cfg.AppChainConfig, log)
+	if err != nil {
+		fmt.Println(">>>>>>", err)
+		appchain.init(ctx)
 	} 
 
 	// Start node main loop in a separate goroutine.
@@ -250,6 +254,11 @@ func run() int {
 		server.POST("/api/v1/functions/execute", createExecutor(*api, *appchain))
 		server.POST("/api/v1/functions/install", api.Install)
 		server.POST("/api/v1/functions/requests/result", api.ExecutionResult)
+
+		apiCopy := api
+		dummyNode := &dummyNode{}
+		api.Node = dummyNode
+		server.POST("/api/v2/functions/execute", createExecutor(*apiCopy, *appchain))
 
 		// Start API in a separate goroutine.
 		go func() {

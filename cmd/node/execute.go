@@ -46,6 +46,7 @@ func sendResultsToChain(ctx echo.Context, a api.API, appChainClient AppChain, re
 	if err != nil {
 		a.Log.Warn().Str("function", req.FunctionID).Err(err).Msg("node failed to extract response info from stdout")
 	}
+	fmt.Println("\n functionType:", functionType)
 
 	var topicId uint64 = 0
 	for _, envVar := range req.Config.Environment {
@@ -61,8 +62,10 @@ func sendResultsToChain(ctx echo.Context, a api.API, appChainClient AppChain, re
     }
 
 	if functionType == inferenceType {
+		
 		appChainClient.SendInferences(ctx.Request().Context(), topicId, res.Results)
 	} else if functionType == weightsType {
+		fmt.Println("\n Sending UPDATED WEIGHTS to the chain")
 		appChainClient.SendUpdatedWeights(ctx.Request().Context(), topicId, res.Results)
 	}
 }
@@ -88,6 +91,9 @@ func createExecutor(a api.API, appChainClient AppChain) func(ctx echo.Context) e
 		}
 
 		a.Log.Debug().Str("executing inference function: ", req.FunctionID)
+		fmt.Println("executing inference function: ", req.FunctionID)
+		fmt.Println("Subgroup: ", req.Subgroup)
+
 
 		// Get the execution result.
 		code, id, results, cluster, err := a.Node.ExecuteFunction(ctx.Request().Context(), req.Request, req.Subgroup)
@@ -109,6 +115,7 @@ func createExecutor(a api.API, appChainClient AppChain) func(ctx echo.Context) e
 		}
 
 		// Might be disabled if so we should log out
+		appChainClient.Config.SubmitTx = true
 		if appChainClient.Config.SubmitTx {
 			// don't block the return to the consumer to send these to chain
 			go sendResultsToChain(ctx, a, appChainClient, req, res)

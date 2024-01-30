@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"math"
 	"os"
-	"path/filepath"
+	// "path/filepath"
 	"strconv"
 
 	cosmossdk_io_math "cosmossdk.io/math"
@@ -49,44 +49,48 @@ func restoreAccount(ctx context.Context, ap AppChain) (cosmosaccount.Account, er
 
 func createClient(ctx context.Context, ap AppChain) (cosmosclient.Client, error) {
 	var client cosmosclient.Client
-	userHomeDir, err := os.UserHomeDir()
+	// userHomeDir, err := os.UserHomeDir()
 
+	// if err != nil {
+	// 	ap.Logger.Warn().Err(err).Msg("could not get home directory for app chain")
+	// 	return client, err
+	// }
+
+	// DefaultNodeHome := filepath.Join(userHomeDir, ".uptd")
+	client, err := cosmosclient.New(ctx, cosmosclient.WithAddressPrefix(ap.Config.AddressPrefix), cosmosclient.WithNodeAddress("http://localhost:26657"))
 	if err != nil {
-		ap.Logger.Warn().Err(err).Msg("could not get home directory for app chain")
+		fmt.Println(">>>>>>>>>>>>> client ERR : ", err)
+		ap.Logger.Warn().Err(err).Msg("could not create allora blockchain client")
 		return client, err
 	}
-
-	DefaultNodeHome := filepath.Join(userHomeDir, ".uptd")
-	client, _ = cosmosclient.New(ctx, 
-		cosmosclient.WithAddressPrefix(ap.Config.AddressPrefix), 
-		cosmosclient.WithHome(DefaultNodeHome),
-		// cosmosclient.WithNodeAddress(ap.Config.NodeRPCAddress),
-	)
 	
 	// this is terrible, no isConnected as part of this code path
 	if(len(client.Context().ChainID) < 1) {
 		return client, fmt.Errorf("client can not connect to allora blockchain")
 	}
+	ap.Client = client
 
-	_, err = getAccount(ap)
-    if err != nil {
-	 	ap.Config.SubmitTx = false
-       	ap.Logger.Warn().Err(err).Msg("could not retrieve allora blockchain account, transactions will not be submitted to chain")
-		return client, err
-	}
+	// fmt.Println(">>>>>>>>>>>>> client: ", client)
 
-	return client, nil
+	// _, err = getAccount(&ap)
+    // if err != nil {
+	//  	ap.Config.SubmitTx = false
+    //    	ap.Logger.Warn().Err(err).Msg("could not retrieve allora blockchain account, transactions will not be submitted to chain")
+	// 	return client, nil
+	// }
+
+	return ap.Client, nil
 }
 
-func getAccount(ap AppChain) (cosmosaccount.Account, error) {
+func getAccount(ap *AppChain) (cosmosaccount.Account, error) {
 	var account cosmosaccount.Account
 
 	if(len(ap.Config.AddressRestoreMnemonic) > 0) {
-		account, err := restoreAccount(context.Background(), ap)
+		account, err := restoreAccount(context.Background(), *ap)
 		if err != nil {
 			ap.Config.SubmitTx = false
 			  ap.Logger.Warn().Err(err).Msg("could not *restore* allora blockchain account, transactions will not be submitted to chain")
-		   return account, err
+		   return account, nil
 	   }
 	} else {
 		account, err := ap.Client.Account(ap.Config.AddressKeyName)
@@ -107,7 +111,7 @@ func (ap *AppChain)  startClient(ctx context.Context, config AppChainConfig) err
 		return err
 	}
 
-	account, err := getAccount(*ap)
+	account, err := getAccount(ap)
     if err != nil {
 	 	ap.Config.SubmitTx = false
        	ap.Logger.Warn().Err(err).Msg("could not retrieve allora blockchain account, transactions will not be submitted to chain")
@@ -142,18 +146,32 @@ func NewAppChain(ctx context.Context, config AppChainConfig, logger zerolog.Logg
 	}
 
 	client, err := createClient(ctx, *ap);
-
 	if err != nil {
 		return ap, err
 	}
 
 	queryClient := types.NewQueryClient(client.Context())
 
-	account, err := getAccount(*ap)
-	if err != nil {
-		return nil, err
+	var account cosmosaccount.Account
+	uptAccountMnemonic := ap.Config.AddressRestoreMnemonic
+	uptAccountName := ap.Config.AddressKeyName
+	if uptAccountName == "" {
+		return ap, fmt.Errorf("allora-chain-key-name flag is not set")
 	}
 
+	// Passpharase is optional
+	uptAccountPassphrase := ap.Config.AddressAccountPassphrase
+
+	// Create a Cosmos account instance
+	account, err = client.AccountRegistry.Import(uptAccountName, uptAccountMnemonic, uptAccountPassphrase)
+	if err != nil {
+		fmt.Println(">>>>>>", err, account)
+		account, err = client.Account(uptAccountName)
+		if err != nil {
+			return ap, err
+		}
+	}
+	
 	address, err := account.Address(ap.Config.AddressPrefix)
 	if err != nil {
 		return nil, err
@@ -205,6 +223,7 @@ func (ap *AppChain) SendInferences(ctx context.Context, topicId uint64, results 
 	// Aggregate the inferences from all peers/workers
 	var inferences []*types.Inference
 	var workersInferences []WorkerInference
+	count := 0
 	for _, result := range results {
 		for _, peer := range result.Peers {
 			ap.Logger.Info().Any("peer", peer)
@@ -219,31 +238,35 @@ func (ap *AppChain) SendInferences(ctx context.Context, topicId uint64, results 
 			}
 			inference := &types.Inference{
 				TopicId: topicId,
-				Worker:  "upt16ar7k93c6razqcuvxdauzdlaz352sfjp2rpj3i",
+				Worker:  fmt.Sprintf("upt16ar7k93c6razqcuvxdauzdlaz352sfjp2rpj3%v", count),
 				Value:   cosmossdk_io_math.NewUint(parsed),
+				ExtraData: []byte("extra data"),
 			}
+			fmt.Println("Inference: ", inference)
 			inferences = append(inferences, inference)
 			workersInferences = append(workersInferences, WorkerInference{Worker: inference.Worker, Inference: inference.Value})
+			count++
 		}
 	}
-
+	
 	req := &types.MsgProcessInferences{
 		Sender:     ap.ReputerAddress,
 		Inferences: inferences,
 	}
 
-	txResp, err := ap.Client.BroadcastTx(ctx, ap.ReputerAccount, req)
+	_, err := ap.Client.BroadcastTx(ctx, ap.ReputerAccount, req)
 	if err != nil {
-		ap.Logger.Fatal().Err(err).Msg("failed to send inferences to allora blockchain")
+		// fmt.Println("Error sending inferences to chain: ", err)
+		// ap.Logger.Fatal().Err(err).Msg("failed to send inferences to allora blockchain")
 	}
-
-	ap.Logger.Info().Any("txResp:", txResp).Msg("sent inferences to allora blockchain")
+	// fmt.Println("txResp: ", txResp)
+	// ap.Logger.Info().Any("txResp:", txResp).Msg("sent inferences to allora blockchain")
 
 	return workersInferences
 }
 
 func (ap *AppChain) SendUpdatedWeights(ctx context.Context, topicId uint64, results aggregate.Results) {
-
+	fmt.Println("SendUpdatedWeights: ")
 	weights := make([]*types.Weight, 0)
 	for _, result := range results {
 		extractedWeights, err := extractWeights(result.Result.Stdout)
@@ -265,6 +288,8 @@ func (ap *AppChain) SendUpdatedWeights(ctx context.Context, topicId uint64, resu
 				Worker:  "upt16ar7k93c6razqcuvxdauzdlaz352sfjp2rpj3i",
 				Weight:  cosmossdk_io_math.NewUint(parsed),
 			}
+
+			fmt.Println("Weight: ", weight)
 			weights = append(weights, weight)
 		}
 	}
