@@ -14,9 +14,9 @@ import (
 const (
 	privKeyName        = "priv.bin"
 	pubKeyName         = "pub.bin"
+	privKeyTxtName     = "priv.txt"
 	pubKeyTxtName      = "pubkey.txt"
 	identityName       = "identity"
-	peerIDFileName     = "peerid.txt"
 	privKeyPermissions = 0600
 	pubKeyPermissions  = 0644
 )
@@ -96,23 +96,25 @@ func LoadOrCreateKeys(privKeyFile string, outputDir string) (crypto.PrivKey, cry
 		log.Fatalf("Could not write public key text to file: %s", err)
 	}
 
+	// Write peer ID to file
 	identityFile := filepath.Join(outputDir, identityName)
 	err = os.WriteFile(identityFile, []byte(identity.String()), pubKeyPermissions)
 	if err != nil {
 		log.Fatalf("Could not write identity to file: %s", err)
 	}
 
+	// Private key binary
 	privKeyFile = filepath.Join(outputDir, privKeyName)
 	err = os.WriteFile(privKeyFile, privPayload, privKeyPermissions)
 	if err != nil {
 		log.Fatalf("Could not write private key to file: %s", err)
 	}
-
-	// Write peer ID to file
-	peerIDFile := filepath.Join(outputDir, peerIDFileName)
-	err = os.WriteFile(peerIDFile, []byte(identity.String()), pubKeyPermissions)
+	// Private ke txt
+	privKeyTextFile := filepath.Join(outputDir, privKeyTxtName)
+	privKeyBase64 := base64.StdEncoding.EncodeToString(privPayload)
+	err = os.WriteFile(privKeyTextFile, []byte(privKeyBase64), privKeyPermissions)
 	if err != nil {
-		log.Fatalf("Could not write peer ID to file: %s", err)
+		log.Fatalf("Could not write private key text to file: %s", err)
 	}
 
 	return priv, pub, nil
