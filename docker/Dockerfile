@@ -7,7 +7,7 @@ ADD . /src
 ARG GH_TOKEN
 
 RUN git config --global url."https://${GH_TOKEN}@github.com".insteadOf "https://github.com"
-ENV GOPRIVATE=github.com/upshot-tech/upshot-appchain
+ENV GOPRIVATE=github.com/upshot-tech
 RUN go mod download && go mod tidy && make all
 
 ###########################
