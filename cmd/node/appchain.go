@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	cosmossdk_io_math "cosmossdk.io/math"
 	"github.com/blocklessnetwork/b7s/node/aggregate"
@@ -32,7 +33,7 @@ func NewAppChain(config AppChainConfig, log zerolog.Logger) (*AppChain, error){
 	// create a cosmos client instance
 	client, err := cosmosclient.New(ctx, cosmosclient.WithAddressPrefix(config.AddressPrefix), cosmosclient.WithHome(DefaultNodeHome))
 	if err != nil {
-		log.Warn().Err(err).Msg("werr")
+		log.Warn().Err(err).Msg("unable to create an allora blockchain client")
 		config.SubmitTx = true
 	}
 
@@ -54,13 +55,19 @@ func NewAppChain(config AppChainConfig, log zerolog.Logger) (*AppChain, error){
 				log.Warn().Err(err).Msg("could not retrieve allora blockchain address, transactions will not be submitted to chain")
 			}
 		}
-	}	
+	} else if (config.AddressRestoreMnemonic != "" && config.AddressKeyName != "") { 
+		// restore from mneumonic
+
+	} else {
+		log.Warn().Msg("no cosmos account was loaded")
+		return nil, nil
+	}
 
 	// Create query client
 	queryClient := types.NewQueryClient(client.Context())
 
 	// this is terrible, no isConnected as part of this code path
-	if(len(client.Context().ChainID) < 1) {
+	if(client.Context().ChainID == "") {
 		return nil, nil
 	}
 
@@ -68,28 +75,37 @@ func NewAppChain(config AppChainConfig, log zerolog.Logger) (*AppChain, error){
 		ReputerAddress: address,
 		ReputerAccount: account,
 		Logger: log,
-		Client: client,
+		Client: &client,
 		QueryClient: queryClient,
 		Config: config,
 	}
-
-	queryIsNodeRegistered(*appchain)
+	if(!queryIsNodeRegistered(*appchain)) {
+		registerWithBlockchain(appchain)
+	}
 
 	return appchain, nil
 }
 
-
 /// Registration 
-func registerWithBlockchain(appchain AppChain) {
+func registerWithBlockchain(appchain *AppChain) {
 	ctx := context.Background()
 
 	msg := &types.MsgRegisterWorker{
-		Creator: appchain.ReputerAddress,
+		Creator:  appchain.ReputerAddress,
+		Owner: appchain.ReputerAddress, // we need to allow a pass in of a claim address
+		LibP2PKey: appchain.ReputerAddress,
+		MultiAddress: appchain.Config.MultiAddress,
+		InitialStake: cosmossdk_io_math.NewUint(1),
+		TopicId: 0,
 	}
 
 	txResp, err := appchain.Client.BroadcastTx(ctx, appchain.ReputerAccount, msg)
     if err != nil {
-        appchain.Logger.Fatal().Err(err).Msg("could not register the node with the allora blockchain")
+		if strings.Contains(fmt.Sprint(err), types.Err_ErrWorkerAlreadyRegistered.String()) {
+			appchain.Logger.Info().Err(err).Msg("node is already registered")
+		} else {
+			appchain.Logger.Fatal().Err(err).Msg("could not register the node with the allora blockchain")
+		}
     }
 
 	appchain.Logger.Info().Str("txhash", txResp.TxHash).Msg("successfully registered node with Allora blockchain")
@@ -97,22 +113,21 @@ func registerWithBlockchain(appchain AppChain) {
 
 
 func queryIsNodeRegistered(appchain AppChain) bool {
-	// queryClient := types.NewQueryClient(client.Context())
-    // queryResp, err := queryClient.GetInferenceNodeRegistration(ctx, &types.QueryRegisteredInferenceNodesRequest{
-	// 	NodeId: address + config.StringSeperator + config.LibP2PKey,
-	// })
+	ctx := context.Background()
 
-    // if err != nil {
-    //     config.Logger.Fatal().Err(err).Msg("node could not be registered with blockchain")
-    // }
-	// (len(queryResp.Nodes) >= 1) 
-	return false
+    queryResp, err := appchain.QueryClient.GetWorkerNodeRegistration(ctx, &types.QueryRegisteredWorkerNodesRequest{
+		NodeId: appchain.ReputerAddress + appchain.Config.StringSeperator + appchain.Config.LibP2PKey,
+	})
+
+    if err != nil {
+        appchain.Logger.Fatal().Err(err).Msg("node could not be registered with blockchain")
+    }
+
+	return (len(queryResp.Nodes) >= 1) 
 }
 
 
 /// Sending Inferences to the AppChain
-
-
 func (ap *AppChain) SendInferences(ctx context.Context, topicId uint64, results aggregate.Results) []WorkerInference {
 	// Aggregate the inferences from all peers/workers
 	var inferences []*types.Inference

@@ -23,7 +23,9 @@
         "--private-key",
         "${workspaceFolder}/configs/testkeys/ident1/priv.bin",
         "--rest-api",
-        ":8081"
+        ":8081",
+        "--allora-chain-key-name",
+        "alice"
       ],
       "cwd": "${workspaceFolder}"
     },

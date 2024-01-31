@@ -272,5 +272,5 @@ require (
 replace (
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	github.com/libp2p/go-libp2p-raft => github.com/dmikey/go-libp2p-raft v0.0.0-20240110033916-a00d162e5fdd
-	github.com/upshot-tech/protocol-state-machine-module => github.com/upshot-tech/upshot-appchain/x/emissions v0.0.0-20240124222402-42ed70eafa95
+	github.com/upshot-tech/protocol-state-machine-module => ../upshot-appchain/x/emissions
 )

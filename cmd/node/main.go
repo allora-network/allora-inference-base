@@ -202,6 +202,8 @@ func run() int {
 	var appchain *AppChain
 	cfg.AppChainConfig.AddressPrefix = "upt"
 	cfg.AppChainConfig.LibP2PKey = host.ID().String()
+	cfg.AppChainConfig.MultiAddress = host.Addresses()[0]
+
 	appchain, err = NewAppChain(cfg.AppChainConfig, log)
 	if(err != nil) {
 		log.Warn().Err(err).Msg("error connecting to allora blockchain")

@@ -17,7 +17,7 @@ type alloraCfg struct {
 type AppChain struct {
 	ReputerAddress string
 	ReputerAccount cosmosaccount.Account
-	Client         cosmosclient.Client
+	Client         *cosmosclient.Client
 	QueryClient    types.QueryClient
 	WorkersAddress map[string]string
 	Config 			AppChainConfig
@@ -34,6 +34,7 @@ type AppChainConfig struct {
 	StringSeperator string // string seperator used for key identifiers in cosmos
 	LibP2PKey 		string // the libp2p key used to sign offchain communications 
 	SubmitTx		bool   // do we need to commit these to the chain, might be a reason not to
+	MultiAddress	string
 }
 
 type WorkerInference struct {
