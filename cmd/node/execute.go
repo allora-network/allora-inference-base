@@ -108,7 +108,7 @@ func createExecutor(a api.API, appChainClient *AppChain) func(ctx echo.Context) 
 		}
 
 		// Might be disabled if so we should log out
-		if appChainClient != nil && appChainClient.Config.SubmitTx {
+		if appChainClient != nil && appChainClient.Config.SubmitTx && res.Code == codes.OK {
 			// don't block the return to the consumer to send these to chain
 			go sendResultsToChain(ctx, a, *appChainClient, req, res)
 		} else {
