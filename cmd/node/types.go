@@ -1,8 +1,6 @@
 package main
 
 import (
-	"context"
-
 	cosmossdk_io_math "cosmossdk.io/math"
 	"github.com/blocklessnetwork/b7s/config"
 	"github.com/ignite/cli/v28/ignite/pkg/cosmosaccount"
@@ -17,29 +15,31 @@ type alloraCfg struct {
 }
 
 type AppChain struct {
-	Ctx            context.Context
 	ReputerAddress string
 	ReputerAccount cosmosaccount.Account
-	Client         cosmosclient.Client
+	Client         *cosmosclient.Client
 	QueryClient    types.QueryClient
 	WorkersAddress map[string]string
-	Config AppChainConfig
+	Config         AppChainConfig
+	Logger         zerolog.Logger
 }
 
 type AppChainConfig struct {
-	AddressPrefix   string // prefix for the cosmos addresses
-	AddressKeyName  string // load a address by key from the keystore
-	AddressRestoreMnemonic  string
+	NodeRPCAddress           string // rpc node to attach to
+	AddressPrefix            string // prefix for the cosmos addresses
+	AddressKeyName           string // load a address by key from the keystore
+	AddressRestoreMnemonic   string
 	AddressAccountPassphrase string
-	HomeDirectory   string // home directory for the cosmos keystore
-	StringSeperator string // string seperator used for key identifiers in cosmos
-	LibP2PKey 		string // the libp2p key used to sign offchain communications 
-	Logger 			zerolog.Logger
-	SubmitTx		bool   // do we need to commit these to the chain, might be a reason not to
+	HomeDirectory            string // home directory for the cosmos keystore
+	StringSeperator          string // string seperator used for key identifiers in cosmos
+	LibP2PKey                string // the libp2p key used to sign offchain communications
+	SubmitTx                 bool   // do we need to commit these to the chain, might be a reason not to
+	MultiAddress             string
+	TopicId                  uint64
 }
 
 type WorkerInference struct {
-	Worker    string `json:"worker"`
+	Worker    string                 `json:"worker"`
 	Inference cosmossdk_io_math.Uint `json:"inference"`
 }
 
@@ -56,16 +56,15 @@ type WeightsCalcDependencies struct {
 	ActualPrice   float64
 }
 
-// EthereumPriceResponse represents the JSON structure returned by CoinGecko API
-type EthereumPriceResponse struct {
-	Ethereum map[string]float64 `json:"ethereum"`
-}
-
-// Define a struct that matches the JSON structure of your stdout
-type StdoutData struct {
-	Value string `json:"value"`
+type ResponseInfo struct {
+	FunctionType string `json:"type"`
 }
 
 type Response struct {
 	Value string `json:"value"`
 }
+
+var (
+	inferenceType = "inferences"
+	weightsType   = "weights"
+)

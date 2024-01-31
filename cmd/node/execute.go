@@ -1,10 +1,12 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/blocklessnetwork/b7s/api"
 	"github.com/blocklessnetwork/b7s/models/blockless"
@@ -37,52 +39,48 @@ type ExecuteResult struct {
 	RequestID string                `json:"request_id,omitempty"`
 }
 
-func sendResultsToChain(ctx echo.Context, a api.API, appChainClient AppChain, req ExecuteRequest, res ExecuteResponse){
-	a.Log.Info().Msg("Sending inferences to appchain")
-	inferences := appChainClient.SendInferencesToAppChain(1, res.Results)
-	a.Log.Debug().Any("inferences", inferences).Msg("Inferences sent to appchain")
-	// Get the dependencies for the weights calculation
-	ethPrice, latestWeights := appChainClient.GetWeightsCalcDependencies(inferences)
+func sendResultsToChain(ctx echo.Context, a api.API, appChainClient AppChain, req ExecuteRequest, res ExecuteResponse) {
 
-	a.Log.Debug().Float64("ETH price: ", ethPrice)
-	a.Log.Debug().Float64("eth price", ethPrice)
-	a.Log.Debug().Any("latest weights", latestWeights)
-	a.Log.Debug().Any("inferences", inferences)
-
-	// Format the payload for the weights calculation
-	var weightsReq map[string]interface{} = make(map[string]interface{})
-	weightsReq["eth_price"] = ethPrice
-	weightsReq["inferences"] = inferences
-	weightsReq["latest_weights"] = latestWeights
-	payload, err := json.Marshal(weightsReq)
+	// Only in weight functions that we will have a "type" in the response
+	functionType := "inferences"
+	functionType, err := getResponseInfo(res.Results[0].Result.Stdout)
 	if err != nil {
-		a.Log.Error().Err(err).Msg("error marshalling weights request")
+		a.Log.Warn().Str("function", req.FunctionID).Err(err).Msg("node failed to extract response info from stdout")
 	}
-	payloadCopy := string(payload)
-	a.Log.Debug().Any("payload: ", payloadCopy)
 
-	// Calculate the weights
-	calcWeightsReq := execute.Request{
-		FunctionID: "bafybeibuzoxt3jsf6mswlw5sq2o7cltxfpeodseduwhzrv4d33k32baaau",
-		Method:     "eth-price-processing.wasm",
-		Config: execute.Config{
-			Stdin: &payloadCopy,
-		},
+	var topicId uint64 = 0
+	for _, envVar := range req.Config.Environment {
+        if envVar.Name == "TOPIC_ID" {
+            fmt.Println("Found TOPIC_ID:", envVar.Value)
+			topicId, err = strconv.ParseUint(envVar.Value, 10, 64)
+			if err != nil {
+				a.Log.Warn().Str("function", req.FunctionID).Err(err).Msg("node failed to parse topic id")
+				return
+			}
+            break
+        }
+    }
+
+	// TODO: We can move this context to the AppChain struct (previous context was breaking the tx broadcast response)
+	reqCtx := context.Background()
+	if functionType == inferenceType {
+		appChainClient.SendInferences(reqCtx, topicId, res.Results)
+	} else if functionType == weightsType {
+		appChainClient.SendUpdatedWeights(reqCtx, topicId, res.Results)
 	}
-	a.Log.Debug().Any("Executing weight adjusment function: ", calcWeightsReq.FunctionID)
-
-	// Get the execution result.
-	_, _, weightsResults, _, err := a.Node.ExecuteFunction(ctx.Request().Context(), execute.Request(calcWeightsReq), "")
-	if err != nil {
-		a.Log.Warn().Str("function", req.FunctionID).Err(err).Msg("node failed to execute function")
-	}
-	a.Log.Debug().Any("weights results", weightsResults)
-
-	// Transform the node response format to the one returned by the API.
-	appChainClient.SendUpdatedWeights(aggregate.Aggregate(weightsResults))
 }
 
-func createExecutor(a api.API, appChainClient AppChain) func(ctx echo.Context) error {
+func getResponseInfo(stdout string) (string, error) {
+	var responseInfo ResponseInfo
+	err := json.Unmarshal([]byte(stdout), &responseInfo)
+	if err != nil {
+		return "", err
+	}
+
+	return responseInfo.FunctionType, nil
+}
+
+func createExecutor(a api.API, appChainClient *AppChain) func(ctx echo.Context) error {
 	return func(ctx echo.Context) error {
 
 		// Unpack the API request.
@@ -114,11 +112,11 @@ func createExecutor(a api.API, appChainClient AppChain) func(ctx echo.Context) e
 		}
 
 		// Might be disabled if so we should log out
-		if(appChainClient.Config.SubmitTx) {
+		if appChainClient != nil && appChainClient.Config.SubmitTx && res.Code == codes.OK {
 			// don't block the return to the consumer to send these to chain
-			go sendResultsToChain(ctx, a, appChainClient, req, res)
+			go sendResultsToChain(ctx, a, *appChainClient, req, res)
 		} else {
-			appChainClient.Config.Logger.Debug().Msg("inference results would have been submitted to chain")
+			a.Log.Debug().Msg("inference results would have been submitted to chain")
 		}
 
 		// Send the response.
