@@ -201,6 +201,7 @@ func run() int {
 
 	var appchain *AppChain
 	cfg.AppChainConfig.AddressPrefix = "upt"
+	cfg.AppChainConfig.StringSeperator = "|"
 	cfg.AppChainConfig.LibP2PKey = host.ID().String()
 	cfg.AppChainConfig.MultiAddress = host.Addresses()[0]
 

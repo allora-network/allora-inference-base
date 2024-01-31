@@ -57,7 +57,17 @@ func NewAppChain(config AppChainConfig, log zerolog.Logger) (*AppChain, error){
 		}
 	} else if (config.AddressRestoreMnemonic != "" && config.AddressKeyName != "") { 
 		// restore from mneumonic
-
+		account, err = client.AccountRegistry.Import(config.AddressKeyName, config.AddressRestoreMnemonic, config.AddressAccountPassphrase)
+		if err != nil {
+			if err.Error() == "account already exists" {
+				account, err = client.Account(config.AddressKeyName)
+			} 
+			
+			if err != nil {
+				config.SubmitTx = false
+				log.Error().Err(err).Msg("error getting account")
+			}
+		}
 	} else {
 		log.Warn().Msg("no cosmos account was loaded")
 		return nil, nil
@@ -93,7 +103,7 @@ func registerWithBlockchain(appchain *AppChain) {
 	msg := &types.MsgRegisterWorker{
 		Creator:  appchain.ReputerAddress,
 		Owner: appchain.ReputerAddress, // we need to allow a pass in of a claim address
-		LibP2PKey: appchain.ReputerAddress,
+		LibP2PKey: appchain.Config.LibP2PKey,
 		MultiAddress: appchain.Config.MultiAddress,
 		InitialStake: cosmossdk_io_math.NewUint(1),
 		TopicId: 0,
@@ -106,9 +116,9 @@ func registerWithBlockchain(appchain *AppChain) {
 		} else {
 			appchain.Logger.Fatal().Err(err).Msg("could not register the node with the allora blockchain")
 		}
-    }
-
-	appchain.Logger.Info().Str("txhash", txResp.TxHash).Msg("successfully registered node with Allora blockchain")
+    } else {
+		appchain.Logger.Info().Str("txhash", txResp.TxHash).Msg("successfully registered node with Allora blockchain")
+	}
 }
 
 
