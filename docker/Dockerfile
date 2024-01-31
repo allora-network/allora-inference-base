@@ -7,8 +7,8 @@ ADD . /src
 ARG GH_TOKEN
 
 RUN git config --global url."https://${GH_TOKEN}@github.com".insteadOf "https://github.com"
-RUN go mod download && \
-    make all
+ENV GOPRIVATE=github.com/upshot-tech/upshot-appchain
+RUN go mod download && go mod tidy && make all
 
 ###########################
 FROM --platform=linux/amd64 python:3.12-slim-bookworm
