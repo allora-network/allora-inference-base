@@ -31,10 +31,11 @@ func NewAppChain(config AppChainConfig, log zerolog.Logger) (*AppChain, error){
 	DefaultNodeHome := filepath.Join(userHomeDir, ".uptd")
 
 	// create a cosmos client instance
-	client, err := cosmosclient.New(ctx, cosmosclient.WithAddressPrefix(config.AddressPrefix), cosmosclient.WithHome(DefaultNodeHome))
+	client, err := cosmosclient.New(ctx, cosmosclient.WithNodeAddress(config.NodeRPCAddress), cosmosclient.WithAddressPrefix(config.AddressPrefix), cosmosclient.WithHome(DefaultNodeHome))
 	if err != nil {
 		log.Warn().Err(err).Msg("unable to create an allora blockchain client")
 		config.SubmitTx = true
+		return nil, err
 	}
 
 	var account cosmosaccount.Account
