@@ -62,7 +62,7 @@ jobs:
 
           # Build a docker container and push it to ECR so that it can be deployed to ECS.
           # compute-node workers
-          docker build --pull -f docker/Dockerfile \
+          docker build --pull -f docker/Dockerfile_worker \
               --build-arg "GH_TOKEN=${{ secrets.GH_READONLY_PAT }}" \
               -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
