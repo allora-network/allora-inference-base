@@ -256,11 +256,6 @@ func run() int {
 		server.POST("/api/v1/functions/install", api.Install)
 		server.POST("/api/v1/functions/requests/result", api.ExecutionResult)
 
-		apiCopy := api
-		dummyNode := &dummyNode{Node: node}
-		api.Node = dummyNode
-		server.POST("/api/v2/functions/execute", createExecutor(*apiCopy, appchain))
-
 		// Start API in a separate goroutine.
 		go func() {
 
