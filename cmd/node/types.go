@@ -20,25 +20,26 @@ type AppChain struct {
 	Client         *cosmosclient.Client
 	QueryClient    types.QueryClient
 	WorkersAddress map[string]string
-	Config 			AppChainConfig
-	Logger 			zerolog.Logger
+	Config         AppChainConfig
+	Logger         zerolog.Logger
 }
 
 type AppChainConfig struct {
-	NodeRPCAddress  string // rpc node to attach to
-	AddressPrefix   string // prefix for the cosmos addresses
-	AddressKeyName  string // load a address by key from the keystore
-	AddressRestoreMnemonic  string
+	NodeRPCAddress           string // rpc node to attach to
+	AddressPrefix            string // prefix for the cosmos addresses
+	AddressKeyName           string // load a address by key from the keystore
+	AddressRestoreMnemonic   string
 	AddressAccountPassphrase string
-	HomeDirectory   string // home directory for the cosmos keystore
-	StringSeperator string // string seperator used for key identifiers in cosmos
-	LibP2PKey 		string // the libp2p key used to sign offchain communications 
-	SubmitTx		bool   // do we need to commit these to the chain, might be a reason not to
-	MultiAddress	string
+	HomeDirectory            string // home directory for the cosmos keystore
+	StringSeperator          string // string seperator used for key identifiers in cosmos
+	LibP2PKey                string // the libp2p key used to sign offchain communications
+	SubmitTx                 bool   // do we need to commit these to the chain, might be a reason not to
+	MultiAddress             string
+	TopicId                  uint64
 }
 
 type WorkerInference struct {
-	Worker    string `json:"worker"`
+	Worker    string                 `json:"worker"`
 	Inference cosmossdk_io_math.Uint `json:"inference"`
 }
 

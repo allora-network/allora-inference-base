@@ -21,10 +21,12 @@ import (
 // create a new appchain client that we can use
 func NewAppChain(config AppChainConfig, log zerolog.Logger) (*AppChain, error) {
 	ctx := context.Background()
+	config.SubmitTx = true
 
 	userHomeDir, err := os.UserHomeDir()
 	if err != nil {
 		log.Warn().Err(err).Msg("could not get home directory for app chain")
+		config.SubmitTx = false
 		return nil, err
 	}
 
@@ -34,7 +36,7 @@ func NewAppChain(config AppChainConfig, log zerolog.Logger) (*AppChain, error) {
 	client, err := cosmosclient.New(ctx, cosmosclient.WithNodeAddress(config.NodeRPCAddress), cosmosclient.WithAddressPrefix(config.AddressPrefix), cosmosclient.WithHome(DefaultNodeHome))
 	if err != nil {
 		log.Warn().Err(err).Msg("unable to create an allora blockchain client")
-		config.SubmitTx = true
+		config.SubmitTx = false
 		return nil, err
 	}
 
@@ -105,7 +107,7 @@ func registerWithBlockchain(appchain *AppChain) {
 		LibP2PKey:    appchain.Config.LibP2PKey,
 		MultiAddress: appchain.Config.MultiAddress,
 		InitialStake: cosmossdk_io_math.NewUint(1),
-		TopicId:      0,
+		TopicId:      appchain.Config.TopicId,
 	}
 
 	txResp, err := appchain.Client.BroadcastTx(ctx, appchain.ReputerAccount, msg)
@@ -168,10 +170,10 @@ func (ap *AppChain) SendInferences(ctx context.Context, topicId uint64, results 
 
 	txResp, err := ap.Client.BroadcastTx(ctx, ap.ReputerAccount, req)
 	if err != nil {
-		ap.Logger.Fatal().Err(err).Msg("failed to send inferences to allora blockchain")
+		ap.Logger.Info().Err(err).Msg("failed to send inferences to allora blockchain")
 	}
 
-	ap.Logger.Info().Any("txResp:", txResp).Msg("sent inferences to allora blockchain")
+	ap.Logger.Info().Any("txResp:", txResp.String()).Msg("sent inferences to allora blockchain")
 
 	return workersInferences
 }

@@ -1,10 +1,12 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/blocklessnetwork/b7s/api"
 	"github.com/blocklessnetwork/b7s/models/blockless"
@@ -39,31 +41,33 @@ type ExecuteResult struct {
 
 func sendResultsToChain(ctx echo.Context, a api.API, appChainClient AppChain, req ExecuteRequest, res ExecuteResponse) {
 
-	// // Only in weight functions that we will have a "type" in the response
-	// functionType := "inferences"
-	// functionType, err := getResponseInfo(res.Results[0].Result.Stdout)
-	// if err != nil {
-	// 	a.Log.Warn().Str("function", req.FunctionID).Err(err).Msg("node failed to extract response info from stdout")
-	// }
+	// Only in weight functions that we will have a "type" in the response
+	functionType := "inferences"
+	functionType, err := getResponseInfo(res.Results[0].Result.Stdout)
+	if err != nil {
+		a.Log.Warn().Str("function", req.FunctionID).Err(err).Msg("node failed to extract response info from stdout")
+	}
 
-	// var topicId uint64 = 0
-	// for _, envVar := range req.Config.Environment {
-    //     if envVar.Name == "TOPIC_ID" {
-    //         fmt.Println("Found TOPIC_ID:", envVar.Value)
-	// 		topicId, err = strconv.ParseUint(envVar.Value, 10, 64)
-	// 		if err != nil {
-	// 			a.Log.Warn().Str("function", req.FunctionID).Err(err).Msg("node failed to parse topic id")
-	// 			return
-	// 		}
-    //         break
-    //     }
-    // }
+	var topicId uint64 = 0
+	for _, envVar := range req.Config.Environment {
+        if envVar.Name == "TOPIC_ID" {
+            fmt.Println("Found TOPIC_ID:", envVar.Value)
+			topicId, err = strconv.ParseUint(envVar.Value, 10, 64)
+			if err != nil {
+				a.Log.Warn().Str("function", req.FunctionID).Err(err).Msg("node failed to parse topic id")
+				return
+			}
+            break
+        }
+    }
 
-	// if functionType == inferenceType {
-	// 	appChainClient.SendInferences(ctx.Request().Context(), topicId, res.Results)
-	// } else if functionType == weightsType {
-	// 	appChainClient.SendUpdatedWeights(ctx.Request().Context(), topicId, res.Results)
-	// }
+	// TODO: We can move this context to the AppChain struct (previous context was breaking the tx broadcast response)
+	reqCtx := context.Background()
+	if functionType == inferenceType {
+		appChainClient.SendInferences(reqCtx, topicId, res.Results)
+	} else if functionType == weightsType {
+		appChainClient.SendUpdatedWeights(reqCtx, topicId, res.Results)
+	}
 }
 
 func getResponseInfo(stdout string) (string, error) {
