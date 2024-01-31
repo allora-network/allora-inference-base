@@ -199,13 +199,13 @@ func run() int {
 	done := make(chan struct{})
 	failed := make(chan struct{})
 
+	var appchain *AppChain
 	cfg.AppChainConfig.AddressPrefix = "upt"
 	cfg.AppChainConfig.LibP2PKey = host.ID().String()
-
-	appchain, err := NewAppChain(context.Background(), cfg.AppChainConfig, log)
-	if err == nil {
-		appchain.init(context.Background())
-	} 
+	appchain, err = NewAppChain(cfg.AppChainConfig, log)
+	if(err != nil) {
+		log.Warn().Err(err).Msg("error connecting to allora blockchain")
+	}
 
 	// Start node main loop in a separate goroutine.
 	go func() {
@@ -247,7 +247,7 @@ func run() int {
 
 		// Set endpoint handlers.
 		server.GET("/api/v1/health", api.Health)
-		server.POST("/api/v1/functions/execute", createExecutor(*api, *appchain))
+		server.POST("/api/v1/functions/execute", createExecutor(*api, appchain))
 		server.POST("/api/v1/functions/install", api.Install)
 		server.POST("/api/v1/functions/requests/result", api.ExecutionResult)
 

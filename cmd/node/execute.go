@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strconv"
 
 	"github.com/blocklessnetwork/b7s/api"
 	"github.com/blocklessnetwork/b7s/models/blockless"
@@ -40,31 +39,31 @@ type ExecuteResult struct {
 
 func sendResultsToChain(ctx echo.Context, a api.API, appChainClient AppChain, req ExecuteRequest, res ExecuteResponse) {
 
-	// Only in weight functions that we will have a "type" in the response
-	functionType := "inferences"
-	functionType, err := getResponseInfo(res.Results[0].Result.Stdout)
-	if err != nil {
-		a.Log.Warn().Str("function", req.FunctionID).Err(err).Msg("node failed to extract response info from stdout")
-	}
+	// // Only in weight functions that we will have a "type" in the response
+	// functionType := "inferences"
+	// functionType, err := getResponseInfo(res.Results[0].Result.Stdout)
+	// if err != nil {
+	// 	a.Log.Warn().Str("function", req.FunctionID).Err(err).Msg("node failed to extract response info from stdout")
+	// }
 
-	var topicId uint64 = 0
-	for _, envVar := range req.Config.Environment {
-        if envVar.Name == "TOPIC_ID" {
-            fmt.Println("Found TOPIC_ID:", envVar.Value)
-			topicId, err = strconv.ParseUint(envVar.Value, 10, 64)
-			if err != nil {
-				a.Log.Warn().Str("function", req.FunctionID).Err(err).Msg("node failed to parse topic id")
-				return
-			}
-            break
-        }
-    }
+	// var topicId uint64 = 0
+	// for _, envVar := range req.Config.Environment {
+    //     if envVar.Name == "TOPIC_ID" {
+    //         fmt.Println("Found TOPIC_ID:", envVar.Value)
+	// 		topicId, err = strconv.ParseUint(envVar.Value, 10, 64)
+	// 		if err != nil {
+	// 			a.Log.Warn().Str("function", req.FunctionID).Err(err).Msg("node failed to parse topic id")
+	// 			return
+	// 		}
+    //         break
+    //     }
+    // }
 
-	if functionType == inferenceType {
-		appChainClient.SendInferences(ctx.Request().Context(), topicId, res.Results)
-	} else if functionType == weightsType {
-		appChainClient.SendUpdatedWeights(ctx.Request().Context(), topicId, res.Results)
-	}
+	// if functionType == inferenceType {
+	// 	appChainClient.SendInferences(ctx.Request().Context(), topicId, res.Results)
+	// } else if functionType == weightsType {
+	// 	appChainClient.SendUpdatedWeights(ctx.Request().Context(), topicId, res.Results)
+	// }
 }
 
 func getResponseInfo(stdout string) (string, error) {
@@ -77,7 +76,7 @@ func getResponseInfo(stdout string) (string, error) {
 	return responseInfo.FunctionType, nil
 }
 
-func createExecutor(a api.API, appChainClient AppChain) func(ctx echo.Context) error {
+func createExecutor(a api.API, appChainClient *AppChain) func(ctx echo.Context) error {
 	return func(ctx echo.Context) error {
 
 		// Unpack the API request.
@@ -109,11 +108,11 @@ func createExecutor(a api.API, appChainClient AppChain) func(ctx echo.Context) e
 		}
 
 		// Might be disabled if so we should log out
-		if appChainClient.Config.SubmitTx {
+		if appChainClient != nil && appChainClient.Config.SubmitTx {
 			// don't block the return to the consumer to send these to chain
-			go sendResultsToChain(ctx, a, appChainClient, req, res)
+			go sendResultsToChain(ctx, a, *appChainClient, req, res)
 		} else {
-			appChainClient.Logger.Debug().Msg("inference results would have been submitted to chain")
+			a.Log.Debug().Msg("inference results would have been submitted to chain")
 		}
 
 		// Send the response.

@@ -10,7 +10,6 @@ import (
 	"strconv"
 
 	cosmossdk_io_math "cosmossdk.io/math"
-
 	"github.com/blocklessnetwork/b7s/node/aggregate"
 	"github.com/ignite/cli/v28/ignite/pkg/cosmosaccount"
 	"github.com/ignite/cli/v28/ignite/pkg/cosmosclient"
@@ -18,177 +17,86 @@ import (
 	types "github.com/upshot-tech/protocol-state-machine-module"
 )
 
-func (ap *AppChain) init(ctx context.Context) {
-	err := ap.startClient(ctx, ap.Config)
-	if err !=nil {
-		ap.Logger.Error().Err(err).Msg("error starting the allora blockchain client")
-	}
-}
+// create a new appchain client that we can use
+func NewAppChain(config AppChainConfig, log zerolog.Logger) (*AppChain, error){
+	ctx := context.Background()
 
-
-func restoreAccount(ctx context.Context, ap AppChain) (cosmosaccount.Account, error) {
-
-	var account cosmosaccount.Account
-	uptAccountMnemonic := ap.Config.AddressRestoreMnemonic
-	uptAccountName := ap.Config.AddressKeyName
-	if uptAccountName == "" {
-		return account, fmt.Errorf("allora-chain-key-name flag is not set")
-	}
-
-	// Passpharase is optional
-	uptAccountPassphrase := ap.Config.AddressAccountPassphrase
-
-	// Create a Cosmos account instance
-	account, err := ap.Client.AccountRegistry.Import(uptAccountName, uptAccountMnemonic, uptAccountPassphrase)
-	if err != nil {
-		return account, err
-	}
-
-	return account, nil
-}
-
-func createClient(ctx context.Context, ap AppChain) (cosmosclient.Client, error) {
-	var client cosmosclient.Client
 	userHomeDir, err := os.UserHomeDir()
-
 	if err != nil {
-		ap.Logger.Warn().Err(err).Msg("could not get home directory for app chain")
-		return client, err
+		log.Warn().Err(err).Msg("could not get home directory for app chain")
+		return nil, err
 	}
 
 	DefaultNodeHome := filepath.Join(userHomeDir, ".uptd")
-	client, _ = cosmosclient.New(ctx, 
-		cosmosclient.WithAddressPrefix(ap.Config.AddressPrefix), 
-		cosmosclient.WithHome(DefaultNodeHome),
-		// cosmosclient.WithNodeAddress(ap.Config.NodeRPCAddress),
-	)
-	
+
+	// create a cosmos client instance
+	client, err := cosmosclient.New(ctx, cosmosclient.WithAddressPrefix(config.AddressPrefix), cosmosclient.WithHome(DefaultNodeHome))
+	if err != nil {
+		log.Warn().Err(err).Msg("werr")
+		config.SubmitTx = true
+	}
+
+	var account cosmosaccount.Account
+	var address string
+
+	// if we're giving a keyring ring name, with no mnemonic restore
+	if(config.AddressRestoreMnemonic == "" && config.AddressKeyName != "") {
+		// get account from the keyring
+		account, err = client.Account(config.AddressKeyName)
+		if err != nil {
+			config.SubmitTx = false
+			log.Warn().Err(err).Msg("could not retrieve account from keyring")
+		} else {
+
+			address, err = account.Address(config.AddressPrefix)
+			if err != nil {
+				config.SubmitTx = false
+				log.Warn().Err(err).Msg("could not retrieve allora blockchain address, transactions will not be submitted to chain")
+			}
+		}
+	}	
+
+	// Create query client
+	queryClient := types.NewQueryClient(client.Context())
+
 	// this is terrible, no isConnected as part of this code path
 	if(len(client.Context().ChainID) < 1) {
-		return client, fmt.Errorf("client can not connect to allora blockchain")
+		return nil, nil
 	}
 
-	_, err = getAccount(ap)
-    if err != nil {
-	 	ap.Config.SubmitTx = false
-       	ap.Logger.Warn().Err(err).Msg("could not retrieve allora blockchain account, transactions will not be submitted to chain")
-		return client, err
-	}
-
-	return client, nil
-}
-
-func getAccount(ap AppChain) (cosmosaccount.Account, error) {
-	var account cosmosaccount.Account
-
-	if(len(ap.Config.AddressRestoreMnemonic) > 0) {
-		account, err := restoreAccount(context.Background(), ap)
-		if err != nil {
-			ap.Config.SubmitTx = false
-			  ap.Logger.Warn().Err(err).Msg("could not *restore* allora blockchain account, transactions will not be submitted to chain")
-		   return account, err
-	   }
-	} else {
-		account, err := ap.Client.Account(ap.Config.AddressKeyName)
-		if err != nil {
-			ap.Config.SubmitTx = false
-			  ap.Logger.Warn().Err(err).Msg("could not retrieve allora blockchain account, transactions will not be submitted to chain")
-		   return account, err
-	   }
-	}
-
-	return account, nil
-}
-
-func (ap *AppChain)  startClient(ctx context.Context, config AppChainConfig) error {
-
-	client, err := createClient(ctx, *ap);
-	if err != nil {
-		return err
-	}
-
-	account, err := getAccount(*ap)
-    if err != nil {
-	 	ap.Config.SubmitTx = false
-       	ap.Logger.Warn().Err(err).Msg("could not retrieve allora blockchain account, transactions will not be submitted to chain")
-		return err
-	}
-
-	address, err := account.Address(config.AddressPrefix)
-    if err != nil {
-		ap.Config.SubmitTx = false
-        ap.Logger.Warn().Err(err).Msg("could not retrieve allora blockchain address, transactions will not be submitted to chain")
-		return err
-	}
-
-	if(config.SubmitTx) {
-		if (!queryIsNodeRegistered(ctx, client, address, config)) {
-			// not registered, register the node
-			registerWithBlockchain(ctx, client, account, *ap)
-		}
-		ap.Logger.Info().Msg("allora blockchain registration verification complete")
-	} else {
-		ap.Logger.Warn().Err(err).Msg("could not retrieve allora blockchain address, transactions will not be submitted to chain")
-	}
-
-	return nil
-}
-
-func NewAppChain(ctx context.Context, config AppChainConfig, logger zerolog.Logger) (*AppChain, error) {
-
-	ap := &AppChain{
-		Logger: logger,
+	appchain := &AppChain{
+		ReputerAddress: address,
+		ReputerAccount: account,
+		Logger: log,
+		Client: client,
+		QueryClient: queryClient,
 		Config: config,
 	}
 
-	client, err := createClient(ctx, *ap);
+	queryIsNodeRegistered(*appchain)
 
-	if err != nil {
-		return ap, err
-	}
-
-	queryClient := types.NewQueryClient(client.Context())
-
-	account, err := getAccount(*ap)
-	if err != nil {
-		return nil, err
-	}
-
-	address, err := account.Address(ap.Config.AddressPrefix)
-	if err != nil {
-		return nil, err
-	}
-
-	return &AppChain{
-		ReputerAddress: address,
-		ReputerAccount: account,
-		Client:         client,
-		QueryClient:    queryClient,
-		WorkersAddress: generateWorkersMap(),
-	}, nil
+	return appchain, nil
 }
 
-func registerWithBlockchain(ctx context.Context, client cosmosclient.Client, account cosmosaccount.Account, ap AppChain) {
-	
-	address, err := account.Address(ap.Config.AddressPrefix)
-    if err != nil {
-		ap.Logger.Fatal().Err(err).Msg("could not retrieve address for the allora blockchain")
-    }
+
+/// Registration 
+func registerWithBlockchain(appchain AppChain) {
+	ctx := context.Background()
 
 	msg := &types.MsgRegisterWorker{
-		Creator: address,
+		Creator: appchain.ReputerAddress,
 	}
 
-	txResp, err := client.BroadcastTx(ctx, account, msg)
+	txResp, err := appchain.Client.BroadcastTx(ctx, appchain.ReputerAccount, msg)
     if err != nil {
-        ap.Logger.Fatal().Err(err).Msg("could not register the node with the allora blockchain")
+        appchain.Logger.Fatal().Err(err).Msg("could not register the node with the allora blockchain")
     }
 
-	ap.Logger.Info().Str("txhash", txResp.TxHash).Msg("successfully registered node with Allora blockchain")
+	appchain.Logger.Info().Str("txhash", txResp.TxHash).Msg("successfully registered node with Allora blockchain")
 }
 
-// query NodeId in the InferenceNode type of the Cosmos chain
-func queryIsNodeRegistered(ctx context.Context, client cosmosclient.Client, address string, config AppChainConfig) bool {
+
+func queryIsNodeRegistered(appchain AppChain) bool {
 	// queryClient := types.NewQueryClient(client.Context())
     // queryResp, err := queryClient.GetInferenceNodeRegistration(ctx, &types.QueryRegisteredInferenceNodesRequest{
 	// 	NodeId: address + config.StringSeperator + config.LibP2PKey,
@@ -200,6 +108,10 @@ func queryIsNodeRegistered(ctx context.Context, client cosmosclient.Client, addr
 	// (len(queryResp.Nodes) >= 1) 
 	return false
 }
+
+
+/// Sending Inferences to the AppChain
+
 
 func (ap *AppChain) SendInferences(ctx context.Context, topicId uint64, results aggregate.Results) []WorkerInference {
 	// Aggregate the inferences from all peers/workers
