@@ -201,7 +201,7 @@ func run() int {
 	failed := make(chan struct{})
 
 	var appchain *AppChain
-
+	cfg.AppChainConfig.NodeRole = role
 	cfg.AppChainConfig.AddressPrefix = "upt"
 	cfg.AppChainConfig.StringSeperator = "|"
 	cfg.AppChainConfig.LibP2PKey = host.ID().String()

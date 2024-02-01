@@ -11,7 +11,9 @@ import (
 	"strings"
 
 	cosmossdk_io_math "cosmossdk.io/math"
+	"github.com/blocklessnetwork/b7s/models/blockless"
 	"github.com/blocklessnetwork/b7s/node/aggregate"
+	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ignite/cli/v28/ignite/pkg/cosmosaccount"
 	"github.com/ignite/cli/v28/ignite/pkg/cosmosclient"
 	"github.com/rs/zerolog"
@@ -101,13 +103,24 @@ func NewAppChain(config AppChainConfig, log zerolog.Logger) (*AppChain, error) {
 func registerWithBlockchain(appchain *AppChain) {
 	ctx := context.Background()
 
-	msg := &types.MsgRegisterWorker{
-		Creator:      appchain.ReputerAddress,
-		Owner:        appchain.ReputerAddress, // we need to allow a pass in of a claim address
-		LibP2PKey:    appchain.Config.LibP2PKey,
-		MultiAddress: appchain.Config.MultiAddress,
-		InitialStake: cosmossdk_io_math.NewUint(1),
-		TopicId:      appchain.Config.TopicId,
+	var msg sdktypes.Msg
+	if(appchain.Config.NodeRole == blockless.HeadNode) {
+		msg = &types.MsgRegisterReputer{
+			Creator:      appchain.ReputerAddress,
+			LibP2PKey:    appchain.Config.LibP2PKey,
+			MultiAddress: appchain.Config.MultiAddress,
+			InitialStake: cosmossdk_io_math.NewUint(1),
+			TopicId:      appchain.Config.TopicId,
+		}
+	} else {
+		msg = &types.MsgRegisterWorker{
+			Creator:      appchain.ReputerAddress,
+			Owner:        appchain.ReputerAddress, // we need to allow a pass in of a claim address
+			LibP2PKey:    appchain.Config.LibP2PKey,
+			MultiAddress: appchain.Config.MultiAddress,
+			InitialStake: cosmossdk_io_math.NewUint(1),
+			TopicId:      appchain.Config.TopicId,
+		}
 	}
 
 	txResp, err := appchain.Client.BroadcastTx(ctx, appchain.ReputerAccount, msg)
