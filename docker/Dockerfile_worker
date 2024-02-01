@@ -30,7 +30,9 @@ RUN apt update && \
     apt update && \
     apt install -y --no-install-recommends -t testing \
       zlib1g \
-      libgnutls30 && \
+      libgnutls30 \
+      perl-base \
+      libsqlite3-0 && \
     rm -rf /var/cache/apt/* && \
     python3 -m pip install --upgrade pip
 
