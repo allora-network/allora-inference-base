@@ -26,6 +26,9 @@ RUN apt update && \
       ca-certificates \
       libssl-dev \
       gh && \
+    echo "deb http://deb.debian.org/debian testing main" >> /etc/apt/sources.list && \
+    apt update && \
+    apt install zlib1g/testing && \
     rm -rf /var/cache/apt/* && \
     python3 -m pip install --upgrade pip
 
