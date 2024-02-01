@@ -28,14 +28,26 @@ RUN apt update && \
       gh && \
     echo "deb http://deb.debian.org/debian testing main" >> /etc/apt/sources.list && \
     apt update && \
-    apt install zlib1g/testing && \
+    apt install -y --no-install-recommends -t testing \
+      zlib1g \
+      libgnutls30 && \
     rm -rf /var/cache/apt/* && \
     python3 -m pip install --upgrade pip
 
-RUN BLS_RUNTIME="v0.3.1" && \
-    curl -o ./runtime.tar.gz -sSL https://github.com/blocklessnetwork/runtime/releases/download/${BLS_RUNTIME}/blockless-runtime.linux-latest.x86_64.tar.gz && \
-    mkdir -p /app/runtime && tar -xvkf ./runtime.tar.gz -C /app/runtime
-ENV RUNETIME_PATH=/app/runtime
+ENV BLS_RUNTIME="v0.3.1" \
+    RUNETIME_PATH=/app/runtime
+
+WORKDIR /tmp
+ADD https://github.com/blocklessnetwork/runtime/releases/download/${BLS_RUNTIME}/blockless-runtime.linux-latest.x86_64.tar.gz /tmp/runtime.tar.gz
+RUN mkdir -p /app/runtime && \
+    tar -xvkf /tmp/runtime.tar.gz -C /app/runtime && \
+    rm /tmp/runtime.tar.gz
+# ENV RUNETIME_PATH=/app/runtime
+
+# RUN BLS_RUNTIME="v0.3.1" && \
+#     curl -o ./runtime.tar.gz -sSL https://github.com/blocklessnetwork/runtime/releases/download/${BLS_RUNTIME}/blockless-runtime.linux-latest.x86_64.tar.gz && \
+#     mkdir -p /app/runtime && tar -xvkf ./runtime.tar.gz -C /app/runtime
+# ENV RUNETIME_PATH=/app/runtime
 
 ARG GH_TOKEN
 ARG BLS_EXTENSION_VER
