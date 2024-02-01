@@ -1,5 +1,5 @@
 # syntax = devthefuture/dockerfile-x
-FROM ./docker/Dockerfile
+FROM ./docker/Dockerfile_worker
 COPY ./docker/requirements.txt /tmp/
 RUN pip install --requirement /tmp/requirements.txt
 COPY . /tmp/
