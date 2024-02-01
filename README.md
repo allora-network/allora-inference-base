@@ -4,12 +4,19 @@ This node allows model providers to participate providing inferences to the Upsh
 
 # Build locally
 
-First you need to set the env vars to connect with the Uptshot Appchain
+First you need to set the flags to connect with the Upshot Appchain. This is done setting the flags:
+
 ```
-export NODE_ADDRESS="http://localhost:26657"
-export UPT_ACCOUNT_MNEMONIC="palm key track hammer early love act cat area betray ..."
-export UPT_ACCOUNT_NAME="alice"
-export UPT_ACCOUNT_PASSPHRASE="1234567890"
+"--allora-chain-key-name",
+"alice",
+"--allora-chain-restore-mnemonic",
+"palm key track...",
+"--allora-chain-account-password",
+"",
+"--allora-node-rpc-address",
+"https://localhost:26657",
+"--allora-chain-topic-id",
+"1"
 ```
 
 ***WARNING***
