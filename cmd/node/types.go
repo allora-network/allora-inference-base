@@ -3,6 +3,7 @@ package main
 import (
 	cosmossdk_io_math "cosmossdk.io/math"
 	"github.com/blocklessnetwork/b7s/config"
+	"github.com/blocklessnetwork/b7s/models/blockless"
 	"github.com/ignite/cli/v28/ignite/pkg/cosmosaccount"
 	"github.com/ignite/cli/v28/ignite/pkg/cosmosclient"
 	"github.com/rs/zerolog"
@@ -36,6 +37,7 @@ type AppChainConfig struct {
 	SubmitTx                 bool   // do we need to commit these to the chain, might be a reason not to
 	MultiAddress             string
 	TopicId                  uint64
+	NodeRole				 blockless.NodeRole		
 }
 
 type WorkerInference struct {
