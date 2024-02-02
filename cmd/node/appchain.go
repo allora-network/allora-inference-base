@@ -206,7 +206,7 @@ func (ap *AppChain) SendUpdatedWeights(ctx context.Context, topicId uint64, resu
 	for _, result := range results {
 		extractedWeights, err := extractWeights(result.Result.Stdout)
 		if err != nil {
-			ap.Logger.Error().Err(err).Msg("Error extracting weight")
+			ap.Logger.Info().Err(err).Msg("Error extracting weight")
 			continue
 		}
 
@@ -220,7 +220,7 @@ func (ap *AppChain) SendUpdatedWeights(ctx context.Context, topicId uint64, resu
 			weight := &types.Weight{
 				TopicId: topicId,
 				Reputer: ap.ReputerAddress,
-				Worker:  "upt16ar7k93c6razqcuvxdauzdlaz352sfjp2rpj3i",
+				Worker:  peer,
 				Weight:  cosmossdk_io_math.NewUint(parsed),
 			}
 			weights = append(weights, weight)
