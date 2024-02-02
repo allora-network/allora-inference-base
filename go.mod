@@ -7,6 +7,7 @@ toolchain go1.21.5
 require (
 	cosmossdk.io/math v1.2.0
 	github.com/cockroachdb/pebble v0.0.0-20231102162011-844f0582c2eb
+	github.com/cosmos/cosmos-sdk v0.50.3
 	github.com/ignite/cli/v28 v28.1.1
 	github.com/labstack/echo/v4 v4.11.4
 	github.com/libp2p/go-libp2p v0.32.2
@@ -57,7 +58,6 @@ require (
 	github.com/cosmos/btcutil v1.0.5 // indirect
 	github.com/cosmos/cosmos-db v1.0.0 // indirect
 	github.com/cosmos/cosmos-proto v1.0.0-beta.3 // indirect
-	github.com/cosmos/cosmos-sdk v0.50.3 // indirect
 	github.com/cosmos/go-bip39 v1.0.0 // indirect
 	github.com/cosmos/gogogateway v1.2.0 // indirect
 	github.com/cosmos/gogoproto v1.4.11 // indirect
@@ -272,5 +272,5 @@ require (
 replace (
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	github.com/libp2p/go-libp2p-raft => github.com/dmikey/go-libp2p-raft v0.0.0-20240110033916-a00d162e5fdd
-	github.com/upshot-tech/protocol-state-machine-module => github.com/upshot-tech/upshot-appchain/x/emissions v0.0.0-20240131192024-a487d4059e45
+	github.com/upshot-tech/protocol-state-machine-module => github.com/upshot-tech/upshot-appchain/x/emissions v0.0.0-20240202144809-8383bca5a600
 )
