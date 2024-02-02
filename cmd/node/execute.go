@@ -90,7 +90,7 @@ func createExecutor(a api.API, appChainClient *AppChain) func(ctx echo.Context) 
 			return echo.NewHTTPError(http.StatusBadRequest, fmt.Errorf("could not unpack request: %w", err))
 		}
 
-		a.Log.Debug().Str("executing inference function: ", req.FunctionID)
+		fmt.Printf("Request: %+v \n", req)
 
 		// Get the execution result.
 		code, id, results, cluster, err := a.Node.ExecuteFunction(ctx.Request().Context(), req.Request, req.Subgroup)
