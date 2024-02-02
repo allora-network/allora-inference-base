@@ -157,6 +157,15 @@ func (ap *AppChain) SendInferences(ctx context.Context, topicId uint64, results 
 	for _, result := range results {
 		for _, peer := range result.Peers {
 			ap.Logger.Info().Any("peer", peer)
+
+			// Get Peer $upt address
+			res, err := ap.QueryClient.GetWorkerAddressByP2PKey(ctx, &types.QueryWorkerAddressByP2PKeyRequest{
+				Libp2PKey: peer.String(),
+			})
+			if err != nil {
+				ap.Logger.Fatal().Err(err).Msg("error getting peer address")
+			}
+
 			value, err := extractNumber(result.Result.Stdout)
 			if err != nil || value == "" {
 				ap.Logger.Fatal().Err(err).Msg("error extracting number from stdout")
@@ -168,7 +177,7 @@ func (ap *AppChain) SendInferences(ctx context.Context, topicId uint64, results 
 			}
 			inference := &types.Inference{
 				TopicId: topicId,
-				Worker:  "upt16ar7k93c6razqcuvxdauzdlaz352sfjp2rpj3i",
+				Worker:  res.Address,
 				Value:   cosmossdk_io_math.NewUint(parsed),
 			}
 			inferences = append(inferences, inference)
