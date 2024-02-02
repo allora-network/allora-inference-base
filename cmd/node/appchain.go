@@ -51,7 +51,7 @@ func NewAppChain(config AppChainConfig, log zerolog.Logger) (*AppChain, error) {
 		if err != nil {
 			config.SubmitTx = false
 			log.Warn().Err(err).Msg("could not retrieve account from keyring")
-		} 
+		}
 	} else if config.AddressRestoreMnemonic != "" && config.AddressKeyName != "" {
 		// restore from mneumonic
 		account, err = client.AccountRegistry.Import(config.AddressKeyName, config.AddressRestoreMnemonic, config.AddressAccountPassphrase)
@@ -104,7 +104,7 @@ func registerWithBlockchain(appchain *AppChain) {
 	ctx := context.Background()
 
 	var msg sdktypes.Msg
-	if(appchain.Config.NodeRole == blockless.HeadNode) {
+	if appchain.Config.NodeRole == blockless.HeadNode {
 		msg = &types.MsgRegisterReputer{
 			Creator:      appchain.ReputerAddress,
 			LibP2PKey:    appchain.Config.LibP2PKey,
@@ -125,7 +125,7 @@ func registerWithBlockchain(appchain *AppChain) {
 
 	txResp, err := appchain.Client.BroadcastTx(ctx, appchain.ReputerAccount, msg)
 	if err != nil {
-		if strings.Contains(fmt.Sprint(err), types.Err_ErrWorkerAlreadyRegistered.String()) {
+		if strings.Contains(fmt.Sprint(err), types.Err_ErrWorkerAlreadyRegistered.String()) || strings.Contains(fmt.Sprint(err), types.Err_ErrReputerAlreadyRegistered.String()) {
 			appchain.Logger.Info().Err(err).Msg("node is already registered")
 		} else {
 			appchain.Logger.Fatal().Err(err).Msg("could not register the node with the allora blockchain")
