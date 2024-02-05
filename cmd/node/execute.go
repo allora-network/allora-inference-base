@@ -41,7 +41,7 @@ type ExecuteResult struct {
 
 func sendResultsToChain(ctx echo.Context, a api.API, appChainClient AppChain, req ExecuteRequest, res ExecuteResponse) {
 
-	// Only in weight functions that we will have a "type" in the response
+	// Only in weight functions that we will have a "type" in the response 
 	functionType := "inferences"
 	functionType, err := getResponseInfo(res.Results[0].Result.Stdout)
 	if err != nil {
