@@ -29,8 +29,7 @@ RUN apt update && \
       zlib1g \
       libgnutls30 \
       perl-base && \
-    rm -rf /var/cache/apt/* && \
-    python3 -m pip install --upgrade pip
+    rm -rf /var/cache/apt/*
 
 COPY --from=builder /src/dist/upshot-node /usr/local/bin/upshot-node
 COPY --from=builder /src/dist/upshot-keys /usr/local/bin/upshot-keys
