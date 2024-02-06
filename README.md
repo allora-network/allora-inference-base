@@ -4,7 +4,7 @@ This node allows model providers to participate providing inferences to the Upsh
 
 # Build locally
 
-First you need to set the env vars to connect with the Uptshot Appchain
+First you need to set the env vars to connect with the Upshot Appchain
 ```
 export NODE_ADDRESS="http://localhost:26657"
 export UPT_ACCOUNT_MNEMONIC="palm key track hammer early love act cat area betray ..."
