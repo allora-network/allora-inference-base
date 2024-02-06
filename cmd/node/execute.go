@@ -105,7 +105,7 @@ func createExecutor(a api.API, appChainClient *AppChain) func(ctx echo.Context) 
 			Results:   aggregate.Aggregate(results),
 			Cluster:   cluster,
 		}
-
+                fmt.Printf("Response: %+v \n", res)
 		// Communicate the reason for failure in these cases.
 		if errors.Is(err, blockless.ErrRollCallTimeout) || errors.Is(err, blockless.ErrExecutionNotEnoughNodes) {
 			res.Message = err.Error()
