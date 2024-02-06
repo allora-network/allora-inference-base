@@ -17,7 +17,7 @@ export UPT_ACCOUNT_PASSPHRASE="1234567890"
 This repo is currently relying on a private module, current development requires
 
 ```bash
-export GOPRIVATE=github.com/upshot-tech/upshot-appchain   
+export GOPRIVATE=github.com/upshot-tech/upshot-appchain
 ```
 
 Then to build
