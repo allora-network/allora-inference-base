@@ -195,7 +195,7 @@ func (ap *AppChain) SendInferences(ctx context.Context, topicId uint64, results 
 		ap.Logger.Info().Err(err).Msg("failed to send inferences to allora blockchain")
 	}
 
-	ap.Logger.Info().Str("txhash", txResp.TxHash).Msg("successfully sent inferences to allora blockchain")
+	ap.Logger.Info().Any("Tx Resp:", txResp).Msg("successfully sent inferences to allora blockchain")
 
 	return workersInferences
 }
@@ -241,7 +241,7 @@ func (ap *AppChain) SendUpdatedWeights(ctx context.Context, topicId uint64, resu
 		ap.Logger.Info().Err(err).Msg("failed to send weights to allora blockchain")
 	}
 
-	ap.Logger.Info().Str("txhash", txResp.TxHash).Msg("successfully sent weights to allora blockchain")
+	ap.Logger.Info().Any("Tx Resp:", txResp).Msg("successfully sent weights to allora blockchain")
 }
 
 func parseFloatToUint64Weights(input string) (uint64, error) {
