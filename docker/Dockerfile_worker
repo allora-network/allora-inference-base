@@ -14,7 +14,7 @@ RUN go mod download && \
 FROM --platform=linux/amd64 python:3.12-slim-bookworm
 ENV DEBIAN_FRONTEND=noninteractive \
     USERNAME=appuser \
-    APP_PATH=/data
+    APP_PATH=/app
 
 ## curl, unzip other utilities
 #! libssl-dev - BLS_RUNTIME dependency   # - temporary use libssl 1.1 TODO: Should use fresher libssl
@@ -81,7 +81,6 @@ RUN groupadd -g 1001 ${USERNAME} \
 
 USER ${USERNAME}
 
-VOLUME ${APP_PATH}
 EXPOSE 8080 9527
 
 ENTRYPOINT ["upshot-node"]
