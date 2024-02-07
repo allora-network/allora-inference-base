@@ -50,7 +50,8 @@ type WeightsResponse struct {
 }
 
 type WorkerWeights struct {
-	Weights map[string]float64 `json:"-"` // Use a map to dynamically handle worker identifiers
+	Type    string            `json:"type"`
+	Weights map[string]string `json:"weights"`
 }
 
 type WeightsCalcDependencies struct {

@@ -195,7 +195,7 @@ func (ap *AppChain) SendInferences(ctx context.Context, topicId uint64, results 
 		ap.Logger.Info().Err(err).Msg("failed to send inferences to allora blockchain")
 	}
 
-	ap.Logger.Info().Str("txhash", txResp.TxHash).Msg("successfully sent inferences to allora blockchain")
+	ap.Logger.Info().Any("Tx Resp:", txResp).Msg("successfully sent inferences to allora blockchain")
 
 	return workersInferences
 }
@@ -212,11 +212,14 @@ func (ap *AppChain) SendUpdatedWeights(ctx context.Context, topicId uint64, resu
 
 		for peer, value := range extractedWeights {
 			ap.Logger.Info().Str("peer", peer)
-			parsed, err := parseFloatToUint64Weights(strconv.FormatFloat(value, 'f', -1, 64))
+			parsed, err := parseFloatToUint64Weights(value)
 			if err != nil {
 				ap.Logger.Error().Err(err).Msg("Error parsing uint")
 				continue
 			}
+
+			fmt.Printf("\n Worker Node: %s Weight: %v \n", peer, cosmossdk_io_math.NewUint(parsed))
+
 			weight := &types.Weight{
 				TopicId: topicId,
 				Reputer: ap.ReputerAddress,
@@ -238,7 +241,7 @@ func (ap *AppChain) SendUpdatedWeights(ctx context.Context, topicId uint64, resu
 		ap.Logger.Info().Err(err).Msg("failed to send weights to allora blockchain")
 	}
 
-	ap.Logger.Info().Str("txhash", txResp.TxHash).Msg("successfully sent weights to allora blockchain")
+	ap.Logger.Info().Any("Tx Resp:", txResp).Msg("successfully sent weights to allora blockchain")
 }
 
 func parseFloatToUint64Weights(input string) (uint64, error) {
@@ -278,11 +281,11 @@ func extractNumber(stdout string) (string, error) {
 	return response.Value, nil
 }
 
-func extractWeights(stdout string) (map[string]float64, error) {
+func extractWeights(stdout string) (map[string]string, error) {
 	fmt.Println("Extracting weights from stdout: ", stdout)
 
 	var weights WorkerWeights
-	err := json.Unmarshal([]byte(stdout), &weights.Weights)
+	err := json.Unmarshal([]byte(stdout), &weights)
 	if err != nil {
 		return nil, err
 	}
