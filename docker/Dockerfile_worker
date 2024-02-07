@@ -77,7 +77,8 @@ RUN /app/runtime/bls-runtime --help && \
     /app/runtime/extensions/upshot-blockless-extension --help
 
 RUN groupadd -g 1001 ${USERNAME} \
-    && useradd -m -d ${APP_PATH} -u 1001 -g 1001 ${USERNAME}
+    && useradd -m -d ${APP_PATH} -u 1001 -g 1001 ${USERNAME} \
+    && chown -R ${USERNAME}:${USERNAME} /app
 
 USER ${USERNAME}
 
