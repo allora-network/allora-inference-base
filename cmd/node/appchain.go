@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"os"
@@ -24,18 +25,20 @@ import (
 func NewAppChain(config AppChainConfig, log zerolog.Logger) (*AppChain, error) {
 	ctx := context.Background()
 	config.SubmitTx = true
+	cosmosClientHome := filepath.Join(os.UserHomeDir(), ".uptd")
+	if config.CosmosHomeDir != "" {
+		cosmosClientHome = config.CosmosHomeDir
+	}
 
-	userHomeDir, err := os.UserHomeDir()
-	if err != nil {
+	// Check that the given home folder is exist
+	if _, err := os.Stat(cosmosClientHome); errors.Is(err, os.ErrNotExist) {
 		log.Warn().Err(err).Msg("could not get home directory for app chain")
 		config.SubmitTx = false
 		return nil, err
 	}
 
-	DefaultNodeHome := filepath.Join(userHomeDir, ".uptd")
-
 	// create a cosmos client instance
-	client, err := cosmosclient.New(ctx, cosmosclient.WithNodeAddress(config.NodeRPCAddress), cosmosclient.WithAddressPrefix(config.AddressPrefix), cosmosclient.WithHome(DefaultNodeHome))
+	client, err := cosmosclient.New(ctx, cosmosclient.WithNodeAddress(config.NodeRPCAddress), cosmosclient.WithAddressPrefix(config.AddressPrefix), cosmosclient.WithHome(cosmosClientHome))
 	if err != nil {
 		log.Warn().Err(err).Msg("unable to create an allora blockchain client")
 		config.SubmitTx = false
