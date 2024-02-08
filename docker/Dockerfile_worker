@@ -84,7 +84,7 @@ RUN groupadd -g 1001 ${USERNAME} \
     
 
 USER ${USERNAME}
-WORKDIR /app
+WORKDIR /data
 
 EXPOSE 8080 9527
 
