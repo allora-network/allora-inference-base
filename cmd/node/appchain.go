@@ -31,11 +31,16 @@ func NewAppChain(config AppChainConfig, log zerolog.Logger) (*AppChain, error) {
 		cosmosClientHome = config.CosmosHomeDir
 	}
 
-	// Check that the given home folder is exist
+	// Check that the given home folder exist
 	if _, err := os.Stat(cosmosClientHome); errors.Is(err, os.ErrNotExist) {
-		log.Warn().Err(err).Msg("could not get home directory for cosmos client")
-		config.SubmitTx = false
-		return nil, err
+		log.Warn().Err(err).Msg("could not get home directory for cosmos client, creating...")
+		err = os.MkdirAll(cosmosClientHome, 0755)
+		if err != nil {
+			log.Warn().Err(err).Str("directory", cosmosClientHome).Msg("Cannot create cosmos client home directory")
+			config.SubmitTx = false
+			return nil, err
+		}
+		log.Info().Err(err).Str("directory", cosmosClientHome).Msg("cosmos client home directory created")
 	}
 
 	// create a cosmos client instance
