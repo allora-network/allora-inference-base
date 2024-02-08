@@ -25,14 +25,15 @@ import (
 func NewAppChain(config AppChainConfig, log zerolog.Logger) (*AppChain, error) {
 	ctx := context.Background()
 	config.SubmitTx = true
-	cosmosClientHome := filepath.Join(os.UserHomeDir(), ".uptd")
+	userHomeDir, _ := os.UserHomeDir()
+	cosmosClientHome := filepath.Join(userHomeDir, ".uptd")
 	if config.CosmosHomeDir != "" {
 		cosmosClientHome = config.CosmosHomeDir
 	}
 
 	// Check that the given home folder is exist
 	if _, err := os.Stat(cosmosClientHome); errors.Is(err, os.ErrNotExist) {
-		log.Warn().Err(err).Msg("could not get home directory for app chain")
+		log.Warn().Err(err).Msg("could not get home directory for cosmos client")
 		config.SubmitTx = false
 		return nil, err
 	}
