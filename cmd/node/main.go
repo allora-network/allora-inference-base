@@ -202,19 +202,19 @@ func run() int {
 
 	var appchain *AppChain
 	cfg.AppChainConfig.NodeRole = role
-	cfg.AppChainConfig.AddressPrefix = "upt"
+	cfg.AppChainConfig.AddressPrefix = "allo"
 	cfg.AppChainConfig.StringSeperator = "|"
 	cfg.AppChainConfig.LibP2PKey = host.ID().String()
 	cfg.AppChainConfig.MultiAddress = host.Addresses()[0]
 
 	appchain, err = NewAppChain(cfg.AppChainConfig, log)
-	if(err != nil) {
+	if err != nil {
 		log.Warn().Err(err).Msg("error connecting to allora blockchain")
 	}
 
 	// Start node main loop in a separate goroutine.
 	go func() {
-		
+
 		log.Info().
 			Str("role", role.String()).
 			Msg("Upshot Node starting")

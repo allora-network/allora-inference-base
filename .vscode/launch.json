@@ -9,9 +9,9 @@
       "program": "${workspaceFolder}/cmd/node",
       "args": [
         "--peer-db",
-        "/tmp/upt/head-peer-db",
+        "/tmp/allora/head-peer-db",
         "--function-db",
-        "/tmp/upt/head-fdb",
+        "/tmp/allora/head-fdb",
         "--log-level",
         "debug",
         "--port",
@@ -37,9 +37,9 @@
       "program": "${workspaceFolder}/cmd/node",
       "args": [
         "--peer-db",
-        "/tmp/upt/worker-peer-db",
+        "/tmp/allora/worker-peer-db",
         "--function-db",
-        "/tmp/upt/worker-fdb",
+        "/tmp/allora/worker-fdb",
         "--log-level",
         "debug",
         "--port",

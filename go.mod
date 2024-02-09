@@ -6,6 +6,7 @@ toolchain go1.21.5
 
 require (
 	cosmossdk.io/math v1.2.0
+	github.com/allora-network/allora-chain v0.0.0-20240208180735-24a88913f37e
 	github.com/cockroachdb/pebble v1.0.0
 	github.com/cosmos/cosmos-sdk v0.50.3
 	github.com/ignite/cli/v28 v28.1.1
@@ -13,7 +14,6 @@ require (
 	github.com/libp2p/go-libp2p v0.32.2
 	github.com/multiformats/go-multiaddr v0.12.2
 	github.com/spf13/pflag v1.0.5
-	github.com/upshot-tech/protocol-state-machine-module v0.0.0-20240124222402-42ed70eafa95
 )
 
 require (
@@ -271,5 +271,4 @@ require (
 replace (
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	github.com/libp2p/go-libp2p-raft => github.com/dmikey/go-libp2p-raft v0.0.0-20240110033916-a00d162e5fdd
-	github.com/upshot-tech/protocol-state-machine-module => github.com/upshot-tech/upshot-appchain/x/emissions v0.0.0-20240202144809-8383bca5a600
 )

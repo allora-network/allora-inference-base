@@ -7,9 +7,9 @@ This node allows model providers to participate providing inferences to the Upsh
 First you need to set the env vars to connect with the Upshot Appchain
 ```
 export NODE_ADDRESS="http://localhost:26657"
-export UPT_ACCOUNT_MNEMONIC="palm key track hammer early love act cat area betray ..."
-export UPT_ACCOUNT_NAME="alice"
-export UPT_ACCOUNT_PASSPHRASE="1234567890"
+export ALLORA_ACCOUNT_MNEMONIC="palm key track hammer early love act cat area betray ..."
+export ALLORA_ACCOUNT_NAME="alice"
+export ALLORA_ACCOUNT_PASSPHRASE="1234567890"
 ```
 
 ***WARNING***
@@ -17,7 +17,7 @@ export UPT_ACCOUNT_PASSPHRASE="1234567890"
 This repo is currently relying on a private module, current development requires
 
 ```bash
-export GOPRIVATE=github.com/upshot-tech/upshot-appchain
+export GOPRIVATE=github.com/allora-network/allora-appchain
 ```
 
 Then to build
