@@ -12,13 +12,13 @@ import (
 	"strings"
 
 	cosmossdk_io_math "cosmossdk.io/math"
+	types "github.com/allora-network/allora-chain/x/emissions"
 	"github.com/blocklessnetwork/b7s/models/blockless"
 	"github.com/blocklessnetwork/b7s/node/aggregate"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ignite/cli/v28/ignite/pkg/cosmosaccount"
 	"github.com/ignite/cli/v28/ignite/pkg/cosmosclient"
 	"github.com/rs/zerolog"
-	types "github.com/upshot-tech/protocol-state-machine-module"
 )
 
 // create a new appchain client that we can use
@@ -26,7 +26,7 @@ func NewAppChain(config AppChainConfig, log zerolog.Logger) (*AppChain, error) {
 	ctx := context.Background()
 	config.SubmitTx = true
 	userHomeDir, _ := os.UserHomeDir()
-	cosmosClientHome := filepath.Join(userHomeDir, ".uptd")
+	cosmosClientHome := filepath.Join(userHomeDir, ".allorad")
 	if config.CosmosHomeDir != "" {
 		cosmosClientHome = config.CosmosHomeDir
 	}
@@ -146,7 +146,6 @@ func registerWithBlockchain(appchain *AppChain) {
 
 func queryIsNodeRegistered(appchain AppChain) bool {
 	ctx := context.Background()
-
 	queryResp, err := appchain.QueryClient.GetWorkerNodeRegistration(ctx, &types.QueryRegisteredWorkerNodesRequest{
 		NodeId: appchain.ReputerAddress + appchain.Config.StringSeperator + appchain.Config.LibP2PKey,
 	})
@@ -167,7 +166,7 @@ func (ap *AppChain) SendInferences(ctx context.Context, topicId uint64, results 
 		for _, peer := range result.Peers {
 			ap.Logger.Info().Any("peer", peer)
 
-			// Get Peer $upt address
+			// Get Peer $allo address
 			res, err := ap.QueryClient.GetWorkerAddressByP2PKey(ctx, &types.QueryWorkerAddressByP2PKeyRequest{
 				Libp2PKey: peer.String(),
 			})

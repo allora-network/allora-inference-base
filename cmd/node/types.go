@@ -2,12 +2,13 @@ package main
 
 import (
 	cosmossdk_io_math "cosmossdk.io/math"
+	types "github.com/allora-network/allora-chain/x/emissions"
 	"github.com/blocklessnetwork/b7s/config"
 	"github.com/blocklessnetwork/b7s/models/blockless"
 	"github.com/ignite/cli/v28/ignite/pkg/cosmosaccount"
 	"github.com/ignite/cli/v28/ignite/pkg/cosmosclient"
 	"github.com/rs/zerolog"
-	types "github.com/upshot-tech/protocol-state-machine-module"
+	// types "github.com/upshot-tech/protocol-state-machine-module"
 )
 
 type alloraCfg struct {
@@ -37,7 +38,7 @@ type AppChainConfig struct {
 	SubmitTx                 bool   // do we need to commit these to the chain, might be a reason not to
 	MultiAddress             string
 	TopicId                  uint64
-	NodeRole				 blockless.NodeRole		
+	NodeRole                 blockless.NodeRole
 }
 
 type WorkerInference struct {
