@@ -1,4 +1,4 @@
-upshot-node \
+allora-node \
 --peer-db /tmp/avs/head-peer-db \
 --function-db /tmp/avs/head-fdb \
 --log-level debug \

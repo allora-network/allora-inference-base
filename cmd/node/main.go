@@ -217,17 +217,17 @@ func run() int {
 
 		log.Info().
 			Str("role", role.String()).
-			Msg("Upshot Node starting")
+			Msg("Allora Node starting")
 
 		err := node.Run(ctx)
 		if err != nil {
-			log.Error().Err(err).Msg("Upshot Node failed")
+			log.Error().Err(err).Msg("Allora Node failed")
 			close(failed)
 		} else {
 			close(done)
 		}
 
-		log.Info().Msg("Upshot Node stopped")
+		log.Info().Msg("Allora Node stopped")
 	}()
 
 	// If we're a head node - start the REST API.
@@ -274,11 +274,11 @@ func run() int {
 
 	select {
 	case <-sig:
-		log.Info().Msg("Upshot Node stopping")
+		log.Info().Msg("Allora Node stopping")
 	case <-done:
-		log.Info().Msg("Upshot Node done")
+		log.Info().Msg("Allora Node done")
 	case <-failed:
-		log.Info().Msg("Upshot Node aborted")
+		log.Info().Msg("Allora Node aborted")
 		return failure
 	}
 

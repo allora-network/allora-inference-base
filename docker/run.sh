@@ -52,7 +52,7 @@ if [ -f "$CONFIG_PATH/identity" ]; then
 else 
   echo "Generating New Node Identity"
   cd /app/keys
-  ../upshot-keys
+  ../allora-keys
   # Backup keys
   if [ -n "$KEY_PATH" ]; then
     # backup the on chain node identity
@@ -86,7 +86,7 @@ if [ -n "$TOPICS" ]; then
 fi
 
 if [ "$NODE_ROLE" = "head" ]; then
-  ./upshot-node --peer-db /var/tmp/upshot/peerdb --function-db /var/tmp/upshot/function-db --log-level debug --port $P2P_PORT --role head --workspace $WORKSPACE_ROOT --private-key $NODE_KEY_PATH --rest-api :$REST_API $dialback_args $bootnode_args
+  ./allora-node --peer-db /var/tmp/allora/peerdb --function-db /var/tmp/allora/function-db --log-level debug --port $P2P_PORT --role head --workspace $WORKSPACE_ROOT --private-key $NODE_KEY_PATH --rest-api :$REST_API $dialback_args $bootnode_args
 else
-  ./upshot-node --peer-db ./peer-database --function-db ./function-database --log-level debug --port $P2P_PORT --role worker --runtime-path /app/runtime --runtime-cli bls-runtime --workspace $WORKSPACE_ROOT --private-key $NODE_KEY_PATH $dialback_args $bootnode_args $topic_args
+  ./allora-node --peer-db ./peer-database --function-db ./function-database --log-level debug --port $P2P_PORT --role worker --runtime-path /app/runtime --runtime-cli bls-runtime --workspace $WORKSPACE_ROOT --private-key $NODE_KEY_PATH $dialback_args $bootnode_args $topic_args
 fi

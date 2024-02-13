@@ -31,8 +31,8 @@ RUN apt update && \
       perl-base && \
     rm -rf /var/cache/apt/*
 
-COPY --from=builder /src/dist/upshot-node /usr/local/bin/upshot-node
-COPY --from=builder /src/dist/upshot-keys /usr/local/bin/upshot-keys
+COPY --from=builder /src/dist/allora-node /usr/local/bin/allora-node
+COPY --from=builder /src/dist/allora-keys /usr/local/bin/allora-keys
 
 RUN groupadd -g 1001 ${USERNAME} \
     && useradd -m -d ${APP_PATH} -u 1001 -g 1001 ${USERNAME}
@@ -42,4 +42,4 @@ USER ${USERNAME}
 VOLUME ${APP_PATH}
 EXPOSE 8080 9527
 
-ENTRYPOINT ["upshot-node"]
+ENTRYPOINT ["allora-node"]
