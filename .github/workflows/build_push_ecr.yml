@@ -43,7 +43,7 @@ jobs:
           MAIN_BRANCH: main                                       # Images from this branch will be tagged as "latest"
         run: |
           #! Due to we trigger on push.tags GITHUB_REF - is the tag name
-          GIT_TAG="${GITHUB_REF}"
+          GIT_TAG="$(echo $GITHUB_REF| sed 's#refs/tags/##')"
 
           IMAGE_TAG="${GITHUB_SHA:0:8}"
           EXTRA_IMAGE_TAGS=$GIT_TAG
