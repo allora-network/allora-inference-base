@@ -11,10 +11,20 @@ In order to build locally:
 GOOS=linux GOARCH=amd64 make
 ```
 
+***WARNING***
+
+This repo is currently relying on a private module, current development requires
+
+```bash
+export GOPRIVATE=github.com/allora-network/allora-appchain
+```
+
 # Run locally
 
+## Head
+
 ```
-./upshot-node \
+./allora-node \
   --role=head  \
   --peer-db=/data/peerdb \
   --function-db=/data/function-db \
@@ -26,18 +36,49 @@ GOOS=linux GOARCH=amd64 make
   --rest-api=:6000 \
   --allora-chain-key-name=local-head \
   --allora-chain-restore-mnemonic='your mnemonic words...' --allora-node-rpc-address=https://some-allora-rpc-address/ \
+```
+## Worker
+
+```
+./allora-node \
+  --role=worker  \
+  --peer-db=/data/peerdb \
+  --function-db=/data/function-db \
+  --runtime-path=/app/runtime \
+  --runtime-cli=bls-runtime \
+  --workspace=/data/workspace \
+  --private-key=/var/keys/priv.bin \
+  --port=9010 \
+  --rest-api=:6000 \
+  --topic=1 \
+  --allora-chain-key-name=local-worker \
+  --allora-chain-restore-mnemonic='your mnemonic words...' --allora-node-rpc-address=https://some-allora-rpc-address/ \
   --allora-chain-topic-id=1
-
 ```
 
+## Notes 
 
-***WARNING***
+If you plan to deploy without wanting to connect to the Allora blockchain, just by testing your setup and your inferences, do not set any `--allora` flag.
 
-This repo is currently relying on a private module, current development requires
+### Topic registration
 
-```bash
-export GOPRIVATE=github.com/allora-network/allora-appchain
-```
+`--topic` defines the topic internally as a Blockless channel, so the heads are able to identify which workers can respond to requests on that topic.
+
+`--allora-chain-topic-id` is the topic in which your worker registers on the appchain. This will be used for evaluating performance and allocating rewards.
+
+### Keys
+The `--private-key` sets the Blockless peer key for your particular node. Obviously, please use different keys for different nodes.
+The `--allora-chain-key-name` and `--allora-chain-restore-mnemonic` are used to set the local Allora client keyring that your node will use when communicating with the Allora chain.
+
+### Blockless directories
+
+Blockless nodes need to define a number of directories: 
+`--peer-db`: database for peers in the network.
+`--function-db`: database for WASM functions to be executed in the workers.
+`--runtime-path`: runtime path to execute the functions
+`--runtime-cli`: runtime command to run functions
+`--workspace`: work directory where temporary files are stored.
+
 
 # Docker images
 
