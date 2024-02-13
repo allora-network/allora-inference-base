@@ -56,25 +56,25 @@ ARG BLS_EXTENSION_VER
 # If BLS_EXTENSION_VER install the version else install latest
 RUN if [ -n $BLS_EXTENSION_VER]; then \
       gh release download $BLS_EXTENSION_VER \
-        --repo "upshot-tech/upshot-blockless-extension" \
+        --repo "allora-network/allora-inference-extension" \
         --pattern '*linux-amd64.tar.gz' \
-        --output upshot-extension.tar.gz; \
+        --output allora-extension.tar.gz; \
     else \
-      gh release download $(gh release list --repo "upshot-tech/upshot-blockless-extension" | grep Latest | awk '{print($1)}') \
-        --repo "upshot-tech/upshot-blockless-extension" \
+      gh release download $(gh release list --repo "allora-network/allora-inference-extension" | grep Latest | awk '{print($1)}') \
+        --repo "allora-network/allora-inference-extension" \
         --pattern '*linux-amd64.tar.gz' \
-        --output upshot-extension.tar.gz; \
+        --output allora-extension.tar.gz; \
     fi && \
     mkdir -p /app/runtime/extensions && \
-    tar -xvkf ./upshot-extension.tar.gz -C /app/runtime/extensions && \
-    rm ./upshot-extension.tar.gz
+    tar -xvkf ./allora-extension.tar.gz -C /app/runtime/extensions && \
+    rm ./allora-extension.tar.gz
 
-COPY --from=builder /src/dist/upshot-node /usr/local/bin/upshot-node
-COPY --from=builder /src/dist/upshot-keys /usr/local/bin/upshot-keys
+COPY --from=builder /src/dist/allora-node /usr/local/bin/allora-node
+COPY --from=builder /src/dist/allora-keys /usr/local/bin/allora-keys
 
 # Smoke test
 RUN /app/runtime/bls-runtime --help && \
-    /app/runtime/extensions/upshot-blockless-extension --help
+    /app/runtime/extensions/allora-inference-extension --help
 
 RUN groupadd -g 1001 ${USERNAME} \
     && useradd -m -d ${APP_PATH} -u 1001 -g 1001 ${USERNAME} \
@@ -84,4 +84,4 @@ USER ${USERNAME}
 
 EXPOSE 8080 9527
 
-ENTRYPOINT ["upshot-node"]
+ENTRYPOINT ["allora-node"]

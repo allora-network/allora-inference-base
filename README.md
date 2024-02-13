@@ -1,16 +1,35 @@
-# Upshot Compute Node
+# Allora Inference Base
 
-This node allows model providers to participate providing inferences to the Upshot Network.
+This node allows model providers to participate in the Allora network.
+This repo is the base for worker nodes (for providing inferences) and head nodes (which coordinates requests and aggregates results).
 
 # Build locally
 
-First you need to set the env vars to connect with the Upshot Appchain
+In order to build locally:
+
 ```
-export NODE_ADDRESS="http://localhost:26657"
-export ALLORA_ACCOUNT_MNEMONIC="palm key track hammer early love act cat area betray ..."
-export ALLORA_ACCOUNT_NAME="alice"
-export ALLORA_ACCOUNT_PASSPHRASE="1234567890"
+GOOS=linux GOARCH=amd64 make
 ```
+
+# Run locally
+
+```
+./upshot-node \
+  --role=head  \
+  --peer-db=/data/peerdb \
+  --function-db=/data/function-db \
+  --runtime-path=/app/runtime \
+  --runtime-cli=bls-runtime \
+  --workspace=/data/workspace \
+  --private-key=/var/keys/priv.bin \
+  --port=9010 \
+  --rest-api=:6000 \
+  --allora-chain-key-name=local-head \
+  --allora-chain-restore-mnemonic='your mnemonic words...' --allora-node-rpc-address=https://some-allora-rpc-address/ \
+  --allora-chain-topic-id=1
+
+```
+
 
 ***WARNING***
 
@@ -20,14 +39,24 @@ This repo is currently relying on a private module, current development requires
 export GOPRIVATE=github.com/allora-network/allora-appchain
 ```
 
-Then to build
+# Docker images
+
+To build the image for the head:
 
 ```
-GOOS=linux GOARCH=amd64 make
-docker build -f docker/Dockerfile -t upshot:dev --build-arg "GH_TOKEN=${YOUR_GH_TOKEN}" --build-arg "BLS_EXTENSION_VER=${BLS_UPSHOT_EXTENSION_VERSION}" . 
+docker build -f docker/Dockerfile_head -t allora-inference-base:dev-head --build-arg "GH_TOKEN=${YOUR_GH_TOKEN}" --build-arg "BLS_EXTENSION_VER=${BLS_EXTENSION_VERSION}" . 
 ```
 
-where `YOUR_GH_TOKEN` is you Github token, and optionally `BLS_EXTENSION_VER` is the release version of the [Upshot blockless extension](https://github.com/upshot-tech/upshot-blockless-extension) to use (will use latest if not set).
+Then to build the image for the head:
+
+```
+docker build -f docker/Dockerfile_worker -t allora-inference-base:dev-worker --build-arg "GH_TOKEN=${YOUR_GH_TOKEN}" --build-arg "BLS_EXTENSION_VER=${BLS_EXTENSION_VERSION}" . 
+```
+
+where `YOUR_GH_TOKEN` is your Github token, and optionally `BLS_EXTENSION_VER` is the release version of the [Allora inference extension](https://github.com/allora-network/allora-inference-extension) to use (it will use latest if none is set).
+
+You can use the worker image as a base for building your own worker.
+
 
 # Debugging Locally Using VSCode.
 

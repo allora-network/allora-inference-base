@@ -10,3 +10,5 @@ workspace
 runtime.tar.gz
 cmd/node/node
 cmd/keys/keys
+data
+keys

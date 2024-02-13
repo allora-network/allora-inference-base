@@ -1,4 +1,4 @@
-module github.com/upshot-tech/upshot-compute-node
+module github.com/allora-network/allora-inference-base
 
 go 1.21.1
 

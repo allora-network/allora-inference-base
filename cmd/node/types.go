@@ -8,7 +8,6 @@ import (
 	"github.com/ignite/cli/v28/ignite/pkg/cosmosaccount"
 	"github.com/ignite/cli/v28/ignite/pkg/cosmosclient"
 	"github.com/rs/zerolog"
-	// types "github.com/upshot-tech/protocol-state-machine-module"
 )
 
 type alloraCfg struct {

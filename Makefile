@@ -4,13 +4,13 @@ all: clean build-node build-keys
 .PHONY: build-node
 build-node:
 	@echo "\n🛠 Building node...\n"
-	cd cmd/node && go build -o ../../dist/upshot-node
+	cd cmd/node && go build -o ../../dist/allora-node
 	@echo "\n✅ Done.\n"
 
 .PHONY: build-keys
 build-keys:
 	@echo "\n🛠 Building node keys...\n"
-	cd cmd/keys && go build -o ../../dist/upshot-keys
+	cd cmd/keys && go build -o ../../dist/allora-keys
 	@echo "\n✅ Done.\n"
 
 .PHONY: clean
