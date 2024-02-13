@@ -247,9 +247,9 @@ func (ap *AppChain) SendUpdatedWeights(ctx context.Context, topicId uint64, resu
 	txResp, err := ap.Client.BroadcastTx(ctx, ap.ReputerAccount, req)
 	if err != nil {
 		ap.Logger.Info().Err(err).Msg("failed to send weights to allora blockchain")
+	} else {
+		ap.Logger.Info().Any("Tx Resp:", txResp).Msg("successfully sent weights to allora blockchain")
 	}
-
-	ap.Logger.Info().Any("Tx Resp:", txResp).Msg("successfully sent weights to allora blockchain")
 }
 
 func parseFloatToUint64Weights(input string) (uint64, error) {
