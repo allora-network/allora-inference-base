@@ -43,10 +43,11 @@ func sendResultsToChain(ctx echo.Context, a api.API, appChainClient AppChain, re
 
 	// Only in weight functions that we will have a "type" in the response
 	functionType := "inferences"
-	functionType, err := getResponseInfo(res.Results[0].Result.Stdout)
+	functionTypeFromFn, err := getResponseInfo(res.Results[0].Result.Stdout)
 	if err != nil {
 		a.Log.Warn().Str("function", req.FunctionID).Err(err).Msg("node failed to extract response info from stdout")
-		functionType = "inferences"
+	} else {
+		functionType = functionTypeFromFn
 	}
 
 	var topicId uint64 = 0
