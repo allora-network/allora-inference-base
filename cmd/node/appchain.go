@@ -201,9 +201,9 @@ func (ap *AppChain) SendInferences(ctx context.Context, topicId uint64, results 
 	txResp, err := ap.Client.BroadcastTx(ctx, ap.ReputerAccount, req)
 	if err != nil {
 		ap.Logger.Info().Err(err).Msg("failed to send inferences to allora blockchain")
+	} else {
+		ap.Logger.Info().Any("Tx Resp:", txResp).Msg("successfully sent inferences to allora blockchain")
 	}
-
-	ap.Logger.Info().Any("Tx Resp:", txResp).Msg("successfully sent inferences to allora blockchain")
 
 	return workersInferences
 }

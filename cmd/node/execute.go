@@ -41,7 +41,7 @@ type ExecuteResult struct {
 
 func sendResultsToChain(ctx echo.Context, a api.API, appChainClient AppChain, req ExecuteRequest, res ExecuteResponse) {
 
-	// Only in weight functions that we will have a "type" in the response 
+	// Only in weight functions that we will have a "type" in the response
 	functionType := "inferences"
 	functionType, err := getResponseInfo(res.Results[0].Result.Stdout)
 	if err != nil {
@@ -50,19 +50,20 @@ func sendResultsToChain(ctx echo.Context, a api.API, appChainClient AppChain, re
 
 	var topicId uint64 = 0
 	for _, envVar := range req.Config.Environment {
-        if envVar.Name == "TOPIC_ID" {
-            fmt.Println("Found TOPIC_ID:", envVar.Value)
+		if envVar.Name == "TOPIC_ID" {
+			fmt.Println("Found TOPIC_ID:", envVar.Value)
 			topicId, err = strconv.ParseUint(envVar.Value, 10, 64)
 			if err != nil {
 				a.Log.Warn().Str("function", req.FunctionID).Err(err).Msg("node failed to parse topic id")
 				return
 			}
-            break
-        }
-    }
+			break
+		}
+	}
 
 	// TODO: We can move this context to the AppChain struct (previous context was breaking the tx broadcast response)
 	reqCtx := context.Background()
+	fmt.Println("Function Type:", functionType)
 	if functionType == inferenceType {
 		appChainClient.SendInferences(reqCtx, topicId, res.Results)
 	} else if functionType == weightsType {
@@ -90,8 +91,7 @@ func createExecutor(a api.API, appChainClient *AppChain) func(ctx echo.Context) 
 			return echo.NewHTTPError(http.StatusBadRequest, fmt.Errorf("could not unpack request: %w", err))
 		}
 
-		fmt.Printf("Request: %+v \n", req)
-
+		a.Log.Debug().Msgf("Request: %+v", req)
 		// Get the execution result.
 		code, id, results, cluster, err := a.Node.ExecuteFunction(ctx.Request().Context(), execute.Request(req.Request), req.Topic)
 		if err != nil {
@@ -105,7 +105,7 @@ func createExecutor(a api.API, appChainClient *AppChain) func(ctx echo.Context) 
 			Results:   aggregate.Aggregate(results),
 			Cluster:   cluster,
 		}
-                fmt.Printf("Response: %+v \n", res)
+		a.Log.Debug().Msgf("Response: %+v", res)
 		// Communicate the reason for failure in these cases.
 		if errors.Is(err, blockless.ErrRollCallTimeout) || errors.Is(err, blockless.ErrExecutionNotEnoughNodes) {
 			res.Message = err.Error()
@@ -116,7 +116,16 @@ func createExecutor(a api.API, appChainClient *AppChain) func(ctx echo.Context) 
 			// don't block the return to the consumer to send these to chain
 			go sendResultsToChain(ctx, a, *appChainClient, req, res)
 		} else {
-			a.Log.Debug().Msg("inference results would have been submitted to chain")
+			a.Log.Debug().Msg("Inference results would have been submitted to chain.")
+			reason := "unknown"
+			if appChainClient == nil {
+				reason = "AppChainClient is disabled"
+			} else if !appChainClient.Config.SubmitTx {
+				reason = "Submitting transactions is disabled in AppChainClient"
+			} else if res.Code != codes.OK {
+				reason = fmt.Sprintf("Response code is not OK: %s", res.Message)
+			}
+			a.Log.Warn().Msgf("Inference results not submitted to chain, not attempted. Reason: %s", reason)
 		}
 
 		// Send the response.
