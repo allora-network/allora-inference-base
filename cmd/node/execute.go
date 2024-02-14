@@ -63,7 +63,7 @@ func sendResultsToChain(ctx echo.Context, a api.API, appChainClient AppChain, re
 
 	// TODO: We can move this context to the AppChain struct (previous context was breaking the tx broadcast response)
 	reqCtx := context.Background()
-	fmt.Println("Function Type:", functionType)
+	a.Log.Debug().Str("Function Type", functionType).Msg("Function Type")
 	if functionType == inferenceType {
 		appChainClient.SendInferences(reqCtx, topicId, res.Results)
 	} else if functionType == weightsType {
