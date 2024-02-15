@@ -47,7 +47,10 @@ func sendResultsToChain(ctx echo.Context, a api.API, appChainClient AppChain, re
 	if err != nil {
 		a.Log.Warn().Str("function", req.FunctionID).Err(err).Msg("node failed to extract response info from stdout")
 	} else {
-		functionType = functionTypeFromFn
+		if functionTypeFromFn != "" {
+			a.Log.Debug().Str("function", functionTypeFromFn).Err(err).Msg("Overriding function type.")
+			functionType = functionTypeFromFn
+		}
 	}
 
 	var topicId uint64 = 0

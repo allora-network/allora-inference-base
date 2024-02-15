@@ -64,7 +64,8 @@ type ResponseInfo struct {
 }
 
 type Response struct {
-	Value string `json:"value"`
+	Value string `json:"value,omitempty"`
+	Error string `json:"error,omitempty"`
 }
 
 var (

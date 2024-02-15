@@ -162,26 +162,29 @@ func (ap *AppChain) SendInferences(ctx context.Context, topicId uint64, results 
 	// Aggregate the inferences from all peers/workers
 	var inferences []*types.Inference
 	var workersInferences []WorkerInference
+
 	for _, result := range results {
 		for _, peer := range result.Peers {
-			ap.Logger.Info().Any("peer", peer)
+			ap.Logger.Debug().Any("peer", peer)
 
 			// Get Peer $allo address
 			res, err := ap.QueryClient.GetWorkerAddressByP2PKey(ctx, &types.QueryWorkerAddressByP2PKeyRequest{
 				Libp2PKey: peer.String(),
 			})
 			if err != nil {
-				ap.Logger.Fatal().Err(err).Msg("error getting peer address")
+				ap.Logger.Error().Err(err).Str("peer", peer.String()).Msg("error getting peer address, ignoring peer")
+				continue
 			}
+			ap.Logger.Info().Interface("result", res).Msg("result:")
 
-			value, err := extractNumber(result.Result.Stdout)
+			value, err := checkJSONValueError(result.Result.Stdout)
 			if err != nil || value == "" {
-				ap.Logger.Fatal().Err(err).Msg("error extracting number from stdout")
-				value = "0"
+				ap.Logger.Error().Err(err).Msg("error extracting number from stdout, ignoring inference")
+				continue
 			}
 			parsed, err := parseFloatToUint64(value)
 			if err != nil {
-				ap.Logger.Fatal().Err(err).Msg("error parsing uint")
+				ap.Logger.Error().Err(err).Msg("error parsing uint")
 			}
 			inference := &types.Inference{
 				TopicId: topicId,
@@ -278,15 +281,22 @@ func parseFloatToUint64(input string) (uint64, error) {
 	return roundedValue, nil
 }
 
-func extractNumber(stdout string) (string, error) {
-	// Parse the unquoted JSON string
+func checkJSONValueError(stdout string) (string, error) {
 	var response Response
 	err := json.Unmarshal([]byte(stdout), &response)
 	if err != nil {
-		return "", err
+		return "Unable to unmarshall", err
 	}
 
-	return response.Value, nil
+	if response.Value != "" {
+		fmt.Println("value exists: ", response.Value)
+		return response.Value, nil
+	} else if response.Error != "" {
+		fmt.Println("Error: ", response.Error)
+		return "", errors.New("error found: " + response.Error)
+	} else {
+		return "", errors.New("no Error or Value field found")
+	}
 }
 
 func extractWeights(stdout string) (map[string]string, error) {

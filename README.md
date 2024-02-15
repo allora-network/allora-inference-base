@@ -48,8 +48,9 @@ export GOPRIVATE=github.com/allora-network/allora-appchain
   --runtime-cli=bls-runtime \
   --workspace=/data/workspace \
   --private-key=/var/keys/priv.bin \
-  --port=9010 \
+  --port=9011 \
   --rest-api=:6000 \
+  --boot-nodes=/ip4/<head-ip-addr>/tcp/9010/p2p/<advertised-head-peerid-key>
   --topic=1 \
   --allora-chain-key-name=local-worker \
   --allora-chain-restore-mnemonic='your mnemonic words...' --allora-node-rpc-address=https://some-allora-rpc-address/ \
@@ -58,7 +59,7 @@ export GOPRIVATE=github.com/allora-network/allora-appchain
 
 ## Notes 
 
-If you plan to deploy without wanting to connect to the Allora blockchain, just by testing your setup and your inferences, do not set any `--allora` flag.
+If you plan to deploy without wanting to connect to the Allora blockchain, just by testing your setup and your inferences, do not set any `--allora-...` flag.
 
 ### Topic registration
 
