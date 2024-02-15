@@ -1,4 +1,4 @@
-name: build docker images
+name: Build and Release Docker Images on GHCR
 
 on:
   release:
