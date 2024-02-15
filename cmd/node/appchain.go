@@ -289,13 +289,11 @@ func checkJSONValueError(stdout string) (string, error) {
 	}
 
 	if response.Value != "" {
-		fmt.Println("value exists: ", response.Value)
 		return response.Value, nil
 	} else if response.Error != "" {
-		fmt.Println("Error: ", response.Error)
 		return "", errors.New("error found: " + response.Error)
 	} else {
-		return "", errors.New("no Error or Value field found")
+		return "", errors.New("no Error or Value field found in response")
 	}
 }
 
