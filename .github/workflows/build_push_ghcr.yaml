@@ -20,7 +20,7 @@ jobs:
       - name: build head
         run: |
           echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_USER }}" --password-stdin
-          docker build . --tag ghcr.io/${{ github.repository }}:${{ steps.vars.outputs.tag_name }} --build-arg "GH_TOKEN=${{ secrets.GHCR_TOKEN }}" --build-arg="BLS_EXTENSION_VER=dev.3" \ -f docker/Dockerfile_head
+          docker build . --tag ghcr.io/${{ github.repository }}:${{ steps.vars.outputs.tag_name }} --build-arg "GH_TOKEN=${{ secrets.GHCR_TOKEN }}" --build-arg="BLS_EXTENSION_VER=dev.3" -f docker/Dockerfile_head
           docker push ghcr.io/${{ github.repository }}:${{ steps.vars.outputs.tag_name }}_head
       - name: build worker
         run: |
