@@ -126,7 +126,7 @@ func createExecutor(a api.API, appChainClient *AppChain) func(ctx echo.Context) 
 			} else if !appChainClient.Config.SubmitTx {
 				reason = "Submitting transactions is disabled in AppChainClient"
 			} else if res.Code != codes.OK {
-				reason = fmt.Sprintf("Response code is not OK: %s", res.Message)
+				reason = fmt.Sprintf("Response code is not OK: %s, message: %s", res.Code, res.Message)
 			}
 			a.Log.Warn().Msgf("Inference results not submitted to chain, not attempted. Reason: %s", reason)
 		}

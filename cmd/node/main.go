@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"math"
 	"net/http"
 	"os"
 	"os/signal"
@@ -32,6 +33,16 @@ const (
 
 func main() {
 	os.Exit(run())
+}
+
+func connectToAlloraBlockchain(cfg AppChainConfig, log zerolog.Logger) (*AppChain, error) {
+	appchain, err := NewAppChain(cfg, log)
+	if err != nil {
+		log.Warn().Err(err).Msg("error connecting to allora blockchain")
+		return nil, err
+	}
+	appchain.Config.SubmitTx = true
+	return appchain, nil
 }
 
 func run() int {
@@ -200,16 +211,26 @@ func run() int {
 	done := make(chan struct{})
 	failed := make(chan struct{})
 
-	var appchain *AppChain
+	var appchain *AppChain = nil
 	cfg.AppChainConfig.NodeRole = role
 	cfg.AppChainConfig.AddressPrefix = "allo"
 	cfg.AppChainConfig.StringSeperator = "|"
 	cfg.AppChainConfig.LibP2PKey = host.ID().String()
 	cfg.AppChainConfig.MultiAddress = host.Addresses()[0]
+	appchain, err = connectToAlloraBlockchain(cfg.AppChainConfig, log)
 
-	appchain, err = NewAppChain(cfg.AppChainConfig, log)
-	if err != nil {
-		log.Warn().Err(err).Msg("error connecting to allora blockchain")
+	if cfg.AppChainConfig.ReconnectSeconds > 0 {
+		go func() {
+			ticker := time.NewTicker(time.Second * time.Duration(math.Max(1, math.Min(float64(cfg.AppChainConfig.ReconnectSeconds), 3600))))
+			defer ticker.Stop()
+
+			for range ticker.C {
+				if appchain == nil || !appchain.Config.SubmitTx {
+					log.Debug().Uint64("reconnectSeconds", cfg.AppChainConfig.ReconnectSeconds).Msg("Attempt reconnection to allora blockchain")
+					appchain, err = connectToAlloraBlockchain(cfg.AppChainConfig, log)
+				}
+			}
+		}()
 	}
 
 	// Start node main loop in a separate goroutine.

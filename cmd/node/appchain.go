@@ -19,12 +19,12 @@ import (
 	"github.com/ignite/cli/v28/ignite/pkg/cosmosaccount"
 	"github.com/ignite/cli/v28/ignite/pkg/cosmosclient"
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
-// create a new appchain client that we can use
-func NewAppChain(config AppChainConfig, log zerolog.Logger) (*AppChain, error) {
+func getCosmosClient(config AppChainConfig) (*cosmosclient.Client, error) {
+	// create a cosmos client instance
 	ctx := context.Background()
-	config.SubmitTx = true
 	userHomeDir, _ := os.UserHomeDir()
 	cosmosClientHome := filepath.Join(userHomeDir, ".allorad")
 	if config.CosmosHomeDir != "" {
@@ -43,16 +43,25 @@ func NewAppChain(config AppChainConfig, log zerolog.Logger) (*AppChain, error) {
 		log.Info().Err(err).Str("directory", cosmosClientHome).Msg("cosmos client home directory created")
 	}
 
-	// create a cosmos client instance
 	client, err := cosmosclient.New(ctx, cosmosclient.WithNodeAddress(config.NodeRPCAddress), cosmosclient.WithAddressPrefix(config.AddressPrefix), cosmosclient.WithHome(cosmosClientHome))
 	if err != nil {
 		log.Warn().Err(err).Msg("unable to create an allora blockchain client")
 		config.SubmitTx = false
 		return nil, err
 	}
+	return &client, nil
+}
+
+// create a new appchain client that we can use
+func NewAppChain(config AppChainConfig, log zerolog.Logger) (*AppChain, error) {
+	config.SubmitTx = true
+	client, err := getCosmosClient(config)
+	if err != nil {
+		config.SubmitTx = false
+		return nil, err
+	}
 
 	var account cosmosaccount.Account
-
 	// if we're giving a keyring ring name, with no mnemonic restore
 	if config.AddressRestoreMnemonic == "" && config.AddressKeyName != "" {
 		// get account from the keyring
@@ -97,7 +106,7 @@ func NewAppChain(config AppChainConfig, log zerolog.Logger) (*AppChain, error) {
 		ReputerAddress: address,
 		ReputerAccount: account,
 		Logger:         log,
-		Client:         &client,
+		Client:         client,
 		QueryClient:    queryClient,
 		Config:         config,
 	}
