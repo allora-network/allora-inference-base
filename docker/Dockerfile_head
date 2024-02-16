@@ -35,7 +35,7 @@ COPY --from=builder /src/dist/allora-node /usr/local/bin/allora-node
 COPY --from=builder /src/dist/allora-keys /usr/local/bin/allora-keys
 
 RUN groupadd -g 1001 ${USERNAME} \
-    && useradd -m -d ${APP_PATH} -u 1001 -g 1001 ${USERNAME}
+    && useradd -m -d ${APP_PATH} -u 1001 -g 1001 ${USERNAME} \
     && chown -R ${USERNAME}:${USERNAME} /app
 
 USER ${USERNAME}
