@@ -38,6 +38,7 @@ type AppChainConfig struct {
 	MultiAddress             string
 	TopicId                  uint64
 	NodeRole                 blockless.NodeRole
+	ReconnectSeconds         uint64 // seconds to wait for reconnection
 }
 
 type WorkerInference struct {
