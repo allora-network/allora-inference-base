@@ -175,7 +175,6 @@ func (ap *AppChain) SendInferences(ctx context.Context, topicId uint64, results 
 				ap.Logger.Error().Err(err).Str("peer", peer.String()).Msg("error getting peer address, ignoring peer")
 				continue
 			}
-			ap.Logger.Info().Interface("result", res).Msg("result:")
 
 			value, err := checkJSONValueError(result.Result.Stdout)
 			if err != nil || value == "" {
@@ -205,7 +204,7 @@ func (ap *AppChain) SendInferences(ctx context.Context, topicId uint64, results 
 	if err != nil {
 		ap.Logger.Info().Err(err).Msg("failed to send inferences to allora blockchain")
 	} else {
-		ap.Logger.Info().Any("Tx Resp:", txResp).Msg("successfully sent inferences to allora blockchain")
+		ap.Logger.Info().Any("Tx Hash:", txResp.TxHash).Msg("successfully sent inferences to allora blockchain")
 	}
 
 	return workersInferences
