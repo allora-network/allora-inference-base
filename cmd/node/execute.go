@@ -48,7 +48,6 @@ func sendResultsToChain(ctx echo.Context, a api.API, appChainClient AppChain, re
 		a.Log.Warn().Str("function", req.FunctionID).Err(err).Msg("node failed to extract response info from stdout")
 	} else {
 		if functionTypeFromFn != "" {
-			a.Log.Debug().Str("function", functionTypeFromFn).Err(err).Msg("Overriding function type.")
 			functionType = functionTypeFromFn
 		}
 	}
@@ -68,7 +67,6 @@ func sendResultsToChain(ctx echo.Context, a api.API, appChainClient AppChain, re
 
 	// TODO: We can move this context to the AppChain struct (previous context was breaking the tx broadcast response)
 	reqCtx := context.Background()
-	a.Log.Debug().Str("Function Type", functionType).Msg("Function Type")
 	if functionType == inferenceType {
 		appChainClient.SendInferences(reqCtx, topicId, res.Results)
 	} else if functionType == weightsType {
