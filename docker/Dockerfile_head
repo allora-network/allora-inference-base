@@ -1,4 +1,4 @@
-FROM --platform=linux/amd64 golang:1.21-bookworm AS builder
+FROM golang:1.21-bookworm AS builder
 
 ADD . /src
 WORKDIR /src
@@ -11,7 +11,7 @@ RUN go mod download && \
     make all
 
 ###########################
-FROM --platform=linux/amd64 debian:bookworm-slim
+FROM debian:bookworm-slim
 
 ENV DEBIAN_FRONTEND=noninteractive \
     USERNAME=appuser \
@@ -34,7 +34,8 @@ RUN apt update && \
 COPY --from=builder /src/dist/allora-node /usr/local/bin/allora-node
 COPY --from=builder /src/dist/allora-keys /usr/local/bin/allora-keys
 
-RUN groupadd -g 1001 ${USERNAME} \
+RUN mkdir /app \
+    && groupadd -g 1001 ${USERNAME} \
     && useradd -m -d ${APP_PATH} -u 1001 -g 1001 ${USERNAME} \
     && chown -R ${USERNAME}:${USERNAME} /app
 
