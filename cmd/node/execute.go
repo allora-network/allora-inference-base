@@ -52,18 +52,13 @@ func sendResultsToChain(ctx echo.Context, a api.API, appChainClient AppChain, re
 		}
 	}
 
-	var topicId uint64 = 0
-	for _, envVar := range req.Config.Environment {
-		if envVar.Name == "TOPIC_ID" {
-			fmt.Println("Found TOPIC_ID:", envVar.Value)
-			topicId, err = strconv.ParseUint(envVar.Value, 10, 64)
-			if err != nil {
-				a.Log.Warn().Str("function", req.FunctionID).Err(err).Msg("node failed to parse topic id")
-				return
-			}
-			break
-		}
+	// var topicId uint64 = req.Topic
+	topicId, err := strconv.ParseUint(req.Topic, 10, 64)
+	if err != nil {
+		a.Log.Error().Str("Topic", req.Topic).Str("function", functionType).Err(err).Msg("Cannot parse topic ID")
+		return
 	}
+	a.Log.Debug().Str("Topic", req.Topic).Str("function", functionType).Msg("Found topic ID")
 
 	// TODO: We can move this context to the AppChain struct (previous context was breaking the tx broadcast response)
 	reqCtx := context.Background()
