@@ -1,7 +1,6 @@
 package main
 
 import (
-	cosmossdk_io_math "cosmossdk.io/math"
 	types "github.com/allora-network/allora-chain/x/emissions"
 	"github.com/blocklessnetwork/b7s/config"
 	"github.com/blocklessnetwork/b7s/models/blockless"
@@ -39,11 +38,6 @@ type AppChainConfig struct {
 	TopicId                  uint64
 	NodeRole                 blockless.NodeRole
 	ReconnectSeconds         uint64 // seconds to wait for reconnection
-}
-
-type WorkerInference struct {
-	Worker    string                 `json:"worker"`
-	Inference cosmossdk_io_math.Uint `json:"inference"`
 }
 
 type WeightsResponse struct {
