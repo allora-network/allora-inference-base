@@ -4,7 +4,7 @@ ADD . /src
 WORKDIR /src
 ARG GH_TOKEN
 RUN git config --global url."https://${GH_TOKEN}@github.com".insteadOf "https://github.com"
-ENV GOPRIVATE="github.com/allora-network/"
+ENV GOPRIVATE="github.com/allora-network/,github.com/upshot-tech/"
 
 RUN go mod download && \
     go mod tidy && \
@@ -34,7 +34,8 @@ RUN apt update && \
 COPY --from=builder /src/dist/allora-node /usr/local/bin/allora-node
 COPY --from=builder /src/dist/allora-keys /usr/local/bin/allora-keys
 
-RUN groupadd -g 1001 ${USERNAME} \
+RUN mkdir /app \
+    && groupadd -g 1001 ${USERNAME} \
     && useradd -m -d ${APP_PATH} -u 1001 -g 1001 ${USERNAME} \
     && chown -R ${USERNAME}:${USERNAME} /app
 
