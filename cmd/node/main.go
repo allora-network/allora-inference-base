@@ -255,8 +255,8 @@ func run() int {
 	if role == blockless.HeadNode {
 
 		if cfg.API == "" {
-			log.Error().Err(err).Msg("REST API address is required")
-			return failure
+			// just use 8081
+			cfg.API = ":8081"
 		}
 
 		// Create echo server and iniialize logging.
