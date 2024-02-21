@@ -1,0 +1,87 @@
+FROM golang:1.21-bookworm AS builder
+
+ADD . /src
+WORKDIR /src
+ARG GH_TOKEN
+RUN git config --global url."https://${GH_TOKEN}@github.com".insteadOf "https://github.com"
+ENV GOPRIVATE="github.com/allora-network/"
+
+RUN go mod download && \
+    go mod tidy && \
+    make all
+
+###########################
+FROM python:3.12-slim-bookworm
+ENV DEBIAN_FRONTEND=noninteractive \
+    USERNAME=appuser \
+    APP_PATH=/app
+
+## curl, unzip other utilities
+#! libssl-dev - BLS_RUNTIME dependency   # - temporary use libssl 1.1 TODO: Should use fresher libssl
+#! gh - to downaload release from priv repo
+RUN apt update && \
+    apt -y dist-upgrade && \
+    apt install -y --no-install-recommends \
+      tzdata \
+      ca-certificates \
+      libssl-dev \
+      gh && \
+    echo "deb http://deb.debian.org/debian testing main" >> /etc/apt/sources.list && \
+    apt update && \
+    apt install -y --no-install-recommends -t testing \
+      zlib1g \
+      libgnutls30 \
+      perl-base \
+      libsqlite3-0 && \
+    rm -rf /var/cache/apt/* && \
+    python3 -m pip install --upgrade pip
+
+ENV BLS_RUNTIME="v0.3.1" \
+    RUNETIME_PATH=/app/runtime
+
+WORKDIR /tmp
+ADD https://github.com/blocklessnetwork/runtime/releases/download/${BLS_RUNTIME}/blockless-runtime.linux-latest.x86_64.tar.gz /tmp/runtime.tar.gz
+RUN mkdir -p /app/runtime && \
+    tar -xvkf /tmp/runtime.tar.gz -C /app/runtime && \
+    rm /tmp/runtime.tar.gz
+# ENV RUNETIME_PATH=/app/runtime
+
+# RUN BLS_RUNTIME="v0.3.1" && \
+#     curl -o ./runtime.tar.gz -sSL https://github.com/blocklessnetwork/runtime/releases/download/${BLS_RUNTIME}/blockless-runtime.linux-latest.x86_64.tar.gz && \
+#     mkdir -p /app/runtime && tar -xvkf ./runtime.tar.gz -C /app/runtime
+# ENV RUNETIME_PATH=/app/runtime
+
+ARG GH_TOKEN
+ARG BLS_EXTENSION_VER
+# If BLS_EXTENSION_VER install the version else install latest
+RUN if [ -n $BLS_EXTENSION_VER]; then \
+      gh release download $BLS_EXTENSION_VER \
+        --repo "allora-network/allora-inference-extension" \
+        --pattern '*linux-amd64.tar.gz' \
+        --output allora-extension.tar.gz; \
+    else \
+      gh release download $(gh release list --repo "allora-network/allora-inference-extension" | grep Latest | awk '{print($1)}') \
+        --repo "allora-network/allora-inference-extension" \
+        --pattern '*linux-amd64.tar.gz' \
+        --output allora-extension.tar.gz; \
+    fi && \
+    mkdir -p /app/runtime/extensions && \
+    tar -xvkf ./allora-extension.tar.gz -C /app/runtime/extensions && \
+    rm ./allora-extension.tar.gz
+
+COPY --from=builder /src/dist/allora-node /usr/local/bin/allora-node
+COPY --from=builder /src/dist/allora-keys /usr/local/bin/allora-keys
+
+# Smoke test
+RUN /app/runtime/bls-runtime --help && \
+    /app/runtime/extensions/allora-inference-extension --help
+
+RUN groupadd -g 1001 ${USERNAME} \
+    && useradd -m -d ${APP_PATH} -u 1001 -g 1001 ${USERNAME} \
+    && chown -R ${USERNAME}:${USERNAME} /app
+
+USER ${USERNAME}
+
+EXPOSE 8080 9527
+
+ENTRYPOINT ["allora-node"]

@@ -1,0 +1,47 @@
+FROM golang:1.21-bookworm AS builder
+
+ADD . /src
+WORKDIR /src
+ARG GH_TOKEN
+RUN git config --global url."https://${GH_TOKEN}@github.com".insteadOf "https://github.com"
+ENV GOPRIVATE="github.com/allora-network/"
+
+RUN go mod download && \
+    go mod tidy && \
+    make all
+
+###########################
+FROM debian:bookworm-slim
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    USERNAME=appuser \
+    APP_PATH=/data
+
+## curl, unzip other utilities
+RUN apt update && \
+    apt -y dist-upgrade && \
+    apt install -y --no-install-recommends \
+      tzdata \
+      ca-certificates && \
+    echo "deb http://deb.debian.org/debian testing main" >> /etc/apt/sources.list && \
+    apt update && \
+    apt install -y --no-install-recommends -t testing \
+      zlib1g \
+      libgnutls30 \
+      perl-base && \
+    rm -rf /var/cache/apt/*
+
+COPY --from=builder /src/dist/allora-node /usr/local/bin/allora-node
+COPY --from=builder /src/dist/allora-keys /usr/local/bin/allora-keys
+
+RUN mkdir /app \
+    && groupadd -g 1001 ${USERNAME} \
+    && useradd -m -d ${APP_PATH} -u 1001 -g 1001 ${USERNAME} \
+    && chown -R ${USERNAME}:${USERNAME} /app
+
+USER ${USERNAME}
+
+VOLUME ${APP_PATH}
+EXPOSE 8080 9527
+
+ENTRYPOINT ["allora-node"]
