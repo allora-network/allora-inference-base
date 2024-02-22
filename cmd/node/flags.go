@@ -54,8 +54,8 @@ func parseFlags() *alloraCfg {
 	pflag.Float64Var(&cfg.CPUPercentage, "cpu-percentage-limit", 1.0, "amount of CPU time allowed for Blockless Functions in the 0-1 range, 1 being unlimited")
 	pflag.Int64Var(&cfg.MemoryMaxKB, "memory-limit", 0, "memory limit (kB) for Blockless Functions")
 
-	// Cosmos L1 configuration
-	pflag.StringVarP(&cfg.AppChainConfig.CosmosHomeDir, "allora-chain-home-dir", "", "", "The Home folder of the client, use the user home if not set")
+	// Allora L1 configuration
+	pflag.StringVarP(&cfg.AppChainConfig.AlloraHomeDir, "allora-chain-home-dir", "", "", "The Home folder of the client, use the user home if not set")
 	pflag.StringVarP(&cfg.AppChainConfig.AddressKeyName, "allora-chain-key-name", "", "", "The name of a key stored in the Allora Blockchain Wallet")
 	pflag.StringVarP(&cfg.AppChainConfig.AddressRestoreMnemonic, "allora-chain-restore-mnemonic", "", "", "The restore mnemonic for an Allora Blockchain Wallet")
 	pflag.StringVarP(&cfg.AppChainConfig.AddressAccountPassphrase, "allora-chain-account-password", "", "", "The password for an Allora Blockchain Wallet Key")

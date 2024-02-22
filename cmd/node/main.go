@@ -37,7 +37,7 @@ func main() {
 
 func connectToAlloraBlockchain(cfg AppChainConfig, log zerolog.Logger) (*AppChain, error) {
 	appchain, err := NewAppChain(cfg, log)
-	if err != nil {
+	if err != nil || appchain == nil {
 		log.Warn().Err(err).Msg("error connecting to allora blockchain")
 		return nil, err
 	}

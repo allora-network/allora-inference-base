@@ -26,12 +26,12 @@ type AppChain struct {
 
 type AppChainConfig struct {
 	NodeRPCAddress           string // rpc node to attach to
-	AddressPrefix            string // prefix for the cosmos addresses
+	AddressPrefix            string // prefix for the allora addresses
 	AddressKeyName           string // load a address by key from the keystore
 	AddressRestoreMnemonic   string
 	AddressAccountPassphrase string
-	CosmosHomeDir            string // home directory for the cosmos keystore
-	StringSeperator          string // string seperator used for key identifiers in cosmos
+	AlloraHomeDir            string // home directory for the allora keystore
+	StringSeperator          string // string seperator used for key identifiers in allora
 	LibP2PKey                string // the libp2p key used to sign offchain communications
 	SubmitTx                 bool   // do we need to commit these to the chain, might be a reason not to
 	MultiAddress             string

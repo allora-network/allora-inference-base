@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"time"
 
 	cosmossdk_io_math "cosmossdk.io/math"
@@ -23,28 +22,28 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func getCosmosClient(config AppChainConfig) (*cosmosclient.Client, error) {
-	// create a cosmos client instance
+func getAlloraClient(config AppChainConfig) (*cosmosclient.Client, error) {
+	// create a allora client instance
 	ctx := context.Background()
 	userHomeDir, _ := os.UserHomeDir()
-	cosmosClientHome := filepath.Join(userHomeDir, ".allorad")
-	if config.CosmosHomeDir != "" {
-		cosmosClientHome = config.CosmosHomeDir
+	alloraClientHome := filepath.Join(userHomeDir, ".allorad")
+	if config.AlloraHomeDir != "" {
+		alloraClientHome = config.AlloraHomeDir
 	}
 
 	// Check that the given home folder exist
-	if _, err := os.Stat(cosmosClientHome); errors.Is(err, os.ErrNotExist) {
-		log.Warn().Err(err).Msg("could not get home directory for cosmos client, creating...")
-		err = os.MkdirAll(cosmosClientHome, 0755)
+	if _, err := os.Stat(alloraClientHome); errors.Is(err, os.ErrNotExist) {
+		log.Warn().Err(err).Msg("could not get home directory for allora client, creating...")
+		err = os.MkdirAll(alloraClientHome, 0755)
 		if err != nil {
-			log.Warn().Err(err).Str("directory", cosmosClientHome).Msg("Cannot create cosmos client home directory")
+			log.Warn().Err(err).Str("directory", alloraClientHome).Msg("Cannot create allora client home directory")
 			config.SubmitTx = false
 			return nil, err
 		}
-		log.Info().Err(err).Str("directory", cosmosClientHome).Msg("cosmos client home directory created")
+		log.Info().Err(err).Str("directory", alloraClientHome).Msg("allora client home directory created")
 	}
 
-	client, err := cosmosclient.New(ctx, cosmosclient.WithNodeAddress(config.NodeRPCAddress), cosmosclient.WithAddressPrefix(config.AddressPrefix), cosmosclient.WithHome(cosmosClientHome))
+	client, err := cosmosclient.New(ctx, cosmosclient.WithNodeAddress(config.NodeRPCAddress), cosmosclient.WithAddressPrefix(config.AddressPrefix), cosmosclient.WithHome(alloraClientHome))
 	if err != nil {
 		log.Warn().Err(err).Msg("unable to create an allora blockchain client")
 		config.SubmitTx = false
@@ -56,7 +55,7 @@ func getCosmosClient(config AppChainConfig) (*cosmosclient.Client, error) {
 // create a new appchain client that we can use
 func NewAppChain(config AppChainConfig, log zerolog.Logger) (*AppChain, error) {
 	config.SubmitTx = true
-	client, err := getCosmosClient(config)
+	client, err := getAlloraClient(config)
 	if err != nil {
 		config.SubmitTx = false
 		return nil, err
@@ -85,7 +84,7 @@ func NewAppChain(config AppChainConfig, log zerolog.Logger) (*AppChain, error) {
 			}
 		}
 	} else {
-		log.Warn().Msg("no cosmos account was loaded")
+		log.Warn().Msg("no allora account was loaded")
 		return nil, nil
 	}
 
@@ -111,9 +110,8 @@ func NewAppChain(config AppChainConfig, log zerolog.Logger) (*AppChain, error) {
 		QueryClient:    queryClient,
 		Config:         config,
 	}
-	if !queryIsNodeRegistered(*appchain) {
-		registerWithBlockchain(appchain)
-	}
+
+	registerWithBlockchain(appchain)
 
 	return appchain, nil
 }
@@ -122,49 +120,56 @@ func NewAppChain(config AppChainConfig, log zerolog.Logger) (*AppChain, error) {
 func registerWithBlockchain(appchain *AppChain) {
 	ctx := context.Background()
 
-	var msg sdktypes.Msg
+	isReputer := false
 	if appchain.Config.NodeRole == blockless.HeadNode {
-		msg = &types.MsgRegisterReputer{
+		isReputer = true
+	}
+
+	// Check if address is already registered in a topic
+	res, err := appchain.QueryClient.GetRegisteredTopicsIds(ctx, &types.QueryRegisteredTopicsIdsRequest{
+		Address:   appchain.ReputerAddress,
+		IsReputer: isReputer,
+	})
+	if err != nil {
+		appchain.Logger.Fatal().Err(err).Msg("could not check if the node is already registered")
+	}
+	var msg sdktypes.Msg
+	if len(res.TopicsIds) > 0 {
+		for _, topicId := range res.TopicsIds {
+			if topicId == appchain.Config.TopicId {
+				appchain.Logger.Info().Msg("node is already registered")
+				return
+			}
+		}
+
+		// If registered in other topic, don't need an initial stake
+		msg = &types.MsgAddNewRegistration{
 			Creator:      appchain.ReputerAddress,
 			LibP2PKey:    appchain.Config.LibP2PKey,
 			MultiAddress: appchain.Config.MultiAddress,
-			InitialStake: cosmossdk_io_math.NewUint(1),
 			TopicId:      appchain.Config.TopicId,
+			Owner:        appchain.ReputerAddress,
+			IsReputer:    isReputer,
 		}
 	} else {
-		msg = &types.MsgRegisterWorker{
+		// If not registered in any topic, need an initial stake
+		msg = &types.MsgRegister{
 			Creator:      appchain.ReputerAddress,
-			Owner:        appchain.ReputerAddress, // we need to allow a pass in of a claim address
 			LibP2PKey:    appchain.Config.LibP2PKey,
 			MultiAddress: appchain.Config.MultiAddress,
 			InitialStake: cosmossdk_io_math.NewUint(1),
-			TopicId:      appchain.Config.TopicId,
+			TopicsIds:    []uint64{appchain.Config.TopicId},
+			Owner:        appchain.ReputerAddress,
+			IsReputer:    isReputer,
 		}
 	}
 
 	txResp, err := appchain.Client.BroadcastTx(ctx, appchain.ReputerAccount, msg)
 	if err != nil {
-		if strings.Contains(fmt.Sprint(err), types.Err_ErrWorkerAlreadyRegistered.String()) || strings.Contains(fmt.Sprint(err), types.Err_ErrReputerAlreadyRegistered.String()) {
-			appchain.Logger.Info().Err(err).Msg("node is already registered")
-		} else {
-			appchain.Logger.Fatal().Err(err).Msg("could not register the node with the allora blockchain")
-		}
+		appchain.Logger.Fatal().Err(err).Msg(fmt.Sprintf("could not register the node with the Allora blockchain in topic %d", appchain.Config.TopicId))
 	} else {
-		appchain.Logger.Info().Str("txhash", txResp.TxHash).Msg("successfully registered node with Allora blockchain")
+		appchain.Logger.Info().Str("txhash", txResp.TxHash).Msg(fmt.Sprintf("successfully registered node with Allora blockchain in topic %d", appchain.Config.TopicId))
 	}
-}
-
-func queryIsNodeRegistered(appchain AppChain) bool {
-	ctx := context.Background()
-	queryResp, err := appchain.QueryClient.GetWorkerNodeRegistration(ctx, &types.QueryRegisteredWorkerNodesRequest{
-		NodeId: appchain.ReputerAddress + appchain.Config.StringSeperator + appchain.Config.LibP2PKey,
-	})
-
-	if err != nil {
-		appchain.Logger.Fatal().Err(err).Msg("node could not be registered with blockchain")
-	}
-
-	return (len(queryResp.Nodes) >= 1)
 }
 
 // Retry function with a constant number of retries.
