@@ -9,9 +9,7 @@ worker-fdb
 workspace
 runtime.tar.gz
 cmd/node/node
-cmd/keys/keys
 data
-keys
 data-head
 data-worker
 main.py
