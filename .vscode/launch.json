@@ -24,8 +24,6 @@
         "${workspaceFolder}/configs/testkeys/ident1/priv.bin",
         "--rest-api",
         ":8081",
-        "--allora-chain-key-name",
-        "alice"
       ],
       "cwd": "${workspaceFolder}"
     },
@@ -55,7 +53,9 @@
         "--private-key",
         "${workspaceFolder}/configs/testkeys/ident2/priv.bin",
         "--boot-nodes",
-        "/ip4/0.0.0.0/tcp/9527/p2p/12D3KooWH9GerdSEroL2nqjpd2GuE5dwmqNi7uHX7FoywBdKcP4q"
+        "/ip4/127.0.0.1/tcp/9527/p2p/12D3KooWH9GerdSEroL2nqjpd2GuE5dwmqNi7uHX7FoywBdKcP4q",
+        "--topic",
+        "1"
       ],
       "cwd": "${workspaceFolder}"
     },
