@@ -16,6 +16,7 @@ import (
 	"github.com/blocklessnetwork/b7s/models/blockless"
 	"github.com/blocklessnetwork/b7s/node/aggregate"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/types/query"
 	"github.com/ignite/cli/v28/ignite/pkg/cosmosaccount"
 	"github.com/ignite/cli/v28/ignite/pkg/cosmosclient"
 	"github.com/rs/zerolog"
@@ -152,16 +153,44 @@ func registerWithBlockchain(appchain *AppChain) {
 			IsReputer:    isReputer,
 		}
 	} else {
-		// If not registered in any topic, need an initial stake
-		msg = &types.MsgRegister{
-			Creator:      appchain.ReputerAddress,
-			LibP2PKey:    appchain.Config.LibP2PKey,
-			MultiAddress: appchain.Config.MultiAddress,
-			InitialStake: cosmossdk_io_math.NewUint(1),
-			TopicIds:     []uint64{appchain.Config.TopicId},
-			Owner:        appchain.ReputerAddress,
-			IsReputer:    isReputer,
+		// Check current balance of the account
+		pageRequest := &query.PageRequest{
+			Limit:  100,
+			Offset: 0,
 		}
+		// Check balance is over initial stake configured
+		balanceRes, err := appchain.Client.BankBalances(ctx, appchain.ReputerAddress, pageRequest)
+		if err != nil {
+			appchain.Logger.Error().Err(err).Msg("could not get account balance - is account funded?")
+			return
+		} else {
+			if len(balanceRes) > 0 {
+				var ualloBalance uint64
+				for _, coin := range balanceRes {
+					if coin.Denom == "uallo" {
+						// Found the balance in "uallo"
+						ualloBalance = coin.Amount.Uint64()
+						break
+					}
+				}
+				if ualloBalance > appchain.Config.InitialStake {
+					msg = &types.MsgRegister{
+						Creator:      appchain.ReputerAddress,
+						LibP2PKey:    appchain.Config.LibP2PKey,
+						MultiAddress: appchain.Config.MultiAddress,
+						InitialStake: cosmossdk_io_math.NewUint(appchain.Config.InitialStake),
+						TopicIds:     []uint64{appchain.Config.TopicId},
+						Owner:        appchain.ReputerAddress,
+						IsReputer:    isReputer,
+					}
+				}
+				appchain.Logger.Info().Str("balance", balanceRes.String()).Msg("Registered Node")
+			} else {
+				appchain.Logger.Info().Msg("account is not funded in uallo")
+				return
+			}
+		}
+
 	}
 
 	txResp, err := appchain.Client.BroadcastTx(ctx, appchain.ReputerAccount, msg)

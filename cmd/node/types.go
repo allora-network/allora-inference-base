@@ -38,6 +38,7 @@ type AppChainConfig struct {
 	TopicId                  uint64
 	NodeRole                 blockless.NodeRole
 	ReconnectSeconds         uint64 // seconds to wait for reconnection
+	InitialStake             uint64 // uallo to initially stake upon registration on a new topi
 }
 
 type WeightsResponse struct {
