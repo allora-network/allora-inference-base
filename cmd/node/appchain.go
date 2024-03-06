@@ -126,7 +126,7 @@ func registerWithBlockchain(appchain *AppChain) {
 	}
 
 	// Check if address is already registered in a topic
-	res, err := appchain.QueryClient.GetRegisteredTopicsIds(ctx, &types.QueryRegisteredTopicsIdsRequest{
+	res, err := appchain.QueryClient.GetRegisteredTopicIds(ctx, &types.QueryRegisteredTopicIdsRequest{
 		Address:   appchain.ReputerAddress,
 		IsReputer: isReputer,
 	})
@@ -134,8 +134,8 @@ func registerWithBlockchain(appchain *AppChain) {
 		appchain.Logger.Fatal().Err(err).Msg("could not check if the node is already registered")
 	}
 	var msg sdktypes.Msg
-	if len(res.TopicsIds) > 0 {
-		for _, topicId := range res.TopicsIds {
+	if len(res.TopicIds) > 0 {
+		for _, topicId := range res.TopicIds {
 			if topicId == appchain.Config.TopicId {
 				appchain.Logger.Info().Msg("node is already registered")
 				return
@@ -158,7 +158,7 @@ func registerWithBlockchain(appchain *AppChain) {
 			LibP2PKey:    appchain.Config.LibP2PKey,
 			MultiAddress: appchain.Config.MultiAddress,
 			InitialStake: cosmossdk_io_math.NewUint(1),
-			TopicsIds:    []uint64{appchain.Config.TopicId},
+			TopicIds:     []uint64{appchain.Config.TopicId},
 			Owner:        appchain.ReputerAddress,
 			IsReputer:    isReputer,
 		}
