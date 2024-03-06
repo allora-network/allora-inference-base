@@ -6,11 +6,12 @@ toolchain go1.21.5
 
 require (
 	cosmossdk.io/math v1.2.0
-	github.com/allora-network/allora-chain v0.0.1-0.20240223163905-f4ccc6195d82
+	github.com/allora-network/allora-chain v0.0.4-0.20240306064310-0611ec300dd0
 	github.com/cockroachdb/pebble v1.0.0
 	github.com/cosmos/cosmos-sdk v0.50.3
 	github.com/ignite/cli/v28 v28.1.1
 	github.com/labstack/echo/v4 v4.11.4
+	github.com/libp2p/go-libp2p v0.32.2
 	github.com/multiformats/go-multiaddr v0.12.2
 	github.com/spf13/pflag v1.0.5
 )
@@ -145,7 +146,6 @@ require (
 	github.com/libp2p/go-buffer-pool v0.1.0 // indirect
 	github.com/libp2p/go-cidranger v1.1.0 // indirect
 	github.com/libp2p/go-flow-metrics v0.1.0 // indirect
-	github.com/libp2p/go-libp2p v0.32.2 // indirect
 	github.com/libp2p/go-libp2p-asn-util v0.4.1 // indirect
 	github.com/libp2p/go-libp2p-consensus v0.0.1 // indirect
 	github.com/libp2p/go-libp2p-gostream v0.6.0 // indirect
