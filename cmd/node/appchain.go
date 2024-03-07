@@ -8,6 +8,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"time"
 
@@ -135,40 +136,65 @@ func registerWithBlockchain(appchain *AppChain) {
 	}
 	var msg sdktypes.Msg
 	if len(res.TopicIds) > 0 {
+		var topicsToRegister []string
 		for _, topicId := range res.TopicIds {
-			if topicId == appchain.Config.TopicId {
-				appchain.Logger.Info().Msg("node is already registered")
-				return
+			topicIdStr := strconv.FormatUint(uint64(topicId), 10)
+			if slices.Contains(appchain.Config.TopicIds, topicIdStr) {
+				appchain.Logger.Info().Str("topic", topicIdStr).Msg("node is already registered for topic")
+			} else {
+				appchain.Logger.Info().Str("topic", topicIdStr).Msg("adding registration for topic")
+				topicsToRegister = append(topicsToRegister, topicIdStr)
 			}
 		}
 
-		// If registered in other topic, don't need an initial stake
-		msg = &types.MsgAddNewRegistration{
-			Creator:      appchain.ReputerAddress,
-			LibP2PKey:    appchain.Config.LibP2PKey,
-			MultiAddress: appchain.Config.MultiAddress,
-			TopicId:      appchain.Config.TopicId,
-			Owner:        appchain.ReputerAddress,
-			IsReputer:    isReputer,
+		for _, topicToRegister := range topicsToRegister {
+			topicToRegisterUint64, err := strconv.ParseUint(topicToRegister, 10, 64)
+			if err != nil {
+				appchain.Logger.Info().Err(err).Str("topic", topicToRegister).Msg("Could not register for topic")
+				break
+			}
+			msg = &types.MsgAddNewRegistration{
+				Creator:      appchain.ReputerAddress,
+				LibP2PKey:    appchain.Config.LibP2PKey,
+				MultiAddress: appchain.Config.MultiAddress,
+				TopicId:      topicToRegisterUint64,
+				Owner:        appchain.ReputerAddress,
+				IsReputer:    isReputer,
+			}
+
+			txResp, err := appchain.Client.BroadcastTx(ctx, appchain.ReputerAccount, msg)
+			if err != nil {
+				appchain.Logger.Fatal().Err(err).Msg(fmt.Sprintf("could not register the node with the Allora blockchain in topic %s", topicToRegister))
+			} else {
+				appchain.Logger.Info().Str("txhash", txResp.TxHash).Msg(fmt.Sprintf("successfully registered node with Allora blockchain in topic %s", topicToRegister))
+			}
 		}
 	} else {
+		var topicsToRegister []uint64
+		for _, topicToRegister := range appchain.Config.TopicIds {
+			topicToRegisterUint64, err := strconv.ParseUint(topicToRegister, 10, 64)
+			if err != nil {
+				appchain.Logger.Info().Err(err).Str("topic", topicToRegister).Msg("Could not register for topic, not numerical")
+			} else {
+				topicsToRegister = append(topicsToRegister, topicToRegisterUint64)
+			}
+		}
 		// If not registered in any topic, need an initial stake
 		msg = &types.MsgRegister{
 			Creator:      appchain.ReputerAddress,
 			LibP2PKey:    appchain.Config.LibP2PKey,
 			MultiAddress: appchain.Config.MultiAddress,
 			InitialStake: cosmossdk_io_math.NewUint(1),
-			TopicIds:     []uint64{appchain.Config.TopicId},
+			TopicIds:     topicsToRegister,
 			Owner:        appchain.ReputerAddress,
 			IsReputer:    isReputer,
 		}
-	}
-
-	txResp, err := appchain.Client.BroadcastTx(ctx, appchain.ReputerAccount, msg)
-	if err != nil {
-		appchain.Logger.Fatal().Err(err).Msg(fmt.Sprintf("could not register the node with the Allora blockchain in topic %d", appchain.Config.TopicId))
-	} else {
-		appchain.Logger.Info().Str("txhash", txResp.TxHash).Msg(fmt.Sprintf("successfully registered node with Allora blockchain in topic %d", appchain.Config.TopicId))
+		txResp, err := appchain.Client.BroadcastTx(ctx, appchain.ReputerAccount, msg)
+		if err != nil {
+			appchain.Logger.Fatal().Err(err).Msg("could not register the node with the Allora blockchain in specified topics")
+		} else {
+			appchain.Logger.Info().Str("txhash", txResp.TxHash).Msg("successfully registered node with Allora blockchain")
+		}
 	}
 }
 
