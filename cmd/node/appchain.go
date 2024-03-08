@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"slices"
@@ -17,6 +18,7 @@ import (
 	"github.com/blocklessnetwork/b7s/models/blockless"
 	"github.com/blocklessnetwork/b7s/node/aggregate"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/types/query"
 	"github.com/ignite/cli/v28/ignite/pkg/cosmosaccount"
 	"github.com/ignite/cli/v28/ignite/pkg/cosmosclient"
 	"github.com/rs/zerolog"
@@ -132,106 +134,177 @@ func registerWithBlockchain(appchain *AppChain) {
 		IsReputer: isReputer,
 	})
 	if err != nil {
-		appchain.Logger.Fatal().Err(err).Msg("could not check if the node is already registered")
+		appchain.Logger.Fatal().Err(err).Msg("could not check if the node is already registered. Topic not created?")
 	}
 	var msg sdktypes.Msg
 	if len(res.TopicIds) > 0 {
-		var topicsToRegister []string
-		for _, topicId := range res.TopicIds {
-			topicIdStr := strconv.FormatUint(uint64(topicId), 10)
-			if slices.Contains(appchain.Config.TopicIds, topicIdStr) {
-				appchain.Logger.Info().Str("topic", topicIdStr).Msg("node is already registered for topic")
-			} else {
-				appchain.Logger.Info().Str("topic", topicIdStr).Msg("adding registration for topic")
-				topicsToRegister = append(topicsToRegister, topicIdStr)
+		// Already registered: Check if the topics are the same
+		var topicsToRegister []uint64
+		var topicsToDeRegister []uint64
+		// Calculate topics to deregister
+		for _, topicUint64 := range res.TopicIds {
+			topicIdStr := strconv.FormatUint(uint64(topicUint64), 10)
+			if !slices.Contains(appchain.Config.TopicIds, topicIdStr) {
+				appchain.Logger.Info().Str("topic", topicIdStr).Msg("marking deregistration for topic")
+				topicsToDeRegister = append(topicsToDeRegister, topicUint64)
 			}
 		}
-
-		for _, topicToRegister := range topicsToRegister {
-			topicToRegisterUint64, err := strconv.ParseUint(topicToRegister, 10, 64)
+		// Calculate topics to register
+		for _, topicIdStr := range appchain.Config.TopicIds {
+			topicUint64, err := strconv.ParseUint(topicIdStr, 10, 64)
 			if err != nil {
-				appchain.Logger.Info().Err(err).Str("topic", topicToRegister).Msg("Could not register for topic")
+				appchain.Logger.Info().Err(err).Uint64("topic", topicUint64).Msg("Could not register for topic, not numerical")
+				continue
+			}
+			if !slices.Contains(res.TopicIds, topicUint64) {
+				appchain.Logger.Info().Uint64("topic", topicUint64).Msg("marking registration for topic")
+				topicsToRegister = append(topicsToRegister, topicUint64)
+			}
+		}
+		// Registration on new topics
+		for _, topicId := range topicsToRegister {
+			if err != nil {
+				appchain.Logger.Info().Err(err).Uint64("topic", topicId).Msg("Could not register for topic")
 				break
 			}
 			msg = &types.MsgAddNewRegistration{
 				Creator:      appchain.ReputerAddress,
 				LibP2PKey:    appchain.Config.LibP2PKey,
 				MultiAddress: appchain.Config.MultiAddress,
-				TopicId:      topicToRegisterUint64,
+				TopicId:      topicId,
 				Owner:        appchain.ReputerAddress,
 				IsReputer:    isReputer,
 			}
 
 			txResp, err := appchain.Client.BroadcastTx(ctx, appchain.ReputerAccount, msg)
 			if err != nil {
-				appchain.Logger.Fatal().Err(err).Msg(fmt.Sprintf("could not register the node with the Allora blockchain in topic %s", topicToRegister))
+				appchain.Logger.Fatal().Err(err).Uint64("topic", topicId).Msg("could not register the node with the Allora blockchain in topic")
 			} else {
-				appchain.Logger.Info().Str("txhash", txResp.TxHash).Msg(fmt.Sprintf("successfully registered node with Allora blockchain in topic %s", topicToRegister))
+				appchain.Logger.Info().Str("txhash", txResp.TxHash).Uint64("topic", topicId).Msg("successfully registered node with Allora blockchain in topic")
 			}
 		}
-	} else {
-		var topicsToRegister []uint64
-		for _, topicToRegister := range appchain.Config.TopicIds {
-			topicToRegisterUint64, err := strconv.ParseUint(topicToRegister, 10, 64)
+		// Deregistration on old topics
+		for _, topicId := range topicsToDeRegister {
 			if err != nil {
-				appchain.Logger.Info().Err(err).Str("topic", topicToRegister).Msg("Could not register for topic, not numerical")
+				appchain.Logger.Info().Err(err).Uint64("topic", topicId).Msg("Could not register for topic")
+				break
+			}
+			msg = &types.MsgRemoveRegistration{
+				Creator:   appchain.ReputerAddress,
+				TopicId:   topicId,
+				IsReputer: isReputer,
+			}
+
+			txResp, err := appchain.Client.BroadcastTx(ctx, appchain.ReputerAccount, msg)
+			if err != nil {
+				appchain.Logger.Fatal().Err(err).Uint64("topic", topicId).Msg("could not deregister the node with the Allora blockchain in topic")
 			} else {
-				topicsToRegister = append(topicsToRegister, topicToRegisterUint64)
+				appchain.Logger.Info().Str("txhash", txResp.TxHash).Uint64("topic", topicId).Msg("successfully deregistered node with Allora blockchain in topic")
 			}
 		}
-		// If not registered in any topic, need an initial stake
-		msg = &types.MsgRegister{
-			Creator:      appchain.ReputerAddress,
-			LibP2PKey:    appchain.Config.LibP2PKey,
-			MultiAddress: appchain.Config.MultiAddress,
-			InitialStake: cosmossdk_io_math.NewUint(1),
-			TopicIds:     topicsToRegister,
-			Owner:        appchain.ReputerAddress,
-			IsReputer:    isReputer,
+
+	} else {
+		// First registration: Check current balance of the account
+		pageRequest := &query.PageRequest{
+			Limit:  100,
+			Offset: 0,
 		}
-		txResp, err := appchain.Client.BroadcastTx(ctx, appchain.ReputerAccount, msg)
+		// Check balance is over initial stake configured
+		balanceRes, err := appchain.Client.BankBalances(ctx, appchain.ReputerAddress, pageRequest)
 		if err != nil {
-			appchain.Logger.Fatal().Err(err).Msg("could not register the node with the Allora blockchain in specified topics")
+			appchain.Logger.Error().Err(err).Msg("could not get account balance - is account funded?")
+			return
 		} else {
-			appchain.Logger.Info().Str("txhash", txResp.TxHash).Msg("successfully registered node with Allora blockchain")
+			if len(balanceRes) > 0 {
+				// Get uallo balance
+				var ualloBalance uint64
+				for _, coin := range balanceRes {
+					if coin.Denom == "uallo" {
+						// Found the balance in "uallo"
+						ualloBalance = coin.Amount.Uint64()
+						break
+					}
+				}
+				if ualloBalance >= appchain.Config.InitialStake {
+					var topicsToRegister []uint64
+					for _, topicToRegister := range appchain.Config.TopicIds {
+						topicToRegisterUint64, err := strconv.ParseUint(topicToRegister, 10, 64)
+						if err != nil {
+							appchain.Logger.Info().Err(err).Str("topic", topicToRegister).Msg("Could not register for topic, not numerical, skipping")
+						} else {
+							topicsToRegister = append(topicsToRegister, topicToRegisterUint64)
+						}
+					}
+					// If not registered in any topic, need an initial stake
+					msg = &types.MsgRegister{
+						Creator:      appchain.ReputerAddress,
+						LibP2PKey:    appchain.Config.LibP2PKey,
+						MultiAddress: appchain.Config.MultiAddress,
+						InitialStake: cosmossdk_io_math.NewUint(appchain.Config.InitialStake),
+						TopicIds:     topicsToRegister,
+						Owner:        appchain.ReputerAddress,
+						IsReputer:    isReputer,
+					}
+					txResp, err := appchain.Client.BroadcastTx(ctx, appchain.ReputerAccount, msg)
+					if err != nil {
+						appchain.Logger.Fatal().Err(err).Msg("could not register the node with the Allora blockchain in specified topics")
+					} else {
+						appchain.Logger.Info().Str("txhash", txResp.TxHash).Msg("successfully registered node with Allora blockchain")
+					}
+					appchain.Logger.Info().Str("balance", balanceRes.String()).Msg("Registered Node")
+				} else {
+					appchain.Logger.Fatal().Msg("account balance is lower than the initialStake requested")
+				}
+			} else {
+				appchain.Logger.Info().Msg("account is not funded in uallo")
+				return
+			}
 		}
 	}
 }
 
 // Retry function with a constant number of retries.
-func (ap *AppChain) SendInferencesWithRetry(ctx context.Context, req *types.MsgProcessInferences, MaxRetries int, Delay int) (*cosmosclient.Response, error) {
+func (ap *AppChain) SendInferencesWithRetry(ctx context.Context, req *types.MsgProcessInferences, MaxRetries, MinDelay, MaxDelay int) (*cosmosclient.Response, error) {
 	var txResp *cosmosclient.Response
 	var err error
 
 	for retryCount := 0; retryCount <= MaxRetries; retryCount++ {
 		txResp, err := ap.Client.BroadcastTx(ctx, ap.ReputerAccount, req)
 		if err == nil {
-			ap.Logger.Info().Any("Tx Hash:", txResp.TxHash).Msg("successfully sent inferences to allora blockchain")
+			ap.Logger.Info().Str("Tx Hash:", txResp.TxHash).Msg("successfully sent inferences to allora blockchain")
 			break
 		}
 		// Log the error for each retry.
 		ap.Logger.Info().Err(err).Msgf("Failed to send inferences to allora blockchain, retrying... (Retry %d/%d)", retryCount, MaxRetries)
-		// Wait for a short duration before retrying (you may customize this duration).
-		time.Sleep(time.Second)
+		// Generate a random number between MinDelay and MaxDelay
+		randomDelay := rand.Intn(MaxDelay-MinDelay+1) + MinDelay
+		// Apply exponential backoff to the random delay
+		backoffDelay := randomDelay << retryCount
+		// Wait for the calculated delay before retrying
+		time.Sleep(time.Duration(backoffDelay) * time.Second)
 	}
 	return txResp, err
 }
 
 // Retry function with a constant number of retries.
-func (ap *AppChain) SendWeightsWithRetry(ctx context.Context, req *types.MsgSetWeights, MaxRetries int, Delay int) (*cosmosclient.Response, error) {
+func (ap *AppChain) SendWeightsWithRetry(ctx context.Context, req *types.MsgSetWeights, MaxRetries, MinDelay, MaxDelay int) (*cosmosclient.Response, error) {
 	var txResp *cosmosclient.Response
 	var err error
 
 	for retryCount := 0; retryCount <= MaxRetries; retryCount++ {
 		txResp, err := ap.Client.BroadcastTx(ctx, ap.ReputerAccount, req)
 		if err == nil {
-			ap.Logger.Info().Any("Tx Hash:", txResp.TxHash).Msg("successfully sent inferences to allora blockchain")
+			ap.Logger.Info().Any("Tx Hash:", txResp.TxHash).Msg("successfully sent weights to allora blockchain")
 			break
 		}
 		// Log the error for each retry.
-		ap.Logger.Info().Err(err).Msgf("Failed to send inferences to allora blockchain, retrying... (Retry %d/%d)", retryCount, MaxRetries)
-		// Wait for a short duration before retrying (you may customize this duration).
-		time.Sleep(time.Second)
+		ap.Logger.Info().Err(err).Msgf("Failed to send weights to allora blockchain, retrying... (Retry %d/%d)", retryCount, MaxRetries)
+		// Generate a random number between MinDelay and MaxDelay
+		randomDelay := rand.Intn(MaxDelay-MinDelay+1) + MinDelay
+		// Apply exponential backoff to the random delay
+		backoffDelay := randomDelay << retryCount
+		// Wait for the calculated delay before retrying
+		time.Sleep(time.Duration(backoffDelay) * time.Second)
 	}
 	return txResp, err
 }
@@ -250,18 +323,18 @@ func (ap *AppChain) SendInferences(ctx context.Context, topicId uint64, results 
 				Libp2PKey: peer.String(),
 			})
 			if err != nil {
-				ap.Logger.Error().Err(err).Str("peer", peer.String()).Msg("error getting peer address, ignoring peer")
+				ap.Logger.Error().Err(err).Str("peer", peer.String()).Msg("error getting peer address from chain, worker not registered? Ignoring peer.")
 				continue
 			}
 
 			value, err := checkJSONValueError(result.Result.Stdout)
 			if err != nil || value == "" {
-				ap.Logger.Error().Err(err).Msg("error extracting number from stdout, ignoring inference")
+				ap.Logger.Error().Err(err).Msg("error extracting number from stdout, ignoring inference.")
 				continue
 			}
 			parsed, err := parseFloatToUint64(value)
 			if err != nil {
-				ap.Logger.Error().Err(err).Msg("error parsing uint")
+				ap.Logger.Error().Err(err).Str("value", value).Msg("error parsing inference as uint")
 			}
 			inference := &types.Inference{
 				TopicId: topicId,
@@ -277,7 +350,7 @@ func (ap *AppChain) SendInferences(ctx context.Context, topicId uint64, results 
 		Inferences: inferences,
 	}
 
-	ap.SendInferencesWithRetry(ctx, req, 3, 0)
+	ap.SendInferencesWithRetry(ctx, req, 5, 0, 2)
 }
 
 func (ap *AppChain) SendUpdatedWeights(ctx context.Context, topicId uint64, results aggregate.Results) {
@@ -316,7 +389,7 @@ func (ap *AppChain) SendUpdatedWeights(ctx context.Context, topicId uint64, resu
 		Weights: weights,
 	}
 
-	ap.SendWeightsWithRetry(ctx, req, 3, 0)
+	ap.SendWeightsWithRetry(ctx, req, 5, 0, 2)
 }
 
 func parseFloatToUint64Weights(input string) (uint64, error) {
