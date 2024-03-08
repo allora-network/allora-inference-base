@@ -35,7 +35,7 @@ type AppChainConfig struct {
 	LibP2PKey                string // the libp2p key used to sign offchain communications
 	SubmitTx                 bool   // do we need to commit these to the chain, might be a reason not to
 	MultiAddress             string
-	TopicId                  uint64
+	TopicIds                 []string
 	NodeRole                 blockless.NodeRole
 	ReconnectSeconds         uint64 // seconds to wait for reconnection
 	InitialStake             uint64 // uallo to initially stake upon registration on a new topi
