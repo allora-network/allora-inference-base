@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -173,39 +174,47 @@ func registerWithBlockchain(appchain *AppChain) {
 }
 
 // Retry function with a constant number of retries.
-func (ap *AppChain) SendInferencesWithRetry(ctx context.Context, req *types.MsgProcessInferences, MaxRetries int, Delay int) (*cosmosclient.Response, error) {
+func (ap *AppChain) SendInferencesWithRetry(ctx context.Context, req *types.MsgProcessInferences, MaxRetries, MinDelay, MaxDelay int) (*cosmosclient.Response, error) {
 	var txResp *cosmosclient.Response
 	var err error
 
 	for retryCount := 0; retryCount <= MaxRetries; retryCount++ {
 		txResp, err := ap.Client.BroadcastTx(ctx, ap.ReputerAccount, req)
 		if err == nil {
-			ap.Logger.Info().Any("Tx Hash:", txResp.TxHash).Msg("successfully sent inferences to allora blockchain")
+			ap.Logger.Info().Str("Tx Hash:", txResp.TxHash).Msg("successfully sent inferences to allora blockchain")
 			break
 		}
 		// Log the error for each retry.
 		ap.Logger.Info().Err(err).Msgf("Failed to send inferences to allora blockchain, retrying... (Retry %d/%d)", retryCount, MaxRetries)
-		// Wait for a short duration before retrying (you may customize this duration).
-		time.Sleep(time.Second)
+		// Generate a random number between MinDelay and MaxDelay
+		randomDelay := rand.Intn(MaxDelay-MinDelay+1) + MinDelay
+		// Apply exponential backoff to the random delay
+		backoffDelay := randomDelay << retryCount
+		// Wait for the calculated delay before retrying
+		time.Sleep(time.Duration(backoffDelay) * time.Second)
 	}
 	return txResp, err
 }
 
 // Retry function with a constant number of retries.
-func (ap *AppChain) SendWeightsWithRetry(ctx context.Context, req *types.MsgSetWeights, MaxRetries int, Delay int) (*cosmosclient.Response, error) {
+func (ap *AppChain) SendWeightsWithRetry(ctx context.Context, req *types.MsgSetWeights, MaxRetries, MinDelay, MaxDelay int) (*cosmosclient.Response, error) {
 	var txResp *cosmosclient.Response
 	var err error
 
 	for retryCount := 0; retryCount <= MaxRetries; retryCount++ {
 		txResp, err := ap.Client.BroadcastTx(ctx, ap.ReputerAccount, req)
 		if err == nil {
-			ap.Logger.Info().Any("Tx Hash:", txResp.TxHash).Msg("successfully sent inferences to allora blockchain")
+			ap.Logger.Info().Any("Tx Hash:", txResp.TxHash).Msg("successfully sent weights to allora blockchain")
 			break
 		}
 		// Log the error for each retry.
-		ap.Logger.Info().Err(err).Msgf("Failed to send inferences to allora blockchain, retrying... (Retry %d/%d)", retryCount, MaxRetries)
-		// Wait for a short duration before retrying (you may customize this duration).
-		time.Sleep(time.Second)
+		ap.Logger.Info().Err(err).Msgf("Failed to send weights to allora blockchain, retrying... (Retry %d/%d)", retryCount, MaxRetries)
+		// Generate a random number between MinDelay and MaxDelay
+		randomDelay := rand.Intn(MaxDelay-MinDelay+1) + MinDelay
+		// Apply exponential backoff to the random delay
+		backoffDelay := randomDelay << retryCount
+		// Wait for the calculated delay before retrying
+		time.Sleep(time.Duration(backoffDelay) * time.Second)
 	}
 	return txResp, err
 }
@@ -251,7 +260,7 @@ func (ap *AppChain) SendInferences(ctx context.Context, topicId uint64, results 
 		Inferences: inferences,
 	}
 
-	ap.SendInferencesWithRetry(ctx, req, 3, 0)
+	ap.SendInferencesWithRetry(ctx, req, 5, 0, 2)
 }
 
 func (ap *AppChain) SendUpdatedWeights(ctx context.Context, topicId uint64, results aggregate.Results) {
@@ -290,7 +299,7 @@ func (ap *AppChain) SendUpdatedWeights(ctx context.Context, topicId uint64, resu
 		Weights: weights,
 	}
 
-	ap.SendWeightsWithRetry(ctx, req, 3, 0)
+	ap.SendWeightsWithRetry(ctx, req, 5, 0, 2)
 }
 
 func parseFloatToUint64Weights(input string) (uint64, error) {
