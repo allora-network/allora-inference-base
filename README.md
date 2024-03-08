@@ -40,6 +40,7 @@ export GOPRIVATE=github.com/allora-network/allora-appchain
   --rest-api=:6000 \
   --allora-chain-key-name=local-head \
   --allora-chain-restore-mnemonic='your mnemonic words...' --allora-node-rpc-address=https://some-allora-rpc-address/ \
+  --allora-chain-initial-stake=1000
 ```
 ## Worker
 
@@ -58,7 +59,8 @@ export GOPRIVATE=github.com/allora-network/allora-appchain
   --topic=1 \
   --allora-chain-key-name=local-worker \
   --allora-chain-restore-mnemonic='your mnemonic words...' --allora-node-rpc-address=https://some-allora-rpc-address/ \
-  --allora-chain-topic-id=1
+  --allora-chain-topic-id=1 \
+  --allora-chain-initial-stake=1000
 ```
 
 ## Notes 
@@ -70,6 +72,8 @@ If you plan to deploy without wanting to connect to the Allora blockchain, just 
 `--topic` defines the topic internally as a Blockless channel, so the heads are able to identify which workers can respond to requests on that topic.
 
 `--allora-chain-topic-id` is the topic in which your worker registers on the appchain. This will be used for evaluating performance and allocating rewards.
+
+`allora-chain-initial-stake` is the stake that you want your node to register as initial stake. The stake is cross-topic, so this is applied only upon registration of a node on the chain. It will not have an effect on subsequent runs when the node is already registered. To modify node stake, please refer to [Allora Network](github.com/allora-network/allora-appchain) client.
 
 ### Keys
 The `--private-key` sets the Blockless peer key for your particular node. Obviously, please use different keys for different nodes.
