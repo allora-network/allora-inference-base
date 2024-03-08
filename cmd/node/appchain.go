@@ -131,7 +131,7 @@ func registerWithBlockchain(appchain *AppChain) {
 		IsReputer: isReputer,
 	})
 	if err != nil {
-		appchain.Logger.Fatal().Err(err).Msg("could not check if the node is already registered")
+		appchain.Logger.Fatal().Err(err).Msg("could not check if the node is already registered. Topic not created?")
 	}
 	var msg sdktypes.Msg
 	if len(res.TopicIds) > 0 {
@@ -224,18 +224,18 @@ func (ap *AppChain) SendInferences(ctx context.Context, topicId uint64, results 
 				Libp2PKey: peer.String(),
 			})
 			if err != nil {
-				ap.Logger.Error().Err(err).Str("peer", peer.String()).Msg("error getting peer address, ignoring peer")
+				ap.Logger.Error().Err(err).Str("peer", peer.String()).Msg("error getting peer address from chain, worker not registered? Ignoring peer.")
 				continue
 			}
 
 			value, err := checkJSONValueError(result.Result.Stdout)
 			if err != nil || value == "" {
-				ap.Logger.Error().Err(err).Msg("error extracting number from stdout, ignoring inference")
+				ap.Logger.Error().Err(err).Msg("error extracting number from stdout, ignoring inference.")
 				continue
 			}
 			parsed, err := parseFloatToUint64(value)
 			if err != nil {
-				ap.Logger.Error().Err(err).Msg("error parsing uint")
+				ap.Logger.Error().Err(err).Str("value", value).Msg("error parsing inference as uint")
 			}
 			inference := &types.Inference{
 				TopicId: topicId,
