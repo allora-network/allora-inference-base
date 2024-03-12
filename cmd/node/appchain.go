@@ -256,7 +256,7 @@ func registerWithBlockchain(appchain *AppChain) {
 					appchain.Logger.Fatal().Msg("account balance is lower than the initialStake requested")
 				}
 			} else {
-				appchain.Logger.Info().Msg("account is not funded in uallo")
+				appchain.Logger.Info().Str("account", appchain.ReputerAddress).Msg("account is not funded in uallo")
 				return
 			}
 		}
