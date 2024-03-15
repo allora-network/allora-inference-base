@@ -63,3 +63,15 @@ jobs:
             docker tag $DOCKERHUB_USERNAME/$DOCKERHUB_REPOSITORY:$IMAGE_TAG $DOCKERHUB_USERNAME/$DOCKERHUB_REPOSITORY:$tag
             docker push $DOCKERHUB_USERNAME/$DOCKERHUB_REPOSITORY:$tag
           done
+
+          # With python 3.9
+
+          docker build --pull -f docker/Dockerfile_worker_py3.9 \
+              --build-arg "GH_TOKEN=${{ secrets.GH_READONLY_PAT }}" \
+              -t $DOCKERHUB_USERNAME/$DOCKERHUB_REPOSITORY:python3.9-$IMAGE_TAG .
+          docker push $DOCKERHUB_USERNAME/$DOCKERHUB_REPOSITORY:python3.9-$IMAGE_TAG
+
+          for tag in $(echo $EXTRA_IMAGE_TAGS| tr ";" "\n"); do
+            docker tag $DOCKERHUB_USERNAME/$DOCKERHUB_REPOSITORY:python3.9-$IMAGE_TAG $DOCKERHUB_USERNAME/$DOCKERHUB_REPOSITORY:python3.9-$tag
+            docker push $DOCKERHUB_USERNAME/$DOCKERHUB_REPOSITORY:python3.9-$tag
+          done
