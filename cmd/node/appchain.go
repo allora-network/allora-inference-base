@@ -127,6 +127,7 @@ func registerWithBlockchain(appchain *AppChain) {
 	if appchain.Config.NodeRole == blockless.HeadNode {
 		isReputer = true
 	}
+	appchain.Logger.Info().Bool("isReputer", isReputer).Msg("Node mode")
 
 	// Check if address is already registered in a topic
 	res, err := appchain.QueryClient.GetRegisteredTopicIds(ctx, &types.QueryRegisteredTopicIdsRequest{
@@ -137,8 +138,9 @@ func registerWithBlockchain(appchain *AppChain) {
 		appchain.Logger.Fatal().Err(err).Msg("could not check if the node is already registered. Topic not created?")
 	}
 	var msg sdktypes.Msg
+	appchain.Logger.Info().Str("ReputerAddress", appchain.ReputerAddress).Msg("Current Address")
 	if len(res.TopicIds) > 0 {
-		// Already registered: Check if the topics are the same
+		appchain.Logger.Debug().Msg("Worker already registered for some topics, checking...")
 		var topicsToRegister []uint64
 		var topicsToDeRegister []uint64
 		// Calculate topics to deregister
@@ -147,6 +149,8 @@ func registerWithBlockchain(appchain *AppChain) {
 			if !slices.Contains(appchain.Config.TopicIds, topicIdStr) {
 				appchain.Logger.Info().Str("topic", topicIdStr).Msg("marking deregistration for topic")
 				topicsToDeRegister = append(topicsToDeRegister, topicUint64)
+			} else {
+				appchain.Logger.Info().Str("topic", topicIdStr).Msg("Not deregistering topic")
 			}
 		}
 		// Calculate topics to register
@@ -159,6 +163,8 @@ func registerWithBlockchain(appchain *AppChain) {
 			if !slices.Contains(res.TopicIds, topicUint64) {
 				appchain.Logger.Info().Uint64("topic", topicUint64).Msg("marking registration for topic")
 				topicsToRegister = append(topicsToRegister, topicUint64)
+			} else {
+				appchain.Logger.Info().Str("topic", topicIdStr).Msg("Topic is already registered, no registration for topic")
 			}
 		}
 		// Registration on new topics
@@ -202,8 +208,8 @@ func registerWithBlockchain(appchain *AppChain) {
 				appchain.Logger.Info().Str("txhash", txResp.TxHash).Uint64("topic", topicId).Msg("successfully deregistered node with Allora blockchain in topic")
 			}
 		}
-
 	} else {
+		appchain.Logger.Debug().Msg("Attempting first registration for this node")
 		// First registration: Check current balance of the account
 		pageRequest := &query.PageRequest{
 			Limit:  100,
@@ -323,18 +329,19 @@ func (ap *AppChain) SendInferences(ctx context.Context, topicId uint64, results 
 				Libp2PKey: peer.String(),
 			})
 			if err != nil {
-				ap.Logger.Error().Err(err).Str("peer", peer.String()).Msg("error getting peer address from chain, worker not registered? Ignoring peer.")
+				ap.Logger.Warn().Err(err).Str("peer", peer.String()).Msg("error getting peer address from chain, worker not registered? Ignoring peer.")
 				continue
 			}
 
 			value, err := checkJSONValueError(result.Result.Stdout)
 			if err != nil || value == "" {
-				ap.Logger.Error().Err(err).Msg("error extracting number from stdout, ignoring inference.")
+				ap.Logger.Warn().Err(err).Str("peer", peer.String()).Msg("error extracting value as number from stdout, ignoring inference.")
 				continue
 			}
 			parsed, err := parseFloatToUint64(value)
 			if err != nil {
-				ap.Logger.Error().Err(err).Str("value", value).Msg("error parsing inference as uint")
+				ap.Logger.Warn().Err(err).Str("peer", peer.String()).Str("value", value).Msg("error parsing inference as uint")
+				continue
 			}
 			inference := &types.Inference{
 				TopicId: topicId,
