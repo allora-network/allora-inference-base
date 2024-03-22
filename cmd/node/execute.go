@@ -90,6 +90,13 @@ func createExecutor(a api.API, appChainClient *AppChain) func(ctx echo.Context) 
 		}
 
 		a.Log.Debug().Msgf("Request: %+v", req)
+		// Add the topic to the req.Config.Environment vars as TOPIC_ID
+		// This is used by the Allora Extension to know which topic it is being executed on
+		req.Config.Environment = append(req.Config.Environment, execute.EnvVar{
+			Name:  "TOPIC_ID",
+			Value: req.Topic,
+		})
+
 		// Get the execution result.
 		code, id, results, cluster, err := a.Node.ExecuteFunction(ctx.Request().Context(), execute.Request(req.Request), req.Topic)
 		if err != nil {
