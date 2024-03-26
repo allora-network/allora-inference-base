@@ -44,6 +44,8 @@ export GOPRIVATE=github.com/allora-network/allora-appchain
 ```
 ## Worker
 
+Worker (for inference or forecast requests) node: 
+
 ```
 ./allora-node \
   --role=worker  \
@@ -60,7 +62,30 @@ export GOPRIVATE=github.com/allora-network/allora-appchain
   --allora-chain-key-name=local-worker \
   --allora-chain-restore-mnemonic='your mnemonic words...' --allora-node-rpc-address=https://some-allora-rpc-address/ \
   --allora-chain-topic-id=1 \
-  --allora-chain-initial-stake=1000
+  --allora-chain-initial-stake=1000 \
+  --allora-chain-worker-mode=worker
+```
+
+Reputer (for reputation requests) node: 
+
+```
+./allora-node \
+  --role=worker  \
+  --peer-db=/data/peerdb \
+  --function-db=/data/function-db \
+  --runtime-path=/app/runtime \
+  --runtime-cli=bls-runtime \
+  --workspace=/data/workspace \
+  --private-key=/var/keys/priv.bin \
+  --port=9011 \
+  --rest-api=:6000 \
+  --boot-nodes=/ip4/<head-ip-addr>/tcp/9010/p2p/<advertised-head-peerid-key>
+  --topic=1 \
+  --allora-chain-key-name=local-worker \
+  --allora-chain-restore-mnemonic='your mnemonic words...' --allora-node-rpc-address=https://some-allora-rpc-address/ \
+  --allora-chain-topic-id=1 \
+  --allora-chain-initial-stake=1000 \
+  --allora-chain-worker-mode=reputer
 ```
 
 ## Notes 
