@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"math"
 	"net/http"
@@ -15,15 +16,15 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/ziflex/lecho/v3"
 
-	"github.com/blocklessnetwork/b7s/api"
-	"github.com/blocklessnetwork/b7s/executor"
-	"github.com/blocklessnetwork/b7s/executor/limits"
-	"github.com/blocklessnetwork/b7s/fstore"
-	"github.com/blocklessnetwork/b7s/host"
-	"github.com/blocklessnetwork/b7s/models/blockless"
-	"github.com/blocklessnetwork/b7s/node"
-	"github.com/blocklessnetwork/b7s/peerstore"
-	"github.com/blocklessnetwork/b7s/store"
+	"github.com/allora-network/b7s/api"
+	"github.com/allora-network/b7s/executor"
+	"github.com/allora-network/b7s/executor/limits"
+	"github.com/allora-network/b7s/fstore"
+	"github.com/allora-network/b7s/host"
+	"github.com/allora-network/b7s/models/blockless"
+	"github.com/allora-network/b7s/node"
+	"github.com/allora-network/b7s/peerstore"
+	"github.com/allora-network/b7s/store"
 )
 
 const (
@@ -197,16 +198,16 @@ func run() int {
 		opts = append(opts, node.WithTopics(cfg.Topics))
 	}
 
+	response := node.ChanData{}
 	// Instantiate node.
 	node, err := node.New(log, host, peerstore, fstore, opts...)
 	if err != nil {
 		log.Error().Err(err).Msg("could not create node")
 		return failure
 	}
-
 	// Create the main context.
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx, rcancel := context.WithCancel(context.Background())
+	defer rcancel()
 
 	done := make(chan struct{})
 	failed := make(chan struct{})
@@ -250,6 +251,17 @@ func run() int {
 
 		log.Info().Msg("Allora Node stopped")
 	}()
+	go func() {
+		select {
+		case msg := <-node.CommunicatorAppLayer():
+			msgerr := json.Unmarshal(msg, &response)
+			if msgerr == nil {
+				sendResultsToChain(log, appchain, response)
+			} else {
+				log.Error().Err(msgerr).Msg("Unable to unmarshall")
+			}
+		}
+	}()
 
 	// If we're a head node - start the REST API.
 	if role == blockless.HeadNode {
@@ -259,7 +271,7 @@ func run() int {
 			return failure
 		}
 
-		// Create echo server and iniialize logging.
+		// Create echo server and initialize logging.
 		server := echo.New()
 		server.HideBanner = true
 		server.HidePort = true

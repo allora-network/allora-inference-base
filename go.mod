@@ -7,6 +7,7 @@ toolchain go1.21.5
 require (
 	cosmossdk.io/math v1.2.0
 	github.com/allora-network/allora-chain v0.0.4-0.20240306064310-0611ec300dd0
+	github.com/allora-network/b7s v0.0.1
 	github.com/cockroachdb/pebble v1.0.0
 	github.com/cosmos/cosmos-sdk v0.50.3
 	github.com/ignite/cli/v28 v28.1.1
@@ -15,6 +16,8 @@ require (
 	github.com/multiformats/go-multiaddr v0.12.2
 	github.com/spf13/pflag v1.0.5
 )
+
+require github.com/blocklessnetwork/b7s-attributes v0.0.0 // indirect
 
 require (
 	cosmossdk.io/api v0.7.2 // indirect
@@ -37,7 +40,7 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bgentry/speakeasy v0.1.1-0.20220910012023-760eaf8b6816 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
-	github.com/blocklessnetwork/b7s-attributes v0.0.0 // indirect
+	//github.com/blocklessnetwork/b7s-attributes v0.0.0 // indirect
 	github.com/boltdb/bolt v1.3.1 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.3.2 // indirect
 	github.com/cavaliergopher/grab/v3 v3.0.1 // indirect
@@ -254,7 +257,6 @@ require (
 )
 
 require (
-	github.com/blocklessnetwork/b7s v0.4.9
 	github.com/labstack/gommon v0.4.2 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
