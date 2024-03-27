@@ -55,7 +55,7 @@ func NewAlloraExecutor(e blockless.Executor) *AlloraExecutor {
 
 func (e *AlloraExecutor) ExecuteFunction(requestID string, req execute.Request) (execute.Result, error) {
 	result, err := e.Executor.ExecuteFunction(requestID, req) // Call the blockless.Executor's method
-	// Your additional code here
+	// Additional code here
 	fmt.Println("****** TODO Insert custom postprocessing code here ******")
 	return result, err
 }
