@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math"
 	"net/http"
 	"os"
@@ -21,6 +22,7 @@ import (
 	"github.com/blocklessnetwork/b7s/fstore"
 	"github.com/blocklessnetwork/b7s/host"
 	"github.com/blocklessnetwork/b7s/models/blockless"
+	"github.com/blocklessnetwork/b7s/models/execute"
 	"github.com/blocklessnetwork/b7s/node"
 	"github.com/blocklessnetwork/b7s/peerstore"
 	"github.com/blocklessnetwork/b7s/store"
@@ -43,6 +45,19 @@ func connectToAlloraBlockchain(cfg AppChainConfig, log zerolog.Logger) (*AppChai
 	}
 	appchain.Config.SubmitTx = true
 	return appchain, nil
+}
+
+func NewAlloraExecutor(e blockless.Executor) *AlloraExecutor {
+	return &AlloraExecutor{
+		Executor: e,
+	}
+}
+
+func (e *AlloraExecutor) ExecuteFunction(requestID string, req execute.Request) (execute.Result, error) {
+	result, err := e.Executor.ExecuteFunction(requestID, req) // Call the blockless.Executor's method
+	// Your additional code here
+	fmt.Println("****** TODO Insert custom postprocessing code here ******")
+	return result, err
 }
 
 func run() int {
@@ -175,7 +190,9 @@ func run() int {
 			return failure
 		}
 
-		opts = append(opts, node.WithExecutor(executor))
+		alloraExecutor := NewAlloraExecutor(executor)
+
+		opts = append(opts, node.WithExecutor(alloraExecutor))
 		opts = append(opts, node.WithWorkspace(cfg.Workspace))
 	}
 
