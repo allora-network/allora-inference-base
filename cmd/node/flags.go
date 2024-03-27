@@ -3,7 +3,7 @@ package main
 import (
 	"github.com/spf13/pflag"
 
-	"github.com/blocklessnetwork/b7s/node"
+	"github.com/allora-network/b7s/node"
 )
 
 // Default values.

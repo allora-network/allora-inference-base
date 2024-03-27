@@ -5,15 +5,21 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/allora-network/b7s/api"
+	"github.com/allora-network/b7s/models/blockless"
+	"github.com/allora-network/b7s/models/codes"
+	"github.com/allora-network/b7s/models/execute"
+	"github.com/allora-network/b7s/node"
+	"github.com/allora-network/b7s/node/aggregate"
+	"github.com/labstack/echo/v4"
+	"github.com/rs/zerolog"
 	"net/http"
 	"strconv"
+)
 
-	"github.com/blocklessnetwork/b7s/api"
-	"github.com/blocklessnetwork/b7s/models/blockless"
-	"github.com/blocklessnetwork/b7s/models/codes"
-	"github.com/blocklessnetwork/b7s/models/execute"
-	"github.com/blocklessnetwork/b7s/node/aggregate"
-	"github.com/labstack/echo/v4"
+const (
+	consensusPBFT = "pbft"
+	consensusRAFT = "raft"
 )
 
 // ExecuteRequest describes the payload for the REST API request for function execution.
@@ -31,21 +37,31 @@ type ExecuteResponse struct {
 	Cluster   execute.Cluster   `json:"cluster,omitempty"`
 }
 
-// ExecuteResult represents the API representation of a single execution response.
-// It is similar to the model in `execute.Result`, except it omits the usage information for now.
-type ExecuteResult struct {
-	Code      codes.Code            `json:"code,omitempty"`
-	Result    execute.RuntimeOutput `json:"result,omitempty"`
-	RequestID string                `json:"request_id,omitempty"`
-}
+func sendResultsToChain(log zerolog.Logger, appChainClient *AppChain, res node.ChanData) {
 
-func sendResultsToChain(ctx echo.Context, a api.API, appChainClient AppChain, req ExecuteRequest, res ExecuteResponse) {
+	if appChainClient == nil || !appChainClient.Config.SubmitTx || res.Res != codes.OK {
 
+		log.Debug().Msg("Inference results would have been submitted to chain.")
+		reason := "unknown"
+		if appChainClient == nil {
+			reason = "AppChainClient is disabled"
+		} else if !appChainClient.Config.SubmitTx {
+			reason = "Submitting transactions is disabled in AppChainClient"
+		} else if res.Res != codes.OK {
+			reason = fmt.Sprintf("Response code is not OK: %s", res.Res)
+		}
+		log.Warn().Msgf("Inference results not submitted to chain, not attempted. Reason: %s", reason)
+		return
+	}
+
+	stdout := aggregate.Aggregate(res.Data)[0].Result.Stdout
+	log.Info().Str("", stdout).Msg("WASM function stdout result")
 	// Only in weight functions that we will have a "type" in the response
 	functionType := "inferences"
-	functionTypeFromFn, err := getResponseInfo(res.Results[0].Result.Stdout)
+
+	functionTypeFromFn, err := getResponseInfo(stdout)
 	if err != nil {
-		a.Log.Warn().Str("function", req.FunctionID).Err(err).Msg("node failed to extract response info from stdout")
+		log.Warn().Str("function", res.FunctionId).Err(err).Msg("node failed to extract response info from stdout")
 	} else {
 		if functionTypeFromFn != "" {
 			functionType = functionTypeFromFn
@@ -53,19 +69,19 @@ func sendResultsToChain(ctx echo.Context, a api.API, appChainClient AppChain, re
 	}
 
 	// var topicId uint64 = req.Topic
-	topicId, err := strconv.ParseUint(req.Topic, 10, 64)
+	topicId, err := strconv.ParseUint(res.Topic, 10, 64)
 	if err != nil {
-		a.Log.Error().Str("Topic", req.Topic).Str("function", functionType).Err(err).Msg("Cannot parse topic ID")
+		log.Error().Str("Topic", res.Topic).Str("function", functionType).Err(err).Msg("Cannot parse topic ID")
 		return
 	}
-	a.Log.Debug().Str("Topic", req.Topic).Str("function", functionType).Msg("Found topic ID")
+	log.Debug().Str("Topic", res.Topic).Str("function", functionType).Msg("Found topic ID")
 
 	// TODO: We can move this context to the AppChain struct (previous context was breaking the tx broadcast response)
 	reqCtx := context.Background()
 	if functionType == inferenceType {
-		appChainClient.SendInferences(reqCtx, topicId, res.Results)
+		appChainClient.SendInferences(reqCtx, topicId, aggregate.Aggregate(res.Data))
 	} else if functionType == weightsType {
-		appChainClient.SendUpdatedWeights(reqCtx, topicId, res.Results)
+		appChainClient.SendUpdatedWeights(reqCtx, topicId, aggregate.Aggregate(res.Data))
 	}
 }
 
@@ -80,6 +96,7 @@ func getResponseInfo(stdout string) (string, error) {
 }
 
 func createExecutor(a api.API, appChainClient *AppChain) func(ctx echo.Context) error {
+
 	return func(ctx echo.Context) error {
 
 		// Unpack the API request.
@@ -96,6 +113,7 @@ func createExecutor(a api.API, appChainClient *AppChain) func(ctx echo.Context) 
 			Name:  "TOPIC_ID",
 			Value: req.Topic,
 		})
+		req.Config.ConsensusAlgorithm = consensusPBFT
 
 		// Get the execution result.
 		code, id, results, cluster, err := a.Node.ExecuteFunction(ctx.Request().Context(), execute.Request(req.Request), req.Topic)
@@ -114,23 +132,6 @@ func createExecutor(a api.API, appChainClient *AppChain) func(ctx echo.Context) 
 		// Communicate the reason for failure in these cases.
 		if errors.Is(err, blockless.ErrRollCallTimeout) || errors.Is(err, blockless.ErrExecutionNotEnoughNodes) {
 			res.Message = err.Error()
-		}
-
-		// Might be disabled if so we should log out
-		if appChainClient != nil && appChainClient.Config.SubmitTx && res.Code == codes.OK {
-			// don't block the return to the consumer to send these to chain
-			go sendResultsToChain(ctx, a, *appChainClient, req, res)
-		} else {
-			a.Log.Debug().Msg("Inference results would have been submitted to chain.")
-			reason := "unknown"
-			if appChainClient == nil {
-				reason = "AppChainClient is disabled"
-			} else if !appChainClient.Config.SubmitTx {
-				reason = "Submitting transactions is disabled in AppChainClient"
-			} else if res.Code != codes.OK {
-				reason = fmt.Sprintf("Response code is not OK: %s, message: %s", res.Code, res.Message)
-			}
-			a.Log.Warn().Msgf("Inference results not submitted to chain, not attempted. Reason: %s", reason)
 		}
 
 		// Send the response.
