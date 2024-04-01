@@ -39,6 +39,7 @@ type AppChainConfig struct {
 	NodeRole                 blockless.NodeRole
 	ReconnectSeconds         uint64 // seconds to wait for reconnection
 	InitialStake             uint64 // uallo to initially stake upon registration on a new topi
+	WorkerMode               string // Allora Network worker mode to use
 }
 
 type WeightsResponse struct {
@@ -67,4 +68,9 @@ type Response struct {
 var (
 	inferenceType = "inferences"
 	weightsType   = "weights"
+)
+
+const (
+	WorkerModeWorker  = "worker"
+	WorkerModeReputer = "reputer"
 )

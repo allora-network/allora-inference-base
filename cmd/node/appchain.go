@@ -74,7 +74,7 @@ func NewAppChain(config AppChainConfig, log zerolog.Logger) (*AppChain, error) {
 			log.Warn().Err(err).Msg("could not retrieve account from keyring")
 		}
 	} else if config.AddressRestoreMnemonic != "" && config.AddressKeyName != "" {
-		// restore from mneumonic
+		// restore from mnemonic
 		account, err = client.AccountRegistry.Import(config.AddressKeyName, config.AddressRestoreMnemonic, config.AddressAccountPassphrase)
 		if err != nil {
 			if err.Error() == "account already exists" {
@@ -124,7 +124,7 @@ func registerWithBlockchain(appchain *AppChain) {
 	ctx := context.Background()
 
 	isReputer := false
-	if appchain.Config.NodeRole == blockless.HeadNode {
+	if appchain.Config.WorkerMode == WorkerModeReputer {
 		isReputer = true
 	}
 	appchain.Logger.Info().Bool("isReputer", isReputer).Msg("Node mode")
