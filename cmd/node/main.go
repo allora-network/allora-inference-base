@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -12,6 +13,7 @@ import (
 	"time"
 
 	"github.com/cockroachdb/pebble"
+	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	"github.com/labstack/echo/v4"
 	"github.com/rs/zerolog"
 	"github.com/ziflex/lecho/v3"
@@ -42,6 +44,8 @@ func connectToAlloraBlockchain(cfg AppChainConfig, log zerolog.Logger) (*AppChai
 	if err != nil || appchain == nil {
 		log.Warn().Err(err).Msg("error connecting to allora blockchain")
 		return nil, err
+	} else {
+		log.Info().Msg("connected to allora blockchain")
 	}
 	appchain.Config.SubmitTx = true
 	return appchain, nil
@@ -54,9 +58,46 @@ func NewAlloraExecutor(e blockless.Executor) *AlloraExecutor {
 }
 
 func (e *AlloraExecutor) ExecuteFunction(requestID string, req execute.Request) (execute.Result, error) {
-	result, err := e.Executor.ExecuteFunction(requestID, req) // Call the blockless.Executor's method
-	// Additional code here
-	fmt.Println("****** TODO Insert custom postprocessing code here ******")
+	// First call the blockless.Executor's method to get the result
+	result, err := e.Executor.ExecuteFunction(requestID, req)
+	// Iterate env vars to get the ALLORA_NONCE, if found, sign it and add the signature to the result
+	for _, envVar := range req.Config.Environment {
+		if envVar.Name == "ALLORA_NONCE" {
+			// Get the nonce from the environment variable, convert to bytes
+			nonce := envVar.Value
+			nonceBytes := []byte(nonce)
+			// Get the account from the appchain
+			accountName := e.appChain.ReputerAccount.Name
+
+			// Sign using the e.appChain.ReputerAccount.
+			sig, _, err := e.appChain.Client.Context().Keyring.Sign(accountName, nonceBytes, signing.SignMode_SIGN_MODE_DIRECT)
+			if err != nil {
+				fmt.Println("Error signing the nonce: ", err)
+				break
+			}
+			// Marshalling/unmarshalling the result to add the signature to the result
+			stdout := make(map[string]interface{})
+			err = json.Unmarshal([]byte(result.Result.Stdout), &stdout)
+			if err != nil {
+				fmt.Println("Error unmarshalling the stdout: ", err)
+			} else {
+				// Add the signature to the stdout object
+				stdout["signature"] = sig
+				stdout["nonce"] = nonceBytes
+				// Marshal the stdout map back into a JSON string
+				stdoutBytes, err := json.Marshal(stdout)
+				if err != nil {
+					fmt.Println("Error marshalling the stdout: ", err)
+				} else {
+					// Set the JSON string back to result.Result.Stdout
+					result.Result.Stdout = string(stdoutBytes)
+				}
+			}
+			// Process ALLORA_NONCE only once if found.
+			break
+		}
+	}
+
 	return result, err
 }
 
@@ -153,6 +194,7 @@ func run() int {
 	}
 
 	// If this is a worker node, initialize an executor.
+	var alloraExecutor *AlloraExecutor = nil
 	if role == blockless.WorkerNode {
 
 		// Executor options.
@@ -190,7 +232,7 @@ func run() int {
 			return failure
 		}
 
-		alloraExecutor := NewAlloraExecutor(executor)
+		alloraExecutor = NewAlloraExecutor(executor)
 
 		opts = append(opts, node.WithExecutor(alloraExecutor))
 		opts = append(opts, node.WithWorkspace(cfg.Workspace))
@@ -235,9 +277,10 @@ func run() int {
 	cfg.AppChainConfig.LibP2PKey = host.ID().String()
 	cfg.AppChainConfig.MultiAddress = host.Addresses()[0]
 	appchain, err = connectToAlloraBlockchain(cfg.AppChainConfig, log)
+	alloraExecutor.appChain = appchain
 
 	if cfg.AppChainConfig.ReconnectSeconds > 0 {
-		go func() {
+		go func(executor *AlloraExecutor) {
 			ticker := time.NewTicker(time.Second * time.Duration(math.Max(1, math.Min(float64(cfg.AppChainConfig.ReconnectSeconds), 3600))))
 			defer ticker.Stop()
 
@@ -245,9 +288,16 @@ func run() int {
 				if appchain == nil || !appchain.Config.SubmitTx {
 					log.Debug().Uint64("reconnectSeconds", cfg.AppChainConfig.ReconnectSeconds).Msg("Attempt reconnection to allora blockchain")
 					appchain, err = connectToAlloraBlockchain(cfg.AppChainConfig, log)
+					if err != nil {
+						// Print setting the chain
+						log.Debug().Msg("Setting up chain. ")
+						executor.appChain = appchain // Fixed the assignment statement
+					} else {
+						log.Debug().Msg("Failed to connect to allora blockchain")
+					}
 				}
 			}
-		}()
+		}(alloraExecutor) // Pass alloraExecutor as an argument to the goroutine
 	}
 
 	// Start node main loop in a separate goroutine.

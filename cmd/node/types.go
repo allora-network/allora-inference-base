@@ -77,4 +77,5 @@ const (
 
 type AlloraExecutor struct {
 	blockless.Executor
+	appChain *AppChain
 }
