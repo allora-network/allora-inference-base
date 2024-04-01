@@ -95,6 +95,8 @@ func NewAppChain(config AppChainConfig, log zerolog.Logger) (*AppChain, error) {
 	if err != nil {
 		config.SubmitTx = false
 		log.Warn().Err(err).Msg("could not retrieve allora blockchain address, transactions will not be submitted to chain")
+	} else {
+		log.Info().Str("address", address).Msg("allora blockchain address loaded")
 	}
 
 	// Create query client
@@ -114,8 +116,11 @@ func NewAppChain(config AppChainConfig, log zerolog.Logger) (*AppChain, error) {
 		Config:         config,
 	}
 
-	registerWithBlockchain(appchain)
-
+	if config.NodeRole == blockless.WorkerNode {
+		registerWithBlockchain(appchain)
+	} else {
+		appchain.Logger.Info().Msg("Node is not a worker, not registering with blockchain")
+	}
 	return appchain, nil
 }
 
@@ -128,6 +133,7 @@ func registerWithBlockchain(appchain *AppChain) {
 		isReputer = true
 	}
 	appchain.Logger.Info().Bool("isReputer", isReputer).Msg("Node mode")
+	appchain.Logger.Info().Str("Address", appchain.ReputerAddress).Msg("Node address")
 
 	// Check if address is already registered in a topic
 	res, err := appchain.QueryClient.GetRegisteredTopicIds(ctx, &types.QueryRegisteredTopicIdsRequest{
@@ -135,7 +141,8 @@ func registerWithBlockchain(appchain *AppChain) {
 		IsReputer: isReputer,
 	})
 	if err != nil {
-		appchain.Logger.Fatal().Err(err).Msg("could not check if the node is already registered. Topic not created?")
+		appchain.Logger.Error().Err(err).Msg("could not check if the node is already registered. Topic not created?")
+		return
 	}
 	var msg sdktypes.Msg
 	appchain.Logger.Info().Str("ReputerAddress", appchain.ReputerAddress).Msg("Current Address")
