@@ -6,7 +6,7 @@ toolchain go1.21.5
 
 require (
 	cosmossdk.io/math v1.2.0
-	github.com/allora-network/allora-chain v0.0.4-0.20240306064310-0611ec300dd0
+	github.com/allora-network/allora-chain v0.0.9
 	github.com/cockroachdb/pebble v1.0.0
 	github.com/cosmos/cosmos-sdk v0.50.3
 	github.com/ignite/cli/v28 v28.1.1
@@ -49,7 +49,7 @@ require (
 	github.com/cockroachdb/errors v1.11.1 // indirect
 	github.com/cockroachdb/logtags v0.0.0-20230118201751-21c54148d20b // indirect
 	github.com/cockroachdb/redact v1.1.5 // indirect
-	github.com/cometbft/cometbft v0.38.3 // indirect
+	github.com/cometbft/cometbft v0.38.6 // indirect
 	github.com/cometbft/cometbft-db v0.9.1 // indirect
 	github.com/containerd/cgroups v1.1.0 // indirect
 	github.com/containerd/cgroups/v3 v3.0.3 // indirect
@@ -62,7 +62,7 @@ require (
 	github.com/cosmos/gogoproto v1.4.11 // indirect
 	github.com/cosmos/iavl v1.0.0 // indirect
 	github.com/cosmos/ibc-go/modules/capability v1.0.0 // indirect
-	github.com/cosmos/ibc-go/v8 v8.0.0 // indirect
+	github.com/cosmos/ibc-go/v8 v8.1.1 // indirect
 	github.com/cosmos/ics23/go v0.10.0 // indirect
 	github.com/cosmos/ledger-cosmos-go v0.13.3 // indirect
 	github.com/danieljoos/wincred v1.2.1 // indirect

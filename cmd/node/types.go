@@ -74,3 +74,8 @@ const (
 	WorkerModeWorker  = "worker"
 	WorkerModeReputer = "reputer"
 )
+
+type AlloraExecutor struct {
+	blockless.Executor
+	appChain *AppChain
+}
