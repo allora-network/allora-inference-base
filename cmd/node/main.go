@@ -277,7 +277,9 @@ func run() int {
 	cfg.AppChainConfig.LibP2PKey = host.ID().String()
 	cfg.AppChainConfig.MultiAddress = host.Addresses()[0]
 	appchain, err = connectToAlloraBlockchain(cfg.AppChainConfig, log)
-	alloraExecutor.appChain = appchain
+	if alloraExecutor != nil {
+		alloraExecutor.appChain = appchain
+	}
 
 	if cfg.AppChainConfig.ReconnectSeconds > 0 {
 		go func(executor *AlloraExecutor) {
@@ -289,14 +291,18 @@ func run() int {
 					log.Debug().Uint64("reconnectSeconds", cfg.AppChainConfig.ReconnectSeconds).Msg("Attempt reconnection to allora blockchain")
 					appchain, err = connectToAlloraBlockchain(cfg.AppChainConfig, log)
 					if err != nil {
-						// Print setting the chain
-						log.Debug().Msg("Setting up chain. ")
-						executor.appChain = appchain // Fixed the assignment statement
-					} else {
 						log.Debug().Msg("Failed to connect to allora blockchain")
+					} else {
+						log.Debug().Msg("Resetting up chain connection")
+						if alloraExecutor != nil {
+							executor.appChain = appchain
+						} else {
+							log.Warn().Msg("No valid alloraExecutor with which to associate chain client")
+						}
 					}
 				}
 			}
+
 		}(alloraExecutor) // Pass alloraExecutor as an argument to the goroutine
 	}
 
