@@ -24,6 +24,7 @@ import (
 	"github.com/allora-network/b7s/fstore"
 	"github.com/allora-network/b7s/host"
 	"github.com/allora-network/b7s/models/blockless"
+	"github.com/allora-network/b7s/models/execute"
 	"github.com/allora-network/b7s/node"
 	"github.com/allora-network/b7s/peerstore"
 	"github.com/allora-network/b7s/store"
