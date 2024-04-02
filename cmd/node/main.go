@@ -271,35 +271,41 @@ func run() int {
 	failed := make(chan struct{})
 
 	var appchain *AppChain = nil
-	cfg.AppChainConfig.NodeRole = role
-	cfg.AppChainConfig.AddressPrefix = "allo"
-	cfg.AppChainConfig.StringSeperator = "|"
-	cfg.AppChainConfig.LibP2PKey = host.ID().String()
-	cfg.AppChainConfig.MultiAddress = host.Addresses()[0]
-	appchain, err = connectToAlloraBlockchain(cfg.AppChainConfig, log)
-	alloraExecutor.appChain = appchain
+	if role == blockless.WorkerNode {
+		cfg.AppChainConfig.NodeRole = role
+		cfg.AppChainConfig.AddressPrefix = "allo"
+		cfg.AppChainConfig.StringSeperator = "|"
+		cfg.AppChainConfig.LibP2PKey = host.ID().String()
+		cfg.AppChainConfig.MultiAddress = host.Addresses()[0]
+		appchain, err = connectToAlloraBlockchain(cfg.AppChainConfig, log)
+		if alloraExecutor != nil {
+			alloraExecutor.appChain = appchain
+		}
 
-	if cfg.AppChainConfig.ReconnectSeconds > 0 {
-		go func(executor *AlloraExecutor) {
-			ticker := time.NewTicker(time.Second * time.Duration(math.Max(1, math.Min(float64(cfg.AppChainConfig.ReconnectSeconds), 3600))))
-			defer ticker.Stop()
+		if cfg.AppChainConfig.ReconnectSeconds > 0 {
+			go func(executor *AlloraExecutor) {
+				ticker := time.NewTicker(time.Second * time.Duration(math.Max(1, math.Min(float64(cfg.AppChainConfig.ReconnectSeconds), 3600))))
+				defer ticker.Stop()
 
-			for range ticker.C {
-				if appchain == nil || !appchain.Config.SubmitTx {
-					log.Debug().Uint64("reconnectSeconds", cfg.AppChainConfig.ReconnectSeconds).Msg("Attempt reconnection to allora blockchain")
-					appchain, err = connectToAlloraBlockchain(cfg.AppChainConfig, log)
-					if err != nil {
-						// Print setting the chain
-						log.Debug().Msg("Setting up chain. ")
-						executor.appChain = appchain // Fixed the assignment statement
-					} else {
-						log.Debug().Msg("Failed to connect to allora blockchain")
+				for range ticker.C {
+					if appchain == nil || !appchain.Config.SubmitTx {
+						log.Debug().Uint64("reconnectSeconds", cfg.AppChainConfig.ReconnectSeconds).Msg("Attempt reconnection to allora blockchain")
+						appchain, err = connectToAlloraBlockchain(cfg.AppChainConfig, log)
+						if err != nil {
+							log.Debug().Msg("Failed to connect to allora blockchain")
+						} else {
+							log.Debug().Msg("Resetting up chain connection.")
+							if alloraExecutor != nil {
+								executor.appChain = appchain
+							} else {
+								log.Warn().Msg("No valid alloraExecutor with which to associate chain client.")
+							}
+						}
 					}
 				}
-			}
-		}(alloraExecutor) // Pass alloraExecutor as an argument to the goroutine
+			}(alloraExecutor) // Pass alloraExecutor as an argument to the goroutine
+		}
 	}
-
 	// Start node main loop in a separate goroutine.
 	go func() {
 
