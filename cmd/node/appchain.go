@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"math/big"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -15,8 +16,8 @@ import (
 
 	cosmossdk_io_math "cosmossdk.io/math"
 	types "github.com/allora-network/allora-chain/x/emissions"
-	"github.com/blocklessnetwork/b7s/models/blockless"
-	"github.com/blocklessnetwork/b7s/node/aggregate"
+	"github.com/allora-network/b7s/models/blockless"
+	"github.com/allora-network/b7s/node/aggregate"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/query"
 	"github.com/ignite/cli/v28/ignite/pkg/cosmosaccount"
@@ -63,7 +64,6 @@ func NewAppChain(config AppChainConfig, log zerolog.Logger) (*AppChain, error) {
 		config.SubmitTx = false
 		return nil, err
 	}
-
 	var account cosmosaccount.Account
 	// if we're giving a keyring ring name, with no mnemonic restore
 	if config.AddressRestoreMnemonic == "" && config.AddressKeyName != "" {
@@ -234,7 +234,8 @@ func registerWithBlockchain(appchain *AppChain) {
 				for _, coin := range balanceRes {
 					if coin.Denom == "uallo" {
 						// Found the balance in "uallo"
-						ualloBalance = coin.Amount.Uint64()
+						expo := new(big.Int).Exp(big.NewInt(10), big.NewInt(AlloraExponent), nil)
+						ualloBalance = new(big.Int).Div(coin.Amount.BigInt(), expo).Uint64()
 						break
 					}
 				}

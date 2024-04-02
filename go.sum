@@ -57,6 +57,8 @@ github.com/alecthomas/template v0.0.0-20190718012654-fb15b899a751/go.mod h1:LOuy
 github.com/alecthomas/units v0.0.0-20151022065526-2efee857e7cf/go.mod h1:ybxpYRFXyAe+OPACYpWeL0wqObRcbAqCMya13uyzqw0=
 github.com/alecthomas/units v0.0.0-20190717042225-c3de453c63f4/go.mod h1:ybxpYRFXyAe+OPACYpWeL0wqObRcbAqCMya13uyzqw0=
 github.com/alecthomas/units v0.0.0-20190924025748-f65c72e2690d/go.mod h1:rBZYJk541a8SKzHPHnH3zbiI+7dagKZ0cgpgrD7Fyho=
+github.com/allora-network/b7s v0.0.1 h1:hGwSszaDqVM4TxIPlTnAwGOQzTdFaf9KyuZIAdeMNik=
+github.com/allora-network/b7s v0.0.1/go.mod h1:AxpenlKJlosA0boPriW5YpydySBwIiRfRfdzsJQmaHA=
 github.com/allora-network/allora-chain v0.0.9 h1:lG31TA9iKrkG3cluxz7bKbsFifFDn6D/M5HhIhiFu9w=
 github.com/allora-network/allora-chain v0.0.9/go.mod h1:asck3eNvUDMmOp8bNNewzK56+wTapLqkHYuG0NqyKwM=
 github.com/anmitsu/go-shlex v0.0.0-20161002113705-648efa622239/go.mod h1:2FmKhYUyUczH0OGQWaF5ceTx0UBShxjsH6f8oGKYe2c=
@@ -90,8 +92,6 @@ github.com/bits-and-blooms/bitset v1.8.0 h1:FD+XqgOZDUxxZ8hzoBFuV9+cGWY9CslN6d5M
 github.com/bits-and-blooms/bitset v1.8.0/go.mod h1:7hO7Gc7Pp1vODcmWvKMRA9BNmbv6a/7QIWpPxHddWR8=
 github.com/blang/semver/v4 v4.0.0 h1:1PFHFE6yCCTv8C1TeyNNarDzntLi7wMI5i/pzqYIsAM=
 github.com/blang/semver/v4 v4.0.0/go.mod h1:IbckMUScFkM3pff0VJDNKRiT6TG/YpiHIM2yvyW5YoQ=
-github.com/blocklessnetwork/b7s v0.4.9 h1:bHgOm6zxvsP9+sPxfaAf15TMA5OEOj3U9PEUEJ/RA9Q=
-github.com/blocklessnetwork/b7s v0.4.9/go.mod h1:ctN87vLjhddWpFR3yiWA23Gr34lxLBMcwZDmVH81jr0=
 github.com/blocklessnetwork/b7s-attributes v0.0.0 h1:GoJmJpZVZOLjCE52jmTzfQLy2VAWdOuCdcrvct0HyC8=
 github.com/blocklessnetwork/b7s-attributes v0.0.0/go.mod h1:0c+ZemB4kfylI14IERH4CSUslZtKcQIuVHk8L4DiLI8=
 github.com/boltdb/bolt v1.3.1 h1:JQmyP4ZBrce+ZQu0dY660FMfatumYDLun9hBCUVIkF4=

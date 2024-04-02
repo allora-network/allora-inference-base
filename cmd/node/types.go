@@ -2,8 +2,8 @@ package main
 
 import (
 	types "github.com/allora-network/allora-chain/x/emissions"
-	"github.com/blocklessnetwork/b7s/config"
-	"github.com/blocklessnetwork/b7s/models/blockless"
+	"github.com/allora-network/b7s/config"
+	"github.com/allora-network/b7s/models/blockless"
 	"github.com/ignite/cli/v28/ignite/pkg/cosmosaccount"
 	"github.com/ignite/cli/v28/ignite/pkg/cosmosclient"
 	"github.com/rs/zerolog"
@@ -79,3 +79,7 @@ type AlloraExecutor struct {
 	blockless.Executor
 	appChain *AppChain
 }
+
+const (
+	AlloraExponent = 18
+)
