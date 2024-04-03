@@ -15,14 +15,6 @@ In order to build locally:
 GOOS=linux GOARCH=amd64 make
 ```
 
-***WARNING***
-
-This repo is currently relying on a private module, current development requires
-
-```bash
-export GOPRIVATE=github.com/allora-network/allora-appchain
-```
-
 # Run locally
 
 ## Head
@@ -90,7 +82,7 @@ Reputer (for reputation requests) node:
 
 ## Notes 
 
-If you plan to deploy without wanting to connect to the Allora blockchain, just by testing your setup and your inferences, do not set any `--allora-...` flag.
+If you plan to deploy temporarily without attempting to connect to the Allora blockchain, e.g. just for testing your setup and your inferences and forecasts, do not set any `--allora-...` flag.
 
 ### Topic registration
 

@@ -64,36 +64,41 @@ func (e *AlloraExecutor) ExecuteFunction(requestID string, req execute.Request) 
 	for _, envVar := range req.Config.Environment {
 		if envVar.Name == "ALLORA_NONCE" {
 			// Get the nonce from the environment variable, convert to bytes
-			nonce := envVar.Value
-			nonceBytes := []byte(nonce)
-			// Get the account from the appchain
-			accountName := e.appChain.ReputerAccount.Name
+			// If appchain is null or SubmitTx is false, do not sign the nonce
+			if e.appChain != nil && e.appChain.Client != nil {
+				nonce := envVar.Value
+				nonceBytes := []byte(nonce)
+				// Get the account from the appchain
+				accountName := e.appChain.ReputerAccount.Name
 
-			// Sign using the e.appChain.ReputerAccount.
-			sig, _, err := e.appChain.Client.Context().Keyring.Sign(accountName, nonceBytes, signing.SignMode_SIGN_MODE_DIRECT)
-			if err != nil {
-				fmt.Println("Error signing the nonce: ", err)
-				break
-			}
-			// Marshalling/unmarshalling the result to add the signature to the result
-			stdout := make(map[string]interface{})
-			err = json.Unmarshal([]byte(result.Result.Stdout), &stdout)
-			if err != nil {
-				fmt.Println("Error unmarshalling the stdout: ", err)
-			} else {
-				// Add the signature to the stdout object
-				stdout["signature"] = sig
-				stdout["nonce"] = nonceBytes
-				// Marshal the stdout map back into a JSON string
-				stdoutBytes, err := json.Marshal(stdout)
+				// Sign using the e.appChain.ReputerAccount.
+				sig, _, err := e.appChain.Client.Context().Keyring.Sign(accountName, nonceBytes, signing.SignMode_SIGN_MODE_DIRECT)
 				if err != nil {
-					fmt.Println("Error marshalling the stdout: ", err)
-				} else {
-					// Set the JSON string back to result.Result.Stdout
-					result.Result.Stdout = string(stdoutBytes)
+					fmt.Println("Error signing the nonce: ", err)
+					break
 				}
+				// Marshalling/unmarshalling the result to add the signature to the result
+				stdout := make(map[string]interface{})
+				err = json.Unmarshal([]byte(result.Result.Stdout), &stdout)
+				if err != nil {
+					fmt.Println("Error unmarshalling the stdout: ", err)
+				} else {
+					// Add the signature to the stdout object
+					stdout["signature"] = sig
+					stdout["nonce"] = nonceBytes
+					// Marshal the stdout map back into a JSON string
+					stdoutBytes, err := json.Marshal(stdout)
+					if err != nil {
+						fmt.Println("Error marshalling the stdout: ", err)
+					} else {
+						// Set the JSON string back to result.Result.Stdout
+						result.Result.Stdout = string(stdoutBytes)
+					}
+				}
+				// Process ALLORA_NONCE only once if found.
+			} else {
+				fmt.Println("Appchain is nil, cannot sign the nonce.")
 			}
-			// Process ALLORA_NONCE only once if found.
 			break
 		}
 	}
