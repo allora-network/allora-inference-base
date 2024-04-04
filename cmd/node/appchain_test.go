@@ -59,12 +59,12 @@ func (ap *AppChainTestSuit) SetupTest() {
 
 	ap.app, err = connectToAlloraBlockchain(cfg.AppChainConfig, log)
 }
-func (ap *AppChainTestSuit) TestSendWorkerodeData() {
+func (ap *AppChainTestSuit) TestSendWorkerModeData() {
 	ctx, _ := context.WithCancel(context.Background())
 	var aggre = []aggregate.Result{
 		{
 			Result: execute.RuntimeOutput{
-				Stdout:   "{\"value\": \"66\"}",
+				Stdout:   "{\"value\": 66}",
 				Stderr:   "",
 				ExitCode: 0,
 				Log:      "",
@@ -74,7 +74,7 @@ func (ap *AppChainTestSuit) TestSendWorkerodeData() {
 		},
 		{
 			Result: execute.RuntimeOutput{
-				Stdout:   "{\"value\": \"82\"}",
+				Stdout:   "{\"value\": 82}",
 				Stderr:   "",
 				ExitCode: 0,
 				Log:      "",
@@ -84,7 +84,7 @@ func (ap *AppChainTestSuit) TestSendWorkerodeData() {
 		},
 		{
 			Result: execute.RuntimeOutput{
-				Stdout:   "{\"value\": \"19\"}",
+				Stdout:   "{\"value\": 19}",
 				Stderr:   "",
 				ExitCode: 0,
 				Log:      "",

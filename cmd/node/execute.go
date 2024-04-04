@@ -52,24 +52,24 @@ func sendResultsToChain(log zerolog.Logger, appChainClient *AppChain, res node.C
 	stdout := aggregate.Aggregate(res.Data)[0].Result.Stdout
 	log.Info().Str("", stdout).Msg("WASM function stdout result")
 	// Only in weight functions that we will have a "type" in the response
-	functionType := "inferences"
-
-	functionTypeFromFn, err := getResponseInfo(stdout)
-	if err != nil {
-		log.Warn().Str("function", res.FunctionId).Err(err).Msg("node failed to extract response info from stdout")
-	} else {
-		if functionTypeFromFn != "" {
-			functionType = functionTypeFromFn
-		}
-	}
+	//functionType := "inferences"
+	//
+	//functionTypeFromFn, err := getResponseInfo(stdout)
+	//if err != nil {
+	//	log.Warn().Str("function", res.FunctionId).Err(err).Msg("node failed to extract response info from stdout")
+	//} else {
+	//	if functionTypeFromFn != "" {
+	//		functionType = functionTypeFromFn
+	//	}
+	//}
 
 	// var topicId uint64 = req.Topic
 	topicId, err := strconv.ParseUint(res.Topic, 10, 64)
 	if err != nil {
-		log.Error().Str("Topic", res.Topic).Str("function", functionType).Err(err).Msg("Cannot parse topic ID")
+		log.Error().Str("Topic", res.Topic).Str("worker mode", appChainClient.Config.WorkerMode).Err(err).Msg("Cannot parse topic ID")
 		return
 	}
-	log.Debug().Str("Topic", res.Topic).Str("function", functionType).Str("functionTypeFromFn", functionTypeFromFn).Msg("Found topic ID")
+	log.Debug().Str("Topic", res.Topic).Str("worker mode", appChainClient.Config.WorkerMode).Msg("Found topic ID")
 
 	// TODO: We can move this context to the AppChain struct (previous context was breaking the tx broadcast response)
 	reqCtx := context.Background()

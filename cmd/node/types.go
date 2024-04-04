@@ -46,11 +46,6 @@ type ResponseInfo struct {
 	FunctionType string `json:"type"`
 }
 
-type Response struct {
-	Value string `json:"value,omitempty"`
-	Error string `json:"error,omitempty"`
-}
-
 type Inference struct {
 	Node  string  `json:"node,omitempty"`
 	Value float64 `json:"value,omitempty"`

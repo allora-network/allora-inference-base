@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"math"
 	"math/big"
 	"math/rand"
 	"os"
@@ -318,20 +317,16 @@ func (ap *AppChain) SendWorkerModeData(ctx context.Context, topicId uint64, resu
 				continue
 			}
 
-			value, err := checkJSONValueError(result.Result.Stdout)
-			if err != nil || value == "" {
-				ap.Logger.Warn().Err(err).Str("peer", peer.String()).Msg("error extracting value as number from stdout, ignoring inference.")
-				continue
-			}
-			parsed, err := parseFloatToUint64(value)
+			var value Inference
+			err = json.Unmarshal([]byte(result.Result.Stdout), &value)
 			if err != nil {
-				ap.Logger.Warn().Err(err).Str("peer", peer.String()).Str("value", value).Msg("error parsing inference as uint")
+				ap.Logger.Warn().Err(err).Str("peer", peer.String()).Msg("error extracting value as number from stdout, ignoring inference.")
 				continue
 			}
 			inference := &types.Inference{
 				TopicId: topicId,
 				Worker:  res.Address,
-				Value:   float64(parsed),
+				Value:   value.Value,
 			}
 			inferences = append(inferences, inference)
 
@@ -348,7 +343,7 @@ func (ap *AppChain) SendWorkerModeData(ctx context.Context, topicId uint64, resu
 		Inferences: inferences,
 	}
 
-	ap.SendDataWithRetry(ctx, req, 5, 0, 2)
+	_, _ = ap.SendDataWithRetry(ctx, req, 5, 0, 2)
 }
 
 // Sending Forecasts to the AppChain
@@ -372,14 +367,16 @@ func (ap *AppChain) SendReputerModeData(ctx context.Context, topicId uint64, res
 			var value LossResponse
 			err = json.Unmarshal([]byte(result.Result.Stdout), &value)
 			if err != nil {
-				ap.Logger.Warn().Err(err).Str("peer", peer.String()).Msg("error extracting value as number from stdout, ignoring inference.")
+				ap.Logger.Warn().Err(err).Str("peer", peer.String()).Msg("error extracting value as number from stdout, ignoring loss.")
 				continue
 			}
 
-			var inferVal []*types.WorkerAttributedValue
-			var forcastsVal []*types.WorkerAttributedValue
-			var outInferVal []*types.WorkerAttributedValue
-			var inInferVal []*types.WorkerAttributedValue
+			var (
+				inferVal    []*types.WorkerAttributedValue
+				forcastsVal []*types.WorkerAttributedValue
+				outInferVal []*types.WorkerAttributedValue
+				inInferVal  []*types.WorkerAttributedValue
+			)
 
 			for _, inf := range value.InferrerInferences {
 				inferVal = append(inferVal, &types.WorkerAttributedValue{
@@ -427,34 +424,5 @@ func (ap *AppChain) SendReputerModeData(ctx context.Context, topicId uint64, res
 		ReputerValueBundles: valueBundles,
 	}
 
-	ap.SendDataWithRetry(ctx, req, 5, 0, 2)
-}
-
-func parseFloatToUint64(input string) (uint64, error) {
-	// Parse the string to a floating-point number
-	floatValue, err := strconv.ParseFloat(input, 64)
-	if err != nil {
-		return 0, err
-	}
-
-	// Truncate or round the floating-point number to an integer
-	roundedValue := uint64(math.Round(floatValue))
-
-	return roundedValue, nil
-}
-
-func checkJSONValueError(stdout string) (string, error) {
-	var response Response
-	err := json.Unmarshal([]byte(stdout), &response)
-	if err != nil {
-		return "Unable to unmarshall", err
-	}
-
-	if response.Value != "" {
-		return response.Value, nil
-	} else if response.Error != "" {
-		return "", errors.New("error found: " + response.Error)
-	} else {
-		return "", errors.New("no Error or Value field found in response")
-	}
+	_, _ = ap.SendDataWithRetry(ctx, req, 5, 0, 2)
 }
