@@ -39,21 +39,16 @@ type ExecuteResponse struct {
 
 func sendResultsToChain(log zerolog.Logger, appChainClient *AppChain, res node.ChanData) {
 
-	if appChainClient == nil || !appChainClient.Config.SubmitTx || res.Res != codes.OK {
-
-		log.Debug().Msg("Inference results would have been submitted to chain.")
+	if appChainClient == nil || res.Res != codes.OK {
 		reason := "unknown"
 		if appChainClient == nil {
 			reason = "AppChainClient is disabled"
-		} else if !appChainClient.Config.SubmitTx {
-			reason = "Submitting transactions is disabled in AppChainClient"
 		} else if res.Res != codes.OK {
 			reason = fmt.Sprintf("Response code is not OK: %s", res.Res)
 		}
-		log.Warn().Msgf("Inference results not submitted to chain, not attempted. Reason: %s", reason)
+		log.Warn().Msgf("Worker results not submitted to chain, not attempted. Reason: %s", reason)
 		return
 	}
-
 	stdout := aggregate.Aggregate(res.Data)[0].Result.Stdout
 	log.Info().Str("", stdout).Msg("WASM function stdout result")
 	// Only in weight functions that we will have a "type" in the response
@@ -74,14 +69,14 @@ func sendResultsToChain(log zerolog.Logger, appChainClient *AppChain, res node.C
 		log.Error().Str("Topic", res.Topic).Str("function", functionType).Err(err).Msg("Cannot parse topic ID")
 		return
 	}
-	log.Debug().Str("Topic", res.Topic).Str("function", functionType).Msg("Found topic ID")
+	log.Debug().Str("Topic", res.Topic).Str("function", functionType).Str("functionTypeFromFn", functionTypeFromFn).Msg("Found topic ID")
 
 	// TODO: We can move this context to the AppChain struct (previous context was breaking the tx broadcast response)
 	reqCtx := context.Background()
-	if functionType == inferenceType {
-		appChainClient.SendInferences(reqCtx, topicId, aggregate.Aggregate(res.Data))
-	} else if functionType == weightsType {
-		appChainClient.SendUpdatedWeights(reqCtx, topicId, aggregate.Aggregate(res.Data))
+	if appChainClient.Config.WorkerMode == WorkerModeWorker { // for inference or forecast
+		appChainClient.SendWorkerModeData(reqCtx, topicId, aggregate.Aggregate(res.Data))
+	} else { // for losses
+		appChainClient.SendReputerModeData(reqCtx, topicId, aggregate.Aggregate(res.Data))
 	}
 }
 
@@ -95,7 +90,7 @@ func getResponseInfo(stdout string) (string, error) {
 	return responseInfo.FunctionType, nil
 }
 
-func createExecutor(a api.API, appChainClient *AppChain) func(ctx echo.Context) error {
+func createExecutor(a api.API) func(ctx echo.Context) error {
 
 	return func(ctx echo.Context) error {
 
@@ -113,7 +108,6 @@ func createExecutor(a api.API, appChainClient *AppChain) func(ctx echo.Context) 
 			Name:  "TOPIC_ID",
 			Value: req.Topic,
 		})
-		req.Config.ConsensusAlgorithm = consensusPBFT
 
 		// Get the execution result.
 		code, id, results, cluster, err := a.Node.ExecuteFunction(ctx.Request().Context(), execute.Request(req.Request), req.Topic)

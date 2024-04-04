@@ -1,7 +1,7 @@
 package main
 
 import (
-	types "github.com/allora-network/allora-chain/x/emissions"
+	"github.com/allora-network/allora-chain/x/emissions/types"
 	"github.com/allora-network/b7s/config"
 	"github.com/allora-network/b7s/models/blockless"
 	"github.com/ignite/cli/v28/ignite/pkg/cosmosaccount"
@@ -42,20 +42,6 @@ type AppChainConfig struct {
 	WorkerMode               string // Allora Network worker mode to use
 }
 
-type WeightsResponse struct {
-	Value string `json:"value"`
-}
-
-type WorkerWeights struct {
-	Type    string            `json:"type"`
-	Weights map[string]string `json:"weights"`
-}
-
-type WeightsCalcDependencies struct {
-	LatestWeights map[string]float64
-	ActualPrice   float64
-}
-
 type ResponseInfo struct {
 	FunctionType string `json:"type"`
 }
@@ -65,10 +51,18 @@ type Response struct {
 	Error string `json:"error,omitempty"`
 }
 
-var (
-	inferenceType = "inferences"
-	weightsType   = "weights"
-)
+type Inference struct {
+	Node  string  `json:"node,omitempty"`
+	Value float64 `json:"value,omitempty"`
+}
+type LossResponse struct {
+	NetworkInference        float64     `json:"networkInference,omitempty"`
+	NaiveNetworkInference   float64     `json:"naiveNetworkInference,omitempty"`
+	InferrerInferences      []Inference `json:"inferrerInferences,omitempty"`
+	ForecasterInferences    []Inference `json:"forecasterInferences,omitempty"`
+	OneOutNetworkInferences []Inference `json:"oneOutNetworkInferences,omitempty"`
+	OneInNetworkInferences  []Inference `json:"oneInNetworkInferences,omitempty"`
+}
 
 const (
 	WorkerModeWorker  = "worker"
