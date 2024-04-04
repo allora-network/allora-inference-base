@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/allora-network/b7s/api"
@@ -51,19 +50,7 @@ func sendResultsToChain(log zerolog.Logger, appChainClient *AppChain, res node.C
 	}
 	stdout := aggregate.Aggregate(res.Data)[0].Result.Stdout
 	log.Info().Str("", stdout).Msg("WASM function stdout result")
-	// Only in weight functions that we will have a "type" in the response
-	//functionType := "inferences"
-	//
-	//functionTypeFromFn, err := getResponseInfo(stdout)
-	//if err != nil {
-	//	log.Warn().Str("function", res.FunctionId).Err(err).Msg("node failed to extract response info from stdout")
-	//} else {
-	//	if functionTypeFromFn != "" {
-	//		functionType = functionTypeFromFn
-	//	}
-	//}
-
-	// var topicId uint64 = req.Topic
+	
 	topicId, err := strconv.ParseUint(res.Topic, 10, 64)
 	if err != nil {
 		log.Error().Str("Topic", res.Topic).Str("worker mode", appChainClient.Config.WorkerMode).Err(err).Msg("Cannot parse topic ID")
@@ -78,16 +65,6 @@ func sendResultsToChain(log zerolog.Logger, appChainClient *AppChain, res node.C
 	} else { // for losses
 		appChainClient.SendReputerModeData(reqCtx, topicId, aggregate.Aggregate(res.Data))
 	}
-}
-
-func getResponseInfo(stdout string) (string, error) {
-	var responseInfo ResponseInfo
-	err := json.Unmarshal([]byte(stdout), &responseInfo)
-	if err != nil {
-		return "", err
-	}
-
-	return responseInfo.FunctionType, nil
 }
 
 func createExecutor(a api.API) func(ctx echo.Context) error {
