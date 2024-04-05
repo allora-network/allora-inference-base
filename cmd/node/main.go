@@ -362,7 +362,7 @@ func run() int {
 
 		// Set endpoint handlers.
 		server.GET("/api/v1/health", api.Health)
-		server.POST("/api/v1/functions/execute", createExecutor(*api, appchain))
+		server.POST("/api/v1/functions/execute", createExecutor(*api))
 		server.POST("/api/v1/functions/install", api.Install)
 		server.POST("/api/v1/functions/requests/result", api.ExecutionResult)
 

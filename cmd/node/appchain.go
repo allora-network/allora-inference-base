@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
-	"math"
 	"math/big"
 	"math/rand"
 	"os"
@@ -15,7 +13,7 @@ import (
 	"time"
 
 	cosmossdk_io_math "cosmossdk.io/math"
-	types "github.com/allora-network/allora-chain/x/emissions"
+	"github.com/allora-network/allora-chain/x/emissions/types"
 	"github.com/allora-network/b7s/models/blockless"
 	"github.com/allora-network/b7s/node/aggregate"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
@@ -145,7 +143,7 @@ func registerWithBlockchain(appchain *AppChain) {
 		return
 	}
 	var msg sdktypes.Msg
-	appchain.Logger.Info().Str("ReputerAddress", appchain.ReputerAddress).Msg("Current Address")
+	appchain.Logger.Info().Str("Worker", appchain.ReputerAddress).Msg("Current Address")
 	if len(res.TopicIds) > 0 {
 		appchain.Logger.Debug().Msg("Worker already registered for some topics, checking...")
 		var topicsToRegister []uint64
@@ -278,7 +276,7 @@ func registerWithBlockchain(appchain *AppChain) {
 }
 
 // Retry function with a constant number of retries.
-func (ap *AppChain) SendInferencesWithRetry(ctx context.Context, req *types.MsgProcessInferences, MaxRetries, MinDelay, MaxDelay int) (*cosmosclient.Response, error) {
+func (ap *AppChain) SendDataWithRetry(ctx context.Context, req sdktypes.Msg, MaxRetries, MinDelay, MaxDelay int) (*cosmosclient.Response, error) {
 	var txResp *cosmosclient.Response
 	var err error
 
@@ -300,33 +298,75 @@ func (ap *AppChain) SendInferencesWithRetry(ctx context.Context, req *types.MsgP
 	return txResp, err
 }
 
-// Retry function with a constant number of retries.
-func (ap *AppChain) SendWeightsWithRetry(ctx context.Context, req *types.MsgSetWeights, MaxRetries, MinDelay, MaxDelay int) (*cosmosclient.Response, error) {
-	var txResp *cosmosclient.Response
-	var err error
-
-	for retryCount := 0; retryCount <= MaxRetries; retryCount++ {
-		txResp, err := ap.Client.BroadcastTx(ctx, ap.ReputerAccount, req)
-		if err == nil {
-			ap.Logger.Info().Any("Tx Hash:", txResp.TxHash).Msg("successfully sent weights to allora blockchain")
-			break
-		}
-		// Log the error for each retry.
-		ap.Logger.Info().Err(err).Msgf("Failed to send weights to allora blockchain, retrying... (Retry %d/%d)", retryCount, MaxRetries)
-		// Generate a random number between MinDelay and MaxDelay
-		randomDelay := rand.Intn(MaxDelay-MinDelay+1) + MinDelay
-		// Apply exponential backoff to the random delay
-		backoffDelay := randomDelay << retryCount
-		// Wait for the calculated delay before retrying
-		time.Sleep(time.Duration(backoffDelay) * time.Second)
-	}
-	return txResp, err
-}
-
-// Sending Inferences to the AppChain
-func (ap *AppChain) SendInferences(ctx context.Context, topicId uint64, results aggregate.Results) {
+// Sending Inferences/Forecasts to the AppChain
+func (ap *AppChain) SendWorkerModeData(ctx context.Context, topicId uint64, results aggregate.Results) {
 	// Aggregate the inferences from all peers/workers
 	var inferences []*types.Inference
+	var forecasts []*types.Forecast
+
+	for _, result := range results {
+		for _, peer := range result.Peers {
+			ap.Logger.Debug().Any("peer", peer.String())
+
+			// Get Peer $allo address
+			res, err := ap.QueryClient.GetWorkerAddressByP2PKey(ctx, &types.QueryWorkerAddressByP2PKeyRequest{
+				Libp2PKey: peer.String(),
+			})
+			if err != nil {
+				ap.Logger.Warn().Err(err).Str("peer", peer.String()).Msg("error getting peer address from chain, worker not registered? Ignoring peer.")
+				continue
+			}
+
+			var value InferenceForeacstResponse
+			err = json.Unmarshal([]byte(result.Result.Stdout), &value)
+			if err != nil {
+				ap.Logger.Warn().Err(err).Str("peer", peer.String()).Msg("error extracting value as number from stdout, ignoring inference.")
+				continue
+			}
+
+			inference := &types.Inference{
+				TopicId: topicId,
+				Worker:  res.Address,
+				Value:   value.InfererValue,
+			}
+			inferences = append(inferences, inference)
+
+			var forecasterVal []*types.ForecastElement
+			for _, val := range value.ForecasterValues {
+				forecasterVal = append(forecasterVal, &types.ForecastElement{
+					Inferer: val.Node,
+					Value:   val.Value,
+				})
+			}
+			forecasts = append(forecasts, &types.Forecast{
+				TopicId:          topicId,
+				Forecaster:       res.Address,
+				ForecastElements: forecasterVal,
+			})
+		}
+	}
+
+	reqInf := &types.MsgProcessInferences{
+		Sender:     ap.ReputerAddress,
+		Inferences: inferences,
+	}
+
+	reqFor := &types.MsgProcessForecasts{
+		Sender:    ap.ReputerAddress,
+		Forecasts: forecasts,
+	}
+	go func() {
+		_, _ = ap.SendDataWithRetry(ctx, reqInf, 5, 0, 2)
+	}()
+	go func() {
+		_, _ = ap.SendDataWithRetry(ctx, reqFor, 5, 0, 2)
+	}()
+}
+
+// Sending Losses to the AppChain
+func (ap *AppChain) SendReputerModeData(ctx context.Context, topicId uint64, results aggregate.Results) {
+	// Aggregate the forecast from reputer leader
+	var valueBundles []*types.ReputerValueBundle
 
 	for _, result := range results {
 		for _, peer := range result.Peers {
@@ -341,122 +381,65 @@ func (ap *AppChain) SendInferences(ctx context.Context, topicId uint64, results 
 				continue
 			}
 
-			value, err := checkJSONValueError(result.Result.Stdout)
-			if err != nil || value == "" {
-				ap.Logger.Warn().Err(err).Str("peer", peer.String()).Msg("error extracting value as number from stdout, ignoring inference.")
-				continue
-			}
-			parsed, err := parseFloatToUint64(value)
+			var value LossResponse
+			err = json.Unmarshal([]byte(result.Result.Stdout), &value)
 			if err != nil {
-				ap.Logger.Warn().Err(err).Str("peer", peer.String()).Str("value", value).Msg("error parsing inference as uint")
-				continue
-			}
-			inference := &types.Inference{
-				TopicId: topicId,
-				Worker:  res.Address,
-				Value:   cosmossdk_io_math.NewUint(parsed),
-			}
-			inferences = append(inferences, inference)
-		}
-	}
-
-	req := &types.MsgProcessInferences{
-		Sender:     ap.ReputerAddress,
-		Inferences: inferences,
-	}
-
-	ap.SendInferencesWithRetry(ctx, req, 5, 0, 2)
-}
-
-func (ap *AppChain) SendUpdatedWeights(ctx context.Context, topicId uint64, results aggregate.Results) {
-
-	weights := make([]*types.Weight, 0)
-	for _, result := range results {
-		extractedWeights, err := extractWeights(result.Result.Stdout)
-		if err != nil {
-			ap.Logger.Info().Err(err).Msg("Error extracting weight")
-			continue
-		}
-
-		for peer, value := range extractedWeights {
-			ap.Logger.Info().Str("peer", peer)
-			parsed, err := parseFloatToUint64Weights(value)
-			if err != nil {
-				ap.Logger.Error().Err(err).Msg("Error parsing uint")
+				ap.Logger.Warn().Err(err).Str("peer", peer.String()).Msg("error extracting value as number from stdout, ignoring loss.")
 				continue
 			}
 
-			fmt.Printf("\n Worker Node: %s Weight: %v \n", peer, cosmossdk_io_math.NewUint(parsed))
+			var (
+				inferVal    []*types.WorkerAttributedValue
+				forcastsVal []*types.WorkerAttributedValue
+				outInferVal []*types.WorkerAttributedValue
+				inInferVal  []*types.WorkerAttributedValue
+			)
 
-			weight := &types.Weight{
-				TopicId: topicId,
-				Reputer: ap.ReputerAddress,
-				Worker:  peer,
-				Weight:  cosmossdk_io_math.NewUint(parsed),
+			for _, inf := range value.InferrerInferences {
+				inferVal = append(inferVal, &types.WorkerAttributedValue{
+					Worker: inf.Node,
+					Value:  inf.Value,
+				})
 			}
-			weights = append(weights, weight)
+			for _, inf := range value.ForecasterInferences {
+				forcastsVal = append(forcastsVal, &types.WorkerAttributedValue{
+					Worker: inf.Node,
+					Value:  inf.Value,
+				})
+			}
+			for _, inf := range value.OneOutNetworkInferences {
+				outInferVal = append(outInferVal, &types.WorkerAttributedValue{
+					Worker: inf.Node,
+					Value:  inf.Value,
+				})
+			}
+			for _, inf := range value.OneInNetworkInferences {
+				inInferVal = append(inInferVal, &types.WorkerAttributedValue{
+					Worker: inf.Node,
+					Value:  inf.Value,
+				})
+			}
+
+			valueBundle := &types.ReputerValueBundle{
+				Reputer: res.Address,
+				ValueBundle: &types.ValueBundle{
+					TopicId:          topicId,
+					NaiveValue:       value.NaiveNetworkInference,
+					CombinedValue:    value.NetworkInference,
+					InfererValues:    inferVal,
+					ForecasterValues: forcastsVal,
+					OneOutValues:     outInferVal,
+					OneInNaiveValues: inInferVal,
+				},
+			}
+			valueBundles = append(valueBundles, valueBundle)
 		}
 	}
 
-	// Send updated weights to AppChain
-	req := &types.MsgSetWeights{
-		Sender:  ap.ReputerAddress,
-		Weights: weights,
+	req := &types.MsgSetLosses{
+		Sender:              ap.ReputerAddress,
+		ReputerValueBundles: valueBundles,
 	}
 
-	ap.SendWeightsWithRetry(ctx, req, 5, 0, 2)
-}
-
-func parseFloatToUint64Weights(input string) (uint64, error) {
-	// Parse the string to a floating-point number
-	floatValue, err := strconv.ParseFloat(input, 64)
-	if err != nil {
-		return 0, err
-	}
-
-	// Truncate or round the floating-point number to an integer
-	roundedValue := uint64(floatValue * 100000) // TODO: Change
-
-	return roundedValue, nil
-}
-
-func parseFloatToUint64(input string) (uint64, error) {
-	// Parse the string to a floating-point number
-	floatValue, err := strconv.ParseFloat(input, 64)
-	if err != nil {
-		return 0, err
-	}
-
-	// Truncate or round the floating-point number to an integer
-	roundedValue := uint64(math.Round(floatValue))
-
-	return roundedValue, nil
-}
-
-func checkJSONValueError(stdout string) (string, error) {
-	var response Response
-	err := json.Unmarshal([]byte(stdout), &response)
-	if err != nil {
-		return "Unable to unmarshall", err
-	}
-
-	if response.Value != "" {
-		return response.Value, nil
-	} else if response.Error != "" {
-		return "", errors.New("error found: " + response.Error)
-	} else {
-		return "", errors.New("no Error or Value field found in response")
-	}
-}
-
-func extractWeights(stdout string) (map[string]string, error) {
-	fmt.Println("Extracting weights from stdout: ", stdout)
-
-	var weights WorkerWeights
-	err := json.Unmarshal([]byte(stdout), &weights)
-	if err != nil {
-		return nil, err
-	}
-
-	return weights.Weights, nil
+	_, _ = ap.SendDataWithRetry(ctx, req, 5, 0, 2)
 }

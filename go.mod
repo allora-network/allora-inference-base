@@ -6,8 +6,8 @@ toolchain go1.21.5
 
 require (
 	cosmossdk.io/math v1.2.0
-	github.com/allora-network/b7s v0.0.1
-	github.com/allora-network/allora-chain v0.0.9
+	github.com/allora-network/allora-chain v0.0.9-0.20240329140536-3ce03c25024f
+	github.com/allora-network/b7s v0.0.2-0.20240403233031-c6837f0eff24
 	github.com/cockroachdb/pebble v1.0.0
 	github.com/cosmos/cosmos-sdk v0.50.3
 	github.com/ignite/cli/v28 v28.1.1

@@ -62,9 +62,8 @@ func parseFlags() *alloraCfg {
 	pflag.StringVarP(&cfg.AppChainConfig.NodeRPCAddress, "allora-node-rpc-address", "", "http://localhost:26657", "The address for the client to connect to a node.")
 	pflag.StringSliceVar(&cfg.AppChainConfig.TopicIds, "allora-chain-topic-id", nil, "The topic id for the topic that the node will subscribe to.")
 	pflag.Uint64Var(&cfg.AppChainConfig.ReconnectSeconds, "allora-chain-reconnect-seconds", 60, "If connection to Allora Appchain breaks, it will attempt to reconnect with this interval. O means no reconnection.")
-	pflag.Uint64Var(&cfg.AppChainConfig.InitialStake, "allora-chain-initial-stake", 1000, "Upon registering on a new topic, amount of stake to use.")
-	pflag.StringVarP(&cfg.AppChainConfig.WorkerMode, "allora-chain-worker-mode", "", "worker", "Worker mode of an Allora Network node.")
-
+	pflag.Uint64Var(&cfg.AppChainConfig.InitialStake, "allora-chain-initial-stake", 100, "Upon registering on a new topic, amount of stake to use.")
+	pflag.StringVarP(&cfg.AppChainConfig.WorkerMode, "allora-chain-worker-mode", "", WorkerModeWorker, "Worker mode of an Allora Network node.")
 	pflag.CommandLine.SortFlags = false
 
 	pflag.Parse()
