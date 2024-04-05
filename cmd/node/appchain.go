@@ -298,15 +298,15 @@ func (ap *AppChain) SendDataWithRetry(ctx context.Context, req sdktypes.Msg, Max
 	return txResp, err
 }
 
-// Sending Inferences to the AppChain
+// Sending Inferences/Forecasts to the AppChain
 func (ap *AppChain) SendWorkerModeData(ctx context.Context, topicId uint64, results aggregate.Results) {
 	// Aggregate the inferences from all peers/workers
 	var inferences []*types.Inference
-	//var forecasts []*types.Forecasts
+	var forecasts []*types.Forecast
 
 	for _, result := range results {
 		for _, peer := range result.Peers {
-			ap.Logger.Debug().Any("response-peer", peer.String())
+			ap.Logger.Debug().Any("peer", peer.String())
 
 			// Get Peer $allo address
 			res, err := ap.QueryClient.GetWorkerAddressByP2PKey(ctx, &types.QueryWorkerAddressByP2PKeyRequest{
@@ -317,36 +317,53 @@ func (ap *AppChain) SendWorkerModeData(ctx context.Context, topicId uint64, resu
 				continue
 			}
 
-			var value Inference
+			var value InferenceForeacstResponse
 			err = json.Unmarshal([]byte(result.Result.Stdout), &value)
 			if err != nil {
 				ap.Logger.Warn().Err(err).Str("peer", peer.String()).Msg("error extracting value as number from stdout, ignoring inference.")
 				continue
 			}
+
 			inference := &types.Inference{
 				TopicId: topicId,
 				Worker:  res.Address,
-				Value:   value.Value,
+				Value:   value.InfererValue,
 			}
 			inferences = append(inferences, inference)
 
-			//forecasts := &types.Forecast{
-			//	TopicId:          topicId,
-			//	Forecaster:       res.Address,
-			//	ForecastElements: types.ForecastElement{},
-			//}
+			var forecasterVal []*types.ForecastElement
+			for _, val := range value.ForecasterValues {
+				forecasterVal = append(forecasterVal, &types.ForecastElement{
+					Inferer: val.Node,
+					Value:   val.Value,
+				})
+			}
+			forecasts = append(forecasts, &types.Forecast{
+				TopicId:          topicId,
+				Forecaster:       res.Address,
+				ForecastElements: forecasterVal,
+			})
 		}
 	}
 
-	req := &types.MsgProcessInferences{
+	reqInf := &types.MsgProcessInferences{
 		Sender:     ap.ReputerAddress,
 		Inferences: inferences,
 	}
 
-	_, _ = ap.SendDataWithRetry(ctx, req, 5, 0, 2)
+	reqFor := &types.MsgProcessForecasts{
+		Sender:    ap.ReputerAddress,
+		Forecasts: forecasts,
+	}
+	go func() {
+		_, _ = ap.SendDataWithRetry(ctx, reqInf, 5, 0, 2)
+	}()
+	go func() {
+		_, _ = ap.SendDataWithRetry(ctx, reqFor, 5, 0, 2)
+	}()
 }
 
-// Sending Forecasts to the AppChain
+// Sending Losses to the AppChain
 func (ap *AppChain) SendReputerModeData(ctx context.Context, topicId uint64, results aggregate.Results) {
 	// Aggregate the forecast from reputer leader
 	var valueBundles []*types.ReputerValueBundle

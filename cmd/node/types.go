@@ -42,21 +42,23 @@ type AppChainConfig struct {
 	WorkerMode               string // Allora Network worker mode to use
 }
 
-type ResponseInfo struct {
-	FunctionType string `json:"type"`
-}
-
-type Inference struct {
+type NodeValue struct {
 	Node  string  `json:"node,omitempty"`
 	Value float64 `json:"value,omitempty"`
 }
+
+type InferenceForeacstResponse struct {
+	InfererValue     float64     `json:"node,omitempty"`
+	ForecasterValues []NodeValue `json:"node,omitempty"`
+}
+
 type LossResponse struct {
 	NetworkInference        float64     `json:"networkInference,omitempty"`
 	NaiveNetworkInference   float64     `json:"naiveNetworkInference,omitempty"`
-	InferrerInferences      []Inference `json:"inferrerInferences,omitempty"`
-	ForecasterInferences    []Inference `json:"forecasterInferences,omitempty"`
-	OneOutNetworkInferences []Inference `json:"oneOutNetworkInferences,omitempty"`
-	OneInNetworkInferences  []Inference `json:"oneInNetworkInferences,omitempty"`
+	InferrerInferences      []NodeValue `json:"inferrerInferences,omitempty"`
+	ForecasterInferences    []NodeValue `json:"forecasterInferences,omitempty"`
+	OneOutNetworkInferences []NodeValue `json:"oneOutNetworkInferences,omitempty"`
+	OneInNetworkInferences  []NodeValue `json:"oneInNetworkInferences,omitempty"`
 }
 
 const (

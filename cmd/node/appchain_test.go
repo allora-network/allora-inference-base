@@ -64,7 +64,7 @@ func (ap *AppChainTestSuit) TestSendWorkerModeData() {
 	var aggre = []aggregate.Result{
 		{
 			Result: execute.RuntimeOutput{
-				Stdout:   "{\"value\": 66}",
+				Stdout:   "{\"infererValue\": \"3234.12\",\"forecasterValues\":[{\"node\":\"allo1inf1\",\"value\",\"0.256\"},{\"node\":\"allo1inf2\",\"value\":\"1.48\"},{\"node\":\"allo1inf1111\",\"value\":\"0.569885\"}]}",
 				Stderr:   "",
 				ExitCode: 0,
 				Log:      "",
@@ -74,7 +74,7 @@ func (ap *AppChainTestSuit) TestSendWorkerModeData() {
 		},
 		{
 			Result: execute.RuntimeOutput{
-				Stdout:   "{\"value\": 82}",
+				Stdout:   "{\"infererValue\": \"1234.56\",\"forecasterValues\":[{\"node\":\"allo1inf1\",\"value\",\"0.256\"},{\"node\":\"allo1inf2\",\"value\":\"1.48\"},{\"node\":\"allo1inf1111\",\"value\":\"0.569885\"}]}",
 				Stderr:   "",
 				ExitCode: 0,
 				Log:      "",
@@ -84,7 +84,7 @@ func (ap *AppChainTestSuit) TestSendWorkerModeData() {
 		},
 		{
 			Result: execute.RuntimeOutput{
-				Stdout:   "{\"value\": 19}",
+				Stdout:   "{\"infererValue\": \"9876.34\",\"forecasterValues\":[{\"node\":\"allo1inf1\",\"value\",\"0.256\"},{\"node\":\"allo1inf2\",\"value\":\"1.48\"},{\"node\":\"allo1inf1111\",\"value\":\"0.569885\"}]}",
 				Stderr:   "",
 				ExitCode: 0,
 				Log:      "",
