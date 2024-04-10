@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"math/big"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -122,18 +121,40 @@ func NewAppChain(config AppChainConfig, log zerolog.Logger) (*AppChain, error) {
 	return appchain, nil
 }
 
+// Function that receives an array of topicId as string, and parses them to uint64 extracting
+// the topicId from the string prior to the "/" character.
+func parseTopicIds(appchain *AppChain, topicIds []string) []uint64 {
+	var b7sTopicIds []uint64
+	for _, topicId := range topicIds {
+		topicUint64, err := strconv.ParseUint(topicId, 10, 64)
+		if err != nil {
+			appchain.Logger.Warn().Err(err).Str("topic", topicId).Msg("Could not register for topic, not numerical")
+			continue
+		}
+		b7sTopicIds = append(b7sTopicIds, topicUint64)
+	}
+	return b7sTopicIds
+}
+
 // / Registration
 func registerWithBlockchain(appchain *AppChain) {
 	ctx := context.Background()
 
-	isReputer := false
+	var isReputer bool
 	if appchain.Config.WorkerMode == WorkerModeReputer {
 		isReputer = true
+	} else if appchain.Config.WorkerMode == WorkerModeWorker {
+		isReputer = false
+	} else {
+		appchain.Logger.Fatal().Str("WorkerMode", appchain.Config.WorkerMode).Msg("Invalid Worker Mode")
 	}
 	appchain.Logger.Info().Bool("isReputer", isReputer).Msg("Node mode")
-	appchain.Logger.Info().Str("Address", appchain.ReputerAddress).Msg("Node address")
 
-	// Check if address is already registered in a topic
+	// Parse topics into b7sTopicIds as numerical ids. Reputers and worker use different schema.
+	b7sTopicIds := parseTopicIds(appchain, appchain.Config.TopicIds)
+
+	appchain.Logger.Info().Str("Address", appchain.ReputerAddress).Msg("Node address")
+	// Check if address is already registered in a topic, getting all topics already reg'd
 	res, err := appchain.QueryClient.GetRegisteredTopicIds(ctx, &types.QueryRegisteredTopicIdsRequest{
 		Address:   appchain.ReputerAddress,
 		IsReputer: isReputer,
@@ -150,26 +171,20 @@ func registerWithBlockchain(appchain *AppChain) {
 		var topicsToDeRegister []uint64
 		// Calculate topics to deregister
 		for _, topicUint64 := range res.TopicIds {
-			topicIdStr := strconv.FormatUint(uint64(topicUint64), 10)
-			if !slices.Contains(appchain.Config.TopicIds, topicIdStr) {
-				appchain.Logger.Info().Str("topic", topicIdStr).Msg("marking deregistration for topic")
+			if !slices.Contains(b7sTopicIds, topicUint64) {
+				appchain.Logger.Info().Uint64("topic", topicUint64).Msg("marking deregistration for topic")
 				topicsToDeRegister = append(topicsToDeRegister, topicUint64)
 			} else {
-				appchain.Logger.Info().Str("topic", topicIdStr).Msg("Not deregistering topic")
+				appchain.Logger.Info().Uint64("topic", topicUint64).Msg("Not deregistering topic")
 			}
 		}
 		// Calculate topics to register
-		for _, topicIdStr := range appchain.Config.TopicIds {
-			topicUint64, err := strconv.ParseUint(topicIdStr, 10, 64)
-			if err != nil {
-				appchain.Logger.Info().Err(err).Uint64("topic", topicUint64).Msg("Could not register for topic, not numerical")
-				continue
-			}
+		for _, topicUint64 := range b7sTopicIds {
 			if !slices.Contains(res.TopicIds, topicUint64) {
 				appchain.Logger.Info().Uint64("topic", topicUint64).Msg("marking registration for topic")
 				topicsToRegister = append(topicsToRegister, topicUint64)
 			} else {
-				appchain.Logger.Info().Str("topic", topicIdStr).Msg("Topic is already registered, no registration for topic")
+				appchain.Logger.Info().Uint64("topic", topicUint64).Msg("Topic is already registered, no registration for topic")
 			}
 		}
 		// Registration on new topics
@@ -232,17 +247,18 @@ func registerWithBlockchain(appchain *AppChain) {
 				for _, coin := range balanceRes {
 					if coin.Denom == "uallo" {
 						// Found the balance in "uallo"
-						expo := new(big.Int).Exp(big.NewInt(10), big.NewInt(AlloraExponent), nil)
-						ualloBalance = new(big.Int).Div(coin.Amount.BigInt(), expo).Uint64()
+						appchain.Logger.Info().Str("balance", coin.Amount.BigInt().Text(10)).Msg("Found uallo balance in account, calculating...")
+						ualloBalance = coin.Amount.Uint64()
 						break
+					} else if coin.Denom == "allo" {
+						appchain.Logger.Info().Msg("Found allo balance in account, calculating...")
 					}
 				}
 				if ualloBalance >= appchain.Config.InitialStake {
 					var topicsToRegister []uint64
-					for _, topicToRegister := range appchain.Config.TopicIds {
-						topicToRegisterUint64, err := strconv.ParseUint(topicToRegister, 10, 64)
+					for _, topicToRegisterUint64 := range b7sTopicIds {
 						if err != nil {
-							appchain.Logger.Info().Err(err).Str("topic", topicToRegister).Msg("Could not register for topic, not numerical, skipping")
+							appchain.Logger.Info().Err(err).Uint64("topicId", topicToRegisterUint64).Msg("Could not register for topic, not numerical, skipping")
 						} else {
 							topicsToRegister = append(topicsToRegister, topicToRegisterUint64)
 						}
@@ -265,7 +281,7 @@ func registerWithBlockchain(appchain *AppChain) {
 					}
 					appchain.Logger.Info().Str("balance", balanceRes.String()).Msg("Registered Node")
 				} else {
-					appchain.Logger.Fatal().Msg("account balance is lower than the initialStake requested")
+					appchain.Logger.Fatal().Int("balance", int(ualloBalance)).Int("InitialStake", int(appchain.Config.InitialStake)).Msg("account balance is lower than the initialStake requested")
 				}
 			} else {
 				appchain.Logger.Info().Str("account", appchain.ReputerAddress).Msg("account is not funded in uallo")
