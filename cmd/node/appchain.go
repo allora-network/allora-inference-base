@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"slices"
 	"strconv"
-	"strings"
 	"time"
 
 	cosmossdk_io_math "cosmossdk.io/math"
@@ -124,47 +123,37 @@ func NewAppChain(config AppChainConfig, log zerolog.Logger) (*AppChain, error) {
 
 // Function that receives an array of topicId as string, and parses them to uint64 extracting
 // the topicId from the string prior to the "/" character.
-func parseReputerTopicIds(appchain *AppChain, topicIds []string) []uint64 {
-	var parsedTopicIds []uint64
-	for _, topicIdStr := range topicIds {
-		// extract the topicId from the string
-		topicId, err := strconv.ParseUint(topicIdStr[:strings.Index(topicIdStr, "/")], 10, 64)
+func parseTopicIds(appchain *AppChain, topicIds []string) []uint64 {
+	var b7sTopicIds []uint64
+	for _, topicId := range topicIds {
+		topicUint64, err := strconv.ParseUint(topicId, 10, 64)
 		if err != nil {
-			appchain.Logger.Warn().Str("topicId", topicIdStr).Msg("Topic not in correct reputer format")
+			appchain.Logger.Warn().Err(err).Str("topic", topicId).Msg("Could not register for topic, not numerical")
 			continue
 		}
-		parsedTopicIds = append(parsedTopicIds, topicId)
+		b7sTopicIds = append(b7sTopicIds, topicUint64)
 	}
-	return parsedTopicIds
+	return b7sTopicIds
 }
 
 // / Registration
 func registerWithBlockchain(appchain *AppChain) {
 	ctx := context.Background()
 
-	isReputer := false
-	// Parse topics into b7sTopicIds as numerical ids. Reputers and worker use different schema.
-	var b7sTopicIds []uint64
+	var isReputer bool
 	if appchain.Config.WorkerMode == WorkerModeReputer {
 		isReputer = true
-		b7sTopicIds = parseReputerTopicIds(appchain, appchain.Config.TopicIds)
 	} else if appchain.Config.WorkerMode == WorkerModeWorker {
-		// parse appchain.Config.TopicIds to uint64 array
-		for _, topicId := range appchain.Config.TopicIds {
-			topicUint64, err := strconv.ParseUint(topicId, 10, 64)
-			if err != nil {
-				appchain.Logger.Warn().Err(err).Str("topic", topicId).Msg("Could not register for topic, not numerical")
-				continue
-			}
-			b7sTopicIds = append(b7sTopicIds, topicUint64)
-		}
+		isReputer = false
 	} else {
 		appchain.Logger.Fatal().Str("WorkerMode", appchain.Config.WorkerMode).Msg("Invalid Worker Mode")
-
 	}
 	appchain.Logger.Info().Bool("isReputer", isReputer).Msg("Node mode")
-	appchain.Logger.Info().Str("Address", appchain.ReputerAddress).Msg("Node address")
 
+	// Parse topics into b7sTopicIds as numerical ids. Reputers and worker use different schema.
+	b7sTopicIds := parseTopicIds(appchain, appchain.Config.TopicIds)
+
+	appchain.Logger.Info().Str("Address", appchain.ReputerAddress).Msg("Node address")
 	// Check if address is already registered in a topic, getting all topics already reg'd
 	res, err := appchain.QueryClient.GetRegisteredTopicIds(ctx, &types.QueryRegisteredTopicIdsRequest{
 		Address:   appchain.ReputerAddress,
