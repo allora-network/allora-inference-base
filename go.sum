@@ -59,8 +59,8 @@ github.com/alecthomas/units v0.0.0-20190717042225-c3de453c63f4/go.mod h1:ybxpYRF
 github.com/alecthomas/units v0.0.0-20190924025748-f65c72e2690d/go.mod h1:rBZYJk541a8SKzHPHnH3zbiI+7dagKZ0cgpgrD7Fyho=
 github.com/allora-network/allora-chain v0.0.9-0.20240329140536-3ce03c25024f h1:S7GHnKDvVGb/yfxhf+Je8d/pEWzCPUWagu7/pWH/cN4=
 github.com/allora-network/allora-chain v0.0.9-0.20240329140536-3ce03c25024f/go.mod h1:asck3eNvUDMmOp8bNNewzK56+wTapLqkHYuG0NqyKwM=
-github.com/allora-network/b7s v0.0.2-0.20240403233031-c6837f0eff24 h1:sTsjoUTPOWmNo1eWmvSmIiYUKwFKBUTOGgZdepH1hek=
-github.com/allora-network/b7s v0.0.2-0.20240403233031-c6837f0eff24/go.mod h1:AxpenlKJlosA0boPriW5YpydySBwIiRfRfdzsJQmaHA=
+github.com/allora-network/b7s v0.0.2-0.20240410095955-038465d7670c h1:9pPmVWWp0ETe39Sy0WAz/pFt0+w3vXEU7JxH4/+JRuU=
+github.com/allora-network/b7s v0.0.2-0.20240410095955-038465d7670c/go.mod h1:AxpenlKJlosA0boPriW5YpydySBwIiRfRfdzsJQmaHA=
 github.com/anmitsu/go-shlex v0.0.0-20161002113705-648efa622239/go.mod h1:2FmKhYUyUczH0OGQWaF5ceTx0UBShxjsH6f8oGKYe2c=
 github.com/antihax/optional v1.0.0/go.mod h1:uupD/76wgC+ih3iEmQUL+0Ugr19nfwCT1kdvxnR2qWY=
 github.com/apache/thrift v0.12.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=

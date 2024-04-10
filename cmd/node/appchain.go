@@ -4,11 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math/rand"
 	"os"
 	"path/filepath"
 	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	cosmossdk_io_math "cosmossdk.io/math"
@@ -152,6 +154,9 @@ func registerWithBlockchain(appchain *AppChain) {
 
 	// Parse topics into b7sTopicIds as numerical ids. Reputers and worker use different schema.
 	b7sTopicIds := parseTopicIds(appchain, appchain.Config.TopicIds)
+	// Print the array entries as a comma-separated value list
+	topicsList := strings.Join(strings.Fields(fmt.Sprint(b7sTopicIds)), ", ")
+	appchain.Logger.Info().Str("topicsList", topicsList).Msg("Topics list")
 
 	appchain.Logger.Info().Str("Address", appchain.ReputerAddress).Msg("Node address")
 	// Check if address is already registered in a topic, getting all topics already reg'd
@@ -322,7 +327,7 @@ func (ap *AppChain) SendWorkerModeData(ctx context.Context, topicId uint64, resu
 
 	for _, result := range results {
 		for _, peer := range result.Peers {
-			ap.Logger.Debug().Any("peer", peer.String())
+			ap.Logger.Debug().Str("worker peer", peer.String())
 
 			// Get Peer $allo address
 			res, err := ap.QueryClient.GetWorkerAddressByP2PKey(ctx, &types.QueryWorkerAddressByP2PKeyRequest{
@@ -332,7 +337,8 @@ func (ap *AppChain) SendWorkerModeData(ctx context.Context, topicId uint64, resu
 				ap.Logger.Warn().Err(err).Str("peer", peer.String()).Msg("error getting peer address from chain, worker not registered? Ignoring peer.")
 				continue
 			}
-
+			// Print stdout
+			ap.Logger.Debug().Str("worker address", res.Address).Str("stdout", result.Result.Stdout).Msg("stdout")
 			var value InferenceForeacstResponse
 			err = json.Unmarshal([]byte(result.Result.Stdout), &value)
 			if err != nil {
