@@ -4,6 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
+	"strconv"
+	"strings"
+
 	"github.com/allora-network/b7s/api"
 	"github.com/allora-network/b7s/models/blockless"
 	"github.com/allora-network/b7s/models/codes"
@@ -12,8 +16,6 @@ import (
 	"github.com/allora-network/b7s/node/aggregate"
 	"github.com/labstack/echo/v4"
 	"github.com/rs/zerolog"
-	"net/http"
-	"strconv"
 )
 
 const (
@@ -37,7 +39,7 @@ type ExecuteResponse struct {
 }
 
 func sendResultsToChain(log zerolog.Logger, appChainClient *AppChain, res node.ChanData) {
-
+	log.Info().Msg("Sending Results to chain")
 	if appChainClient == nil || res.Res != codes.OK {
 		reason := "unknown"
 		if appChainClient == nil {
@@ -50,19 +52,25 @@ func sendResultsToChain(log zerolog.Logger, appChainClient *AppChain, res node.C
 	}
 	stdout := aggregate.Aggregate(res.Data)[0].Result.Stdout
 	log.Info().Str("", stdout).Msg("WASM function stdout result")
-	
-	topicId, err := strconv.ParseUint(res.Topic, 10, 64)
-	if err != nil {
-		log.Error().Str("Topic", res.Topic).Str("worker mode", appChainClient.Config.WorkerMode).Err(err).Msg("Cannot parse topic ID")
-		return
-	}
+
 	log.Debug().Str("Topic", res.Topic).Str("worker mode", appChainClient.Config.WorkerMode).Msg("Found topic ID")
 
 	// TODO: We can move this context to the AppChain struct (previous context was breaking the tx broadcast response)
 	reqCtx := context.Background()
 	if appChainClient.Config.WorkerMode == WorkerModeWorker { // for inference or forecast
+		topicId, err := strconv.ParseUint(res.Topic, 10, 64)
+		if err != nil {
+			log.Error().Str("Topic", res.Topic).Str("worker mode", appChainClient.Config.WorkerMode).Err(err).Msg("Cannot parse worker topic ID")
+			return
+		}
 		appChainClient.SendWorkerModeData(reqCtx, topicId, aggregate.Aggregate(res.Data))
 	} else { // for losses
+		// Get the topicId from the reputer topic string
+		topicId, err := strconv.ParseUint(res.Topic[:strings.Index(res.Topic, "/")], 10, 64)
+		if err != nil {
+			log.Error().Str("Topic", res.Topic).Str("worker mode", appChainClient.Config.WorkerMode).Err(err).Msg("Cannot parse reputer topic ID")
+			return
+		}
 		appChainClient.SendReputerModeData(reqCtx, topicId, aggregate.Aggregate(res.Data))
 	}
 }
