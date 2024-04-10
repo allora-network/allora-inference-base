@@ -339,7 +339,6 @@ func (ap *AppChain) SendWorkerModeData(ctx context.Context, topicId uint64, resu
 				ap.Logger.Warn().Err(err).Str("peer", peer.String()).Msg("error getting peer address from chain, worker not registered? Ignoring peer.")
 				continue
 			}
-
 			ap.Logger.Debug().Str("worker address", res.Address).Msgf("%+v", result.Result)
 			// Parse the result from the worker to get the inference and forecasts
 			var value InferenceForecastResponse
