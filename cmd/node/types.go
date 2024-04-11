@@ -43,18 +43,20 @@ type AppChainConfig struct {
 }
 
 type NodeValue struct {
-	Node  string  `json:"node,omitempty"`
-	Value float64 `json:"value,omitempty"`
+	Node  string `json:"node,omitempty"`
+	Value string `json:"value,omitempty"`
 }
 
-type InferenceForeacstResponse struct {
-	InfererValue     float64     `json:"node,omitempty"`
-	ForecasterValues []NodeValue `json:"node,omitempty"`
+type InferenceForecastResponse struct {
+	InfererValue     string      `json:"infererValue,omitempty"`
+	ForecasterValues []NodeValue `json:"forecasterValue,omitempty"`
+	Nonce            types.Nonce `json:"nonce,omitempty"`
+	Signature        string      `json:"signature,omitempty"`
 }
 
 type LossResponse struct {
-	NetworkInference        float64     `json:"networkInference,omitempty"`
-	NaiveNetworkInference   float64     `json:"naiveNetworkInference,omitempty"`
+	NetworkInference        string      `json:"networkInference,omitempty"`
+	NaiveNetworkInference   string      `json:"naiveNetworkInference,omitempty"`
 	InferrerInferences      []NodeValue `json:"inferrerInferences,omitempty"`
 	ForecasterInferences    []NodeValue `json:"forecasterInferences,omitempty"`
 	OneOutNetworkInferences []NodeValue `json:"oneOutNetworkInferences,omitempty"`

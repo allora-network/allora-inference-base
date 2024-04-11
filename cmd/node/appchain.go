@@ -14,6 +14,7 @@ import (
 	"time"
 
 	cosmossdk_io_math "cosmossdk.io/math"
+	alloraMath "github.com/allora-network/allora-chain/math"
 	"github.com/allora-network/allora-chain/x/emissions/types"
 	"github.com/allora-network/b7s/models/blockless"
 	"github.com/allora-network/b7s/node/aggregate"
@@ -322,11 +323,9 @@ func (ap *AppChain) SendDataWithRetry(ctx context.Context, req sdktypes.Msg, Max
 // Sending Inferences/Forecasts to the AppChain
 func (ap *AppChain) SendWorkerModeData(ctx context.Context, topicId uint64, results aggregate.Results) {
 	// Aggregate the inferences from all peers/workers
-	var inferences []*types.Inference
-	var forecasts []*types.Forecast
-
 	for _, result := range results {
 		for _, peer := range result.Peers {
+
 			ap.Logger.Debug().Str("worker peer", peer.String())
 
 			// Get Peer $allo address
@@ -337,52 +336,70 @@ func (ap *AppChain) SendWorkerModeData(ctx context.Context, topicId uint64, resu
 				ap.Logger.Warn().Err(err).Str("peer", peer.String()).Msg("error getting peer address from chain, worker not registered? Ignoring peer.")
 				continue
 			}
-			// Print stdout
-			ap.Logger.Debug().Str("worker address", res.Address).Str("stdout", result.Result.Stdout).Msg("stdout")
-			var value InferenceForeacstResponse
+			ap.Logger.Debug().Str("worker address", res.Address).Msgf("%+v", result.Result)
+			// Parse the result from the worker to get the inference and forecasts
+			var value InferenceForecastResponse
 			err = json.Unmarshal([]byte(result.Result.Stdout), &value)
 			if err != nil {
 				ap.Logger.Warn().Err(err).Str("peer", peer.String()).Msg("error extracting value as number from stdout, ignoring inference.")
 				continue
 			}
 
+			infererValue := alloraMath.MustNewDecFromString(value.InfererValue)
 			inference := &types.Inference{
 				TopicId: topicId,
 				Worker:  res.Address,
-				Value:   value.InfererValue,
+				Value:   infererValue,
+				Proof:   value.Signature,
 			}
+			// Create array with one inference only to be infererValue
+			var inferences []*types.Inference
 			inferences = append(inferences, inference)
 
+			// Aggregate forecasts
+			var forecasterValues []*types.Forecast
 			var forecasterVal []*types.ForecastElement
 			for _, val := range value.ForecasterValues {
 				forecasterVal = append(forecasterVal, &types.ForecastElement{
 					Inferer: val.Node,
-					Value:   val.Value,
+					Value:   alloraMath.MustNewDecFromString(val.Value),
+					Proof:   value.Signature,
 				})
 			}
-			forecasts = append(forecasts, &types.Forecast{
+			forecasterValues = append(forecasterValues, &types.Forecast{
 				TopicId:          topicId,
 				Forecaster:       res.Address,
 				ForecastElements: forecasterVal,
 			})
+			// Make 1 request per worker
+			req := &types.MsgInsertBulkWorkerPayload{
+				Sender:     ap.ReputerAddress,
+				Nonce:      &value.Nonce,
+				TopicId:    topicId,
+				Inferences: inferences,
+				Forecasts:  forecasterValues,
+			}
+			go func() {
+				_, _ = ap.SendDataWithRetry(ctx, req, 5, 0, 2)
+			}()
 		}
 	}
 
-	reqInf := &types.MsgProcessInferences{
-		Sender:     ap.ReputerAddress,
-		Inferences: inferences,
-	}
+	// reqInf := &types.MsgProcessInferences{
+	// 	Sender:     ap.ReputerAddress,
+	// 	Inferences: inferences,
+	// }
 
-	reqFor := &types.MsgProcessForecasts{
-		Sender:    ap.ReputerAddress,
-		Forecasts: forecasts,
-	}
-	go func() {
-		_, _ = ap.SendDataWithRetry(ctx, reqInf, 5, 0, 2)
-	}()
-	go func() {
-		_, _ = ap.SendDataWithRetry(ctx, reqFor, 5, 0, 2)
-	}()
+	// reqFor := &types.MsgProcessForecasts{
+	// 	Sender:    ap.ReputerAddress,
+	// 	Forecasts: forecasts,
+	// }
+	// go func() {
+	// 	_, _ = ap.SendDataWithRetry(ctx, req, 5, 0, 2)
+	// }()
+	// go func() {
+	// 	_, _ = ap.SendDataWithRetry(ctx, req, 5, 0, 2)
+	// }()
 }
 
 // Sending Losses to the AppChain
