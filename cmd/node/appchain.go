@@ -326,9 +326,9 @@ func (ap *AppChain) SendWorkerModeData(ctx context.Context, topicId uint64, resu
 	var inferences []*types.Inference
 	var forecasterValues []*types.Forecast
 	var nonce *types.Nonce
-
 	for _, result := range results {
 		for _, peer := range result.Peers {
+
 			ap.Logger.Debug().Str("worker peer", peer.String())
 
 			// Get Peer's $allo address
@@ -384,6 +384,17 @@ func (ap *AppChain) SendWorkerModeData(ctx context.Context, topicId uint64, resu
 				Forecaster:       res.Address,
 				ForecastElements: forecasterVal,
 			})
+			// Make 1 request per worker
+			req := &types.MsgInsertBulkWorkerPayload{
+				Sender:     ap.ReputerAddress,
+				Nonce:      &value.Nonce,
+				TopicId:    topicId,
+				Inferences: inferences,
+				Forecasts:  forecasterValues,
+			}
+			go func() {
+				_, _ = ap.SendDataWithRetry(ctx, req, 5, 0, 2)
+			}()
 		}
 	}
 
@@ -398,7 +409,6 @@ func (ap *AppChain) SendWorkerModeData(ctx context.Context, topicId uint64, resu
 	go func() {
 		_, _ = ap.SendDataWithRetry(ctx, req, 5, 0, 2)
 	}()
-
 }
 
 // Sending Losses to the AppChain
