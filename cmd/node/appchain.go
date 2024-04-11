@@ -369,7 +369,7 @@ func (ap *AppChain) SendWorkerModeData(ctx context.Context, topicId uint64, resu
 			var forecasterVal []*types.ForecastElement
 			for _, val := range value.ForecasterValues {
 				forecasterVal = append(forecasterVal, &types.ForecastElement{
-					Inferer: val.Node,
+					Inferer: val.Worker,
 					Value:   alloraMath.MustNewDecFromString(val.Value),
 					Proof:   value.Signature,
 				})
@@ -400,7 +400,7 @@ func (ap *AppChain) SendWorkerModeData(ctx context.Context, topicId uint64, resu
 func (ap *AppChain) SendReputerModeData(ctx context.Context, topicId uint64, results aggregate.Results) {
 	// Aggregate the forecast from reputer leader
 	var valueBundles []*types.ReputerValueBundle
-
+	var nonce *types.Nonce
 	for _, result := range results {
 		for _, peer := range result.Peers {
 			ap.Logger.Debug().Any("peer", peer)
@@ -417,60 +417,76 @@ func (ap *AppChain) SendReputerModeData(ctx context.Context, topicId uint64, res
 			var value LossResponse
 			err = json.Unmarshal([]byte(result.Result.Stdout), &value)
 			if err != nil {
-				ap.Logger.Warn().Err(err).Str("peer", peer.String()).Msg("error extracting value as number from stdout, ignoring loss.")
+				ap.Logger.Warn().Err(err).Str("peer", peer.String()).Msg("error extracting loss object from stdout, ignoring loss.")
 				continue
 			}
 
+			// Get first Nonce
+			if nonce == nil {
+				nonce = &value.Nonce
+			}
+
 			var (
-				inferVal    []*types.WorkerAttributedValue
-				forcastsVal []*types.WorkerAttributedValue
-				outInferVal []*types.WorkerAttributedValue
-				inInferVal  []*types.WorkerAttributedValue
+				inferVal       []*types.WorkerAttributedValue
+				forcastsVal    []*types.WorkerAttributedValue
+				outInferVal    []*types.WithheldWorkerAttributedValue
+				outForecastVal []*types.WithheldWorkerAttributedValue
+				inInferVal     []*types.WorkerAttributedValue
 			)
 
-			for _, inf := range value.InferrerInferences {
+			for _, inf := range value.InferrerValues {
 				inferVal = append(inferVal, &types.WorkerAttributedValue{
-					Worker: inf.Node,
-					Value:  inf.Value,
+					Worker: inf.Worker,
+					Value:  alloraMath.MustNewDecFromString(inf.Value),
 				})
 			}
-			for _, inf := range value.ForecasterInferences {
+			for _, inf := range value.ForecasterValues {
 				forcastsVal = append(forcastsVal, &types.WorkerAttributedValue{
-					Worker: inf.Node,
-					Value:  inf.Value,
+					Worker: inf.Worker,
+					Value:  alloraMath.MustNewDecFromString(inf.Value),
 				})
 			}
-			for _, inf := range value.OneOutNetworkInferences {
-				outInferVal = append(outInferVal, &types.WorkerAttributedValue{
-					Worker: inf.Node,
-					Value:  inf.Value,
+			for _, inf := range value.OneOutInfererValues {
+				outInferVal = append(outInferVal, &types.WithheldWorkerAttributedValue{
+					Worker: inf.Worker,
+					Value:  alloraMath.MustNewDecFromString(inf.Value),
 				})
 			}
-			for _, inf := range value.OneInNetworkInferences {
+			for _, inf := range value.OneOutForecasterValues {
+				outForecastVal = append(outForecastVal, &types.WithheldWorkerAttributedValue{
+					Worker: inf.Worker,
+					Value:  alloraMath.MustNewDecFromString(inf.Value),
+				})
+			}
+			for _, inf := range value.OneInForecasterValues {
 				inInferVal = append(inInferVal, &types.WorkerAttributedValue{
-					Worker: inf.Node,
-					Value:  inf.Value,
+					Worker: inf.Worker,
+					Value:  alloraMath.MustNewDecFromString(inf.Value),
 				})
 			}
 
 			valueBundle := &types.ReputerValueBundle{
 				Reputer: res.Address,
 				ValueBundle: &types.ValueBundle{
-					TopicId:          topicId,
-					NaiveValue:       value.NaiveNetworkInference,
-					CombinedValue:    value.NetworkInference,
-					InfererValues:    inferVal,
-					ForecasterValues: forcastsVal,
-					OneOutValues:     outInferVal,
-					OneInNaiveValues: inInferVal,
+					TopicId:                topicId,
+					CombinedValue:          alloraMath.MustNewDecFromString(value.CombinedValue),
+					NaiveValue:             alloraMath.MustNewDecFromString(value.NaiveValue),
+					InfererValues:          inferVal,
+					ForecasterValues:       forcastsVal,
+					OneOutInfererValues:    outInferVal,
+					OneOutForecasterValues: outInferVal,
+					OneInForecasterValues:  inInferVal,
 				},
 			}
 			valueBundles = append(valueBundles, valueBundle)
 		}
 	}
 
-	req := &types.MsgSetLosses{
+	// Make 1 request per worker
+	req := &types.MsgInsertBulkReputerPayload{
 		Sender:              ap.ReputerAddress,
+		Nonce:               nonce,
+		TopicId:             topicId,
 		ReputerValueBundles: valueBundles,
 	}
 
