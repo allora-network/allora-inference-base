@@ -323,12 +323,15 @@ func (ap *AppChain) SendDataWithRetry(ctx context.Context, req sdktypes.Msg, Max
 // Sending Inferences/Forecasts to the AppChain
 func (ap *AppChain) SendWorkerModeData(ctx context.Context, topicId uint64, results aggregate.Results) {
 	// Aggregate the inferences from all peers/workers
+	var inferences []*types.Inference
+	var forecasterValues []*types.Forecast
+	var nonce *types.Nonce
+
 	for _, result := range results {
 		for _, peer := range result.Peers {
-
 			ap.Logger.Debug().Str("worker peer", peer.String())
 
-			// Get Peer $allo address
+			// Get Peer's $allo address
 			res, err := ap.QueryClient.GetWorkerAddressByP2PKey(ctx, &types.QueryWorkerAddressByP2PKeyRequest{
 				Libp2PKey: peer.String(),
 			})
@@ -336,6 +339,7 @@ func (ap *AppChain) SendWorkerModeData(ctx context.Context, topicId uint64, resu
 				ap.Logger.Warn().Err(err).Str("peer", peer.String()).Msg("error getting peer address from chain, worker not registered? Ignoring peer.")
 				continue
 			}
+
 			ap.Logger.Debug().Str("worker address", res.Address).Msgf("%+v", result.Result)
 			// Parse the result from the worker to get the inference and forecasts
 			var value InferenceForecastResponse
@@ -343,6 +347,11 @@ func (ap *AppChain) SendWorkerModeData(ctx context.Context, topicId uint64, resu
 			if err != nil {
 				ap.Logger.Warn().Err(err).Str("peer", peer.String()).Msg("error extracting value as number from stdout, ignoring inference.")
 				continue
+			}
+
+			// Get first Nonce
+			if nonce == nil {
+				nonce = &value.Nonce
 			}
 
 			infererValue := alloraMath.MustNewDecFromString(value.InfererValue)
@@ -353,7 +362,6 @@ func (ap *AppChain) SendWorkerModeData(ctx context.Context, topicId uint64, resu
 				Proof:   value.Signature,
 			}
 			// Create array with one inference only to be infererValue
-			var inferences []*types.Inference
 			inferences = append(inferences, inference)
 
 			// Aggregate forecasts
@@ -371,35 +379,21 @@ func (ap *AppChain) SendWorkerModeData(ctx context.Context, topicId uint64, resu
 				Forecaster:       res.Address,
 				ForecastElements: forecasterVal,
 			})
-			// Make 1 request per worker
-			req := &types.MsgInsertBulkWorkerPayload{
-				Sender:     ap.ReputerAddress,
-				Nonce:      &value.Nonce,
-				TopicId:    topicId,
-				Inferences: inferences,
-				Forecasts:  forecasterValues,
-			}
-			go func() {
-				_, _ = ap.SendDataWithRetry(ctx, req, 5, 0, 2)
-			}()
 		}
 	}
 
-	// reqInf := &types.MsgProcessInferences{
-	// 	Sender:     ap.ReputerAddress,
-	// 	Inferences: inferences,
-	// }
+	// Make 1 request per worker
+	req := &types.MsgInsertBulkWorkerPayload{
+		Sender:     ap.ReputerAddress,
+		Nonce:      nonce,
+		TopicId:    topicId,
+		Inferences: inferences,
+		Forecasts:  forecasterValues,
+	}
+	go func() {
+		_, _ = ap.SendDataWithRetry(ctx, req, 5, 0, 2)
+	}()
 
-	// reqFor := &types.MsgProcessForecasts{
-	// 	Sender:    ap.ReputerAddress,
-	// 	Forecasts: forecasts,
-	// }
-	// go func() {
-	// 	_, _ = ap.SendDataWithRetry(ctx, req, 5, 0, 2)
-	// }()
-	// go func() {
-	// 	_, _ = ap.SendDataWithRetry(ctx, req, 5, 0, 2)
-	// }()
 }
 
 // Sending Losses to the AppChain
