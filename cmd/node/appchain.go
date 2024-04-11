@@ -351,7 +351,13 @@ func (ap *AppChain) SendWorkerModeData(ctx context.Context, topicId uint64, resu
 
 			// Get first Nonce
 			if nonce == nil {
-				nonce = &value.Nonce
+				// Parse the value.nonce as str from the result as int64
+				nonceInt64, err := strconv.ParseInt(value.Nonce, 10, 64)
+				if err != nil {
+					ap.Logger.Warn().Err(err).Str("peer", peer.String()).Msg("error extracting nonce as number from stdout, ignoring inference.")
+					continue
+				}
+				nonce = &types.Nonce{Nonce: nonceInt64}
 			}
 
 			infererValue := alloraMath.MustNewDecFromString(value.InfererValue)

@@ -50,7 +50,7 @@ type NodeValue struct {
 type InferenceForecastResponse struct {
 	InfererValue     string      `json:"infererValue,omitempty"`
 	ForecasterValues []NodeValue `json:"forecasterValues,omitempty"`
-	Nonce            types.Nonce `json:"nonce,omitempty"`
+	Nonce            string      `json:"nonce,omitempty"`
 	Signature        string      `json:"signature,omitempty"`
 }
 
