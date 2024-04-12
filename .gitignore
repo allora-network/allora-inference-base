@@ -12,5 +12,6 @@ cmd/node/node
 data
 data-head
 data-worker
+data-worker-2
 main.py
 .DS_Store

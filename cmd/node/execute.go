@@ -46,7 +46,7 @@ func sendResultsToChain(log zerolog.Logger, appChainClient *AppChain, res node.C
 		return
 	}
 	stdout := aggregate.Aggregate(res.Data)[0].Result.Stdout
-	log.Info().Str("", stdout).Msg("WASM function stdout result")
+	log.Info().Str("stdout", stdout).Msg("WASM function stdout result")
 
 	log.Debug().Str("Topic", res.Topic).Str("worker mode", appChainClient.Config.WorkerMode).Msg("Found topic ID")
 

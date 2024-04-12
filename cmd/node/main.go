@@ -87,7 +87,7 @@ func (e *AlloraExecutor) ExecuteFunction(requestID string, req execute.Request) 
 				} else {
 					// Add the signature to the stdout object
 					stdout["signature"] = sig
-					stdout["nonce"] = nonceBytes
+					stdout["nonce"] = nonce
 					// Marshal the stdout map back into a JSON string
 					stdoutBytes, err := json.Marshal(stdout)
 					if err != nil {
