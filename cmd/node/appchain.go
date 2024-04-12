@@ -387,7 +387,7 @@ func (ap *AppChain) SendWorkerModeData(ctx context.Context, topicId uint64, resu
 			// Make 1 request per worker
 			req := &types.MsgInsertBulkWorkerPayload{
 				Sender:     ap.ReputerAddress,
-				Nonce:      &value.Nonce,
+				Nonce:      nonce,
 				TopicId:    topicId,
 				Inferences: inferences,
 				Forecasts:  forecasterValues,
