@@ -434,7 +434,7 @@ func (ap *AppChain) SendReputerModeData(ctx context.Context, topicId uint64, res
 
 			var (
 				inferVal       []*types.WorkerAttributedValue
-				forcastsVal    []*types.WorkerAttributedValue
+				forecastsVal   []*types.WorkerAttributedValue
 				outInferVal    []*types.WithheldWorkerAttributedValue
 				outForecastVal []*types.WithheldWorkerAttributedValue
 				inInferVal     []*types.WorkerAttributedValue
@@ -447,7 +447,7 @@ func (ap *AppChain) SendReputerModeData(ctx context.Context, topicId uint64, res
 				})
 			}
 			for _, inf := range value.ForecasterValues {
-				forcastsVal = append(forcastsVal, &types.WorkerAttributedValue{
+				forecastsVal = append(forecastsVal, &types.WorkerAttributedValue{
 					Worker: inf.Worker,
 					Value:  alloraMath.MustNewDecFromString(inf.Value),
 				})
@@ -478,9 +478,9 @@ func (ap *AppChain) SendReputerModeData(ctx context.Context, topicId uint64, res
 					CombinedValue:          alloraMath.MustNewDecFromString(value.CombinedValue),
 					NaiveValue:             alloraMath.MustNewDecFromString(value.NaiveValue),
 					InfererValues:          inferVal,
-					ForecasterValues:       forcastsVal,
+					ForecasterValues:       forecastsVal,
 					OneOutInfererValues:    outInferVal,
-					OneOutForecasterValues: outInferVal,
+					OneOutForecasterValues: outForecastVal,
 					OneInForecasterValues:  inInferVal,
 				},
 			}
@@ -495,6 +495,8 @@ func (ap *AppChain) SendReputerModeData(ctx context.Context, topicId uint64, res
 		TopicId:             topicId,
 		ReputerValueBundles: valueBundles,
 	}
+	// Print req to the log
+	ap.Logger.Info().Interface("req", req).Msg("Sending Reputer Mode Data")
 
 	_, _ = ap.SendDataWithRetry(ctx, req, 5, 0, 2)
 }
