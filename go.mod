@@ -7,8 +7,8 @@ toolchain go1.21.5
 require (
 	cosmossdk.io/math v1.2.0
 	github.com/allora-network/allora-chain v0.0.9-0.20240329140536-3ce03c25024f
-	github.com/allora-network/b7s v0.0.2-0.20240410095955-038465d7670c
-	github.com/cockroachdb/pebble v1.0.0
+	github.com/allora-network/b7s v0.0.2-0.20240412135846-f62216c6be96
+	github.com/cockroachdb/pebble v1.1.0
 	github.com/cosmos/cosmos-sdk v0.50.3
 	github.com/ignite/cli/v28 v28.1.1
 	github.com/labstack/echo/v4 v4.11.4
@@ -20,6 +20,7 @@ require (
 
 require (
 	github.com/blocklessnetwork/b7s-attributes v0.0.0 // indirect
+	github.com/cockroachdb/tokenbucket v0.0.0-20230807174530-cc333fc44b06 // indirect
 	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect
 	golang.org/x/time v0.5.0 // indirect
 )
