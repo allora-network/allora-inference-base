@@ -426,7 +426,7 @@ func (ap *AppChain) SendReputerModeData(ctx context.Context, topicId uint64, res
 			ap.Logger.Debug().Any("peer", peer)
 
 			// Get Peer $allo address
-			res, err := ap.QueryClient.GetWorkerAddressByP2PKey(ctx, &types.QueryWorkerAddressByP2PKeyRequest{
+			res, err := ap.QueryClient.GetReputerAddressByP2PKey(ctx, &types.QueryReputerAddressByP2PKeyRequest{
 				Libp2PKey: peer.String(),
 			})
 			if err != nil {
