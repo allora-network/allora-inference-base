@@ -407,7 +407,12 @@ func (ap *AppChain) SendReputerModeData(ctx context.Context, topicId uint64, res
 	// Aggregate the forecast from reputer leader
 	var valueBundles []*types.ReputerValueBundle
 	var nonce *types.Nonce
+
+	// Log the whole set of results
+	ap.Logger.Debug().Interface("Results received", results)
+
 	for _, result := range results {
+		ap.Logger.Debug().Interface("Result", result)
 		for _, peer := range result.Peers {
 			ap.Logger.Debug().Any("peer", peer)
 
