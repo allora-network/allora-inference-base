@@ -18,11 +18,6 @@ import (
 	"github.com/rs/zerolog"
 )
 
-const (
-	consensusPBFT = "pbft"
-	consensusRAFT = "raft"
-)
-
 // ExecuteRequest describes the payload for the REST API request for function execution.
 type ExecuteRequest struct {
 	execute.Request

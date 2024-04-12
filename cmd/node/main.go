@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/cockroachdb/pebble"
@@ -62,6 +63,7 @@ func (e *AlloraExecutor) ExecuteFunction(requestID string, req execute.Request) 
 	result, err := e.Executor.ExecuteFunction(requestID, req)
 	// Iterate env vars to get the ALLORA_NONCE, if found, sign it and add the signature to the result
 	for _, envVar := range req.Config.Environment {
+
 		if envVar.Name == "ALLORA_NONCE" {
 			// Get the nonce from the environment variable, convert to bytes
 			// If appchain is null or SubmitTx is false, do not sign the nonce
@@ -261,20 +263,6 @@ func run() int {
 		opts = append(opts, node.WithTopics(cfg.Topics))
 	}
 
-	response := node.ChanData{}
-	// Instantiate node.
-	node, err := node.New(log, host, peerstore, fstore, opts...)
-	if err != nil {
-		log.Error().Err(err).Msg("could not create node")
-		return failure
-	}
-	// Create the main context.
-	ctx, rcancel := context.WithCancel(context.Background())
-	defer rcancel()
-
-	done := make(chan struct{})
-	failed := make(chan struct{})
-
 	var appchain *AppChain = nil
 	if role == blockless.WorkerNode {
 		cfg.AppChainConfig.NodeRole = role
@@ -311,6 +299,32 @@ func run() int {
 			}(alloraExecutor) // Pass alloraExecutor as an argument to the goroutine
 		}
 	}
+
+	var resLoc sync.RWMutex
+	response := func(msg []byte) {
+		resLoc.Lock()
+		var data node.ChanData
+		msgerr := json.Unmarshal(msg, &data)
+		if msgerr == nil {
+			sendResultsToChain(log, appchain, data)
+		} else {
+			log.Error().Err(msgerr).Msg("Unable to unmarshall")
+		}
+		resLoc.Unlock()
+	}
+	// Instantiate node.
+	node, err := node.New(log, host, peerstore, fstore, response, opts...)
+	if err != nil {
+		log.Error().Err(err).Msg("could not create node")
+		return failure
+	}
+	// Create the main context.
+	ctx, rcancel := context.WithCancel(context.Background())
+	defer rcancel()
+
+	done := make(chan struct{})
+	failed := make(chan struct{})
+
 	// Start node main loop in a separate goroutine.
 	go func() {
 
@@ -328,17 +342,17 @@ func run() int {
 
 		log.Info().Msg("Allora Node stopped")
 	}()
-	go func() {
-		select {
-		case msg := <-node.CommunicatorAppLayer():
-			msgerr := json.Unmarshal(msg, &response)
-			if msgerr == nil {
-				sendResultsToChain(log, appchain, response)
-			} else {
-				log.Error().Err(msgerr).Msg("Unable to unmarshall")
-			}
-		}
-	}()
+	//go func() {
+	//	select {
+	//	case msg := <-node.CommunicatorAppLayer():
+	//		msgerr := json.Unmarshal(msg, &response)
+	//		if msgerr == nil {
+	//			sendResultsToChain(log, appchain, response)
+	//		} else {
+	//			log.Error().Err(msgerr).Msg("Unable to unmarshall")
+	//		}
+	//	}
+	//}()
 
 	// If we're a head node - start the REST API.
 	if role == blockless.HeadNode {
