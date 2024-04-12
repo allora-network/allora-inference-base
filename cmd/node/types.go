@@ -54,16 +54,20 @@ type InferenceForecastResponse struct {
 	Signature        string      `json:"signature,omitempty"`
 }
 
-type LossResponse struct {
+type ValueBundle struct {
 	CombinedValue          string      `json:"combinedValue,omitempty"`
 	NaiveValue             string      `json:"naiveValue,omitempty"`
-	InferrerValues         []NodeValue `json:"inferrerValues,omitempty"`
+	InferrerValues         []NodeValue `json:"infererValues,omitempty"`
 	ForecasterValues       []NodeValue `json:"forecasterValues,omitempty"`
 	OneOutInfererValues    []NodeValue `json:"oneOutInfererValues,omitempty"`
 	OneOutForecasterValues []NodeValue `json:"oneOutForecasterValues,omitempty"`
 	OneInForecasterValues  []NodeValue `json:"oneInForecasterValues,omitempty"`
-	Nonce                  types.Nonce `json:"nonce,omitempty"`
-	Signature              string      `json:"signature,omitempty"`
+}
+
+type LossResponse struct {
+	Value     string `json:"value,omitempty"`
+	Nonce     string `json:"nonce,omitempty"`
+	Signature string `json:"signature,omitempty"`
 }
 
 const (

@@ -173,6 +173,7 @@ func registerWithBlockchain(appchain *AppChain) {
 	appchain.Logger.Info().Str("Worker", appchain.ReputerAddress).Msg("Current Address")
 	if len(res.TopicIds) > 0 {
 		appchain.Logger.Debug().Msg("Worker already registered for some topics, checking...")
+		// Check if libp2p key is already registered - if not, register it
 		var topicsToRegister []uint64
 		var topicsToDeRegister []uint64
 		// Calculate topics to deregister
@@ -336,7 +337,7 @@ func (ap *AppChain) SendWorkerModeData(ctx context.Context, topicId uint64, resu
 				Libp2PKey: peer.String(),
 			})
 			if err != nil {
-				ap.Logger.Warn().Err(err).Str("peer", peer.String()).Msg("error getting peer address from chain, worker not registered? Ignoring peer.")
+				ap.Logger.Warn().Err(err).Str("peer", peer.String()).Msg("error getting worker peer address from chain, worker not registered? Ignoring peer.")
 				continue
 			}
 			ap.Logger.Debug().Str("worker address", res.Address).Msgf("%+v", result.Result)
@@ -417,33 +418,47 @@ func (ap *AppChain) SendReputerModeData(ctx context.Context, topicId uint64, res
 	var valueBundles []*types.ReputerValueBundle
 	var nonce *types.Nonce
 
-	// Log the whole set of results
-	ap.Logger.Debug().Interface("Results received", results)
-
 	for _, result := range results {
-		ap.Logger.Debug().Interface("Result", result)
-		for _, peer := range result.Peers {
-			ap.Logger.Debug().Any("peer", peer)
+		if len(result.Peers) > 0 {
+			peer := result.Peers[0]
 
 			// Get Peer $allo address
 			res, err := ap.QueryClient.GetReputerAddressByP2PKey(ctx, &types.QueryReputerAddressByP2PKeyRequest{
 				Libp2PKey: peer.String(),
 			})
 			if err != nil {
-				ap.Logger.Warn().Err(err).Str("peer", peer.String()).Msg("error getting peer address from chain, worker not registered? Ignoring peer.")
+				ap.Logger.Warn().Err(err).Str("peer", peer.String()).Msg("error getting reputer peer address from chain, worker not registered? Ignoring peer.")
 				continue
+			} else {
+				// Print the address of the reputer
+				ap.Logger.Info().Str("Reputer Address", res.Address).Msg("Reputer Address")
 			}
 
-			var value LossResponse
-			err = json.Unmarshal([]byte(result.Result.Stdout), &value)
+			var responseValue LossResponse
+			err = json.Unmarshal([]byte(result.Result.Stdout), &responseValue)
 			if err != nil {
-				ap.Logger.Warn().Err(err).Str("peer", peer.String()).Msg("error extracting loss object from stdout, ignoring loss.")
-				continue
+				ap.Logger.Error().Err(err).Msg("error extracting loss object from stdout, ignoring loss.")
+			} else {
+				ap.Logger.Info().Msg("Response parsed successfully.")
+			}
+			// Now get the string of the value, unescape it and unmarshall into ValueBundle
+			// Unmarshal the "value" field from the LossResponse struct
+			var nestedValueBundle ValueBundle
+			err = json.Unmarshal([]byte(responseValue.Value), &nestedValueBundle)
+			if err != nil {
+				ap.Logger.Error().Err(err).Msg("Error unmarshalling nested JSON:")
+				return
 			}
 
-			// Get first Nonce
+			// Get first Nonce only - they're all the same
 			if nonce == nil {
-				nonce = &value.Nonce
+				// Parse the value.nonce as str from the result as int64
+				nonceInt64, err := strconv.ParseInt(responseValue.Nonce, 10, 64)
+				if err != nil {
+					ap.Logger.Warn().Err(err).Str("peer", peer.String()).Msg("error extracting nonce as number from stdout, ignoring inference.")
+					continue
+				}
+				nonce = &types.Nonce{Nonce: nonceInt64}
 			}
 
 			var (
@@ -454,31 +469,31 @@ func (ap *AppChain) SendReputerModeData(ctx context.Context, topicId uint64, res
 				inInferVal     []*types.WorkerAttributedValue
 			)
 
-			for _, inf := range value.InferrerValues {
+			for _, inf := range nestedValueBundle.InferrerValues {
 				inferVal = append(inferVal, &types.WorkerAttributedValue{
 					Worker: inf.Worker,
 					Value:  alloraMath.MustNewDecFromString(inf.Value),
 				})
 			}
-			for _, inf := range value.ForecasterValues {
+			for _, inf := range nestedValueBundle.ForecasterValues {
 				forecastsVal = append(forecastsVal, &types.WorkerAttributedValue{
 					Worker: inf.Worker,
 					Value:  alloraMath.MustNewDecFromString(inf.Value),
 				})
 			}
-			for _, inf := range value.OneOutInfererValues {
+			for _, inf := range nestedValueBundle.OneOutInfererValues {
 				outInferVal = append(outInferVal, &types.WithheldWorkerAttributedValue{
 					Worker: inf.Worker,
 					Value:  alloraMath.MustNewDecFromString(inf.Value),
 				})
 			}
-			for _, inf := range value.OneOutForecasterValues {
+			for _, inf := range nestedValueBundle.OneOutForecasterValues {
 				outForecastVal = append(outForecastVal, &types.WithheldWorkerAttributedValue{
 					Worker: inf.Worker,
 					Value:  alloraMath.MustNewDecFromString(inf.Value),
 				})
 			}
-			for _, inf := range value.OneInForecasterValues {
+			for _, inf := range nestedValueBundle.OneInForecasterValues {
 				inInferVal = append(inInferVal, &types.WorkerAttributedValue{
 					Worker: inf.Worker,
 					Value:  alloraMath.MustNewDecFromString(inf.Value),
@@ -489,8 +504,8 @@ func (ap *AppChain) SendReputerModeData(ctx context.Context, topicId uint64, res
 				Reputer: res.Address,
 				ValueBundle: &types.ValueBundle{
 					TopicId:                topicId,
-					CombinedValue:          alloraMath.MustNewDecFromString(value.CombinedValue),
-					NaiveValue:             alloraMath.MustNewDecFromString(value.NaiveValue),
+					CombinedValue:          alloraMath.MustNewDecFromString(nestedValueBundle.CombinedValue),
+					NaiveValue:             alloraMath.MustNewDecFromString(nestedValueBundle.NaiveValue),
 					InfererValues:          inferVal,
 					ForecasterValues:       forecastsVal,
 					OneOutInfererValues:    outInferVal,
@@ -498,7 +513,11 @@ func (ap *AppChain) SendReputerModeData(ctx context.Context, topicId uint64, res
 					OneInForecasterValues:  inInferVal,
 				},
 			}
+			// Print the valueBundle to be added
+			ap.Logger.Info().Interface("valueBundle", valueBundle).Msg("valueBundle to append")
 			valueBundles = append(valueBundles, valueBundle)
+		} else {
+			ap.Logger.Warn().Msg("No peers in the result, ignoring")
 		}
 	}
 
@@ -509,8 +528,13 @@ func (ap *AppChain) SendReputerModeData(ctx context.Context, topicId uint64, res
 		TopicId:             topicId,
 		ReputerValueBundles: valueBundles,
 	}
-	// Print req to the log
-	ap.Logger.Info().Interface("req", req).Msg("Sending Reputer Mode Data")
+	// Print req as JSON to the log
+	reqJSON, err := json.Marshal(req)
+	if err != nil {
+		ap.Logger.Error().Err(err).Msg("Error marshaling MsgInsertBulkReputerPayload to print Msg as JSON")
+	} else {
+		ap.Logger.Info().Str("req_json", string(reqJSON)).Msg("Sending Reputer Mode Data")
+	}
 
 	_, _ = ap.SendDataWithRetry(ctx, req, 5, 0, 2)
 }
