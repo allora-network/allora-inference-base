@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -195,27 +196,28 @@ func registerWithBlockchain(appchain *AppChain) {
 			}
 		}
 		// Registration on new topics
-		for _, topicId := range topicsToRegister {
-			if err != nil {
-				appchain.Logger.Info().Err(err).Uint64("topic", topicId).Msg("Could not register for topic")
-				break
-			}
-			msg = &types.MsgAddNewRegistration{
-				Creator:      appchain.ReputerAddress,
-				LibP2PKey:    appchain.Config.LibP2PKey,
-				MultiAddress: appchain.Config.MultiAddress,
-				TopicId:      topicId,
-				Owner:        appchain.ReputerAddress,
-				IsReputer:    isReputer,
-			}
-
-			txResp, err := appchain.Client.BroadcastTx(ctx, appchain.ReputerAccount, msg)
-			if err != nil {
-				appchain.Logger.Fatal().Err(err).Uint64("topic", topicId).Msg("could not register the node with the Allora blockchain in topic")
-			} else {
-				appchain.Logger.Info().Str("txhash", txResp.TxHash).Uint64("topic", topicId).Msg("successfully registered node with Allora blockchain in topic")
-			}
+		msg = &types.MsgRegister{
+			Creator:      appchain.ReputerAddress,
+			LibP2PKey:    appchain.Config.LibP2PKey,
+			MultiAddress: appchain.Config.MultiAddress,
+			TopicIds:     topicsToRegister,
+			Owner:        appchain.ReputerAddress,
+			IsReputer:    isReputer,
 		}
+
+		txResp, err := appchain.Client.BroadcastTx(ctx, appchain.ReputerAccount, msg)
+		if err != nil {
+			appchain.Logger.Fatal().Err(err).Uint64("topic", topicsToRegister[0]).Msg("could not register the node with the Allora blockchain in topic")
+		} else {
+			appchain.Logger.Info().Str("txhash", txResp.TxHash).Uint64("topic", topicsToRegister[0]).Msg("successfully registered node with Allora blockchain in topic")
+		}
+		//for _, topicId := range topicsToRegister {
+		//	if err != nil {
+		//		appchain.Logger.Info().Err(err).Uint64("topic", topicId).Msg("Could not register for topic")
+		//		break
+		//	}
+		//
+		//}
 		// Deregistration on old topics
 		for _, topicId := range topicsToDeRegister {
 			if err != nil {
@@ -250,18 +252,19 @@ func registerWithBlockchain(appchain *AppChain) {
 		} else {
 			if len(balanceRes) > 0 {
 				// Get uallo balance
-				var ualloBalance uint64
+				//var ualloBalance uint64
+				var ualloBalance sdktypes.Coin
 				for _, coin := range balanceRes {
 					if coin.Denom == "uallo" {
 						// Found the balance in "uallo"
 						appchain.Logger.Info().Str("balance", coin.Amount.BigInt().Text(10)).Msg("Found uallo balance in account, calculating...")
-						ualloBalance = coin.Amount.Uint64()
+						ualloBalance = coin
 						break
 					} else if coin.Denom == "allo" {
 						appchain.Logger.Info().Msg("Found allo balance in account, calculating...")
 					}
 				}
-				if ualloBalance >= appchain.Config.InitialStake {
+				if ualloBalance.Amount.GTE(cosmossdk_io_math.NewInt(int64(appchain.Config.InitialStake))) {
 					var topicsToRegister []uint64
 					for _, topicToRegisterUint64 := range b7sTopicIds {
 						if err != nil {
@@ -288,7 +291,7 @@ func registerWithBlockchain(appchain *AppChain) {
 					}
 					appchain.Logger.Info().Str("balance", balanceRes.String()).Msg("Registered Node")
 				} else {
-					appchain.Logger.Fatal().Int("balance", int(ualloBalance)).Int("InitialStake", int(appchain.Config.InitialStake)).Msg("account balance is lower than the initialStake requested")
+					appchain.Logger.Fatal().Str("balance", ualloBalance.Amount.BigInt().Text(10)).Int("InitialStake", int(appchain.Config.InitialStake)).Msg("account balance is lower than the initialStake requested")
 				}
 			} else {
 				appchain.Logger.Info().Str("account", appchain.ReputerAddress).Msg("account is not funded in uallo")
@@ -324,9 +327,10 @@ func (ap *AppChain) SendDataWithRetry(ctx context.Context, req sdktypes.Msg, Max
 // Sending Inferences/Forecasts to the AppChain
 func (ap *AppChain) SendWorkerModeData(ctx context.Context, topicId uint64, results aggregate.Results) {
 	// Aggregate the inferences from all peers/workers
-	var inferences []*types.Inference
-	var forecasterValues []*types.Forecast
+	var inference *types.Inference
+	var forecasterValues *types.Forecast
 	var nonce *types.Nonce
+	var sig []byte
 	for _, result := range results {
 		for _, peer := range result.Peers {
 
@@ -357,41 +361,55 @@ func (ap *AppChain) SendWorkerModeData(ctx context.Context, topicId uint64, resu
 					ap.Logger.Warn().Err(err).Str("peer", peer.String()).Msg("error extracting nonce as number from stdout, ignoring inference.")
 					continue
 				}
-				nonce = &types.Nonce{Nonce: nonceInt64}
+				nonce = &types.Nonce{BlockHeight: nonceInt64}
 			}
 
 			infererValue := alloraMath.MustNewDecFromString(value.InfererValue)
-			inference := &types.Inference{
-				TopicId: topicId,
-				Worker:  res.Address,
-				Value:   infererValue,
-				Proof:   value.Signature,
+			inference = &types.Inference{
+				TopicId:     topicId,
+				Inferer:     res.Address,
+				Value:       infererValue,
+				BlockHeight: nonce.BlockHeight,
 			}
-			// Create array with one inference only to be infererValue
-			inferences = append(inferences, inference)
 
 			// Aggregate forecasts
-			var forecasterValues []*types.Forecast
 			var forecasterVal []*types.ForecastElement
 			for _, val := range value.ForecasterValues {
 				forecasterVal = append(forecasterVal, &types.ForecastElement{
 					Inferer: val.Worker,
 					Value:   alloraMath.MustNewDecFromString(val.Value),
-					Proof:   value.Signature,
+					//Signature: []byte(value.Signature),
 				})
 			}
-			forecasterValues = append(forecasterValues, &types.Forecast{
+
+			forecasterValues = &types.Forecast{
 				TopicId:          topicId,
+				BlockHeight:      nonce.BlockHeight,
 				Forecaster:       res.Address,
 				ForecastElements: forecasterVal,
-			})
+			}
+
+			// Sign the nonce
+			sig, _, err := ap.Client.Context().Keyring.Sign(ap.ReputerAccount.Name, []byte(value.Nonce), signing.SignMode_SIGN_MODE_DIRECT)
+			if err != nil {
+				fmt.Println("Error signing the nonce: ", err)
+				break
+			}
 			// Make 1 request per worker
 			req := &types.MsgInsertBulkWorkerPayload{
-				Sender:     ap.ReputerAddress,
-				Nonce:      nonce,
-				TopicId:    topicId,
-				Inferences: inferences,
-				Forecasts:  forecasterValues,
+				Sender:  ap.ReputerAddress,
+				Nonce:   nonce,
+				TopicId: topicId,
+				WorkerDataBundles: []*types.WorkerDataBundle{
+					{
+						Worker: inference.Inferer,
+						InferenceForecastsBundle: &types.InferenceForecastBundle{
+							Inference: inference,
+							Forecast:  forecasterValues,
+						},
+						InferencesForecastsBundleSignature: sig,
+					},
+				},
 			}
 			go func() {
 				_, _ = ap.SendDataWithRetry(ctx, req, 5, 0, 2)
@@ -401,11 +419,19 @@ func (ap *AppChain) SendWorkerModeData(ctx context.Context, topicId uint64, resu
 
 	// Make 1 request per worker
 	req := &types.MsgInsertBulkWorkerPayload{
-		Sender:     ap.ReputerAddress,
-		Nonce:      nonce,
-		TopicId:    topicId,
-		Inferences: inferences,
-		Forecasts:  forecasterValues,
+		Sender:  ap.ReputerAddress,
+		Nonce:   nonce,
+		TopicId: topicId,
+		WorkerDataBundles: []*types.WorkerDataBundle{
+			{
+				Worker: inference.Inferer,
+				InferenceForecastsBundle: &types.InferenceForecastBundle{
+					Inference: inference,
+					Forecast:  forecasterValues,
+				},
+				InferencesForecastsBundleSignature: sig,
+			},
+		},
 	}
 	go func() {
 		_, _ = ap.SendDataWithRetry(ctx, req, 5, 0, 2)
@@ -458,7 +484,7 @@ func (ap *AppChain) SendReputerModeData(ctx context.Context, topicId uint64, res
 					ap.Logger.Warn().Err(err).Str("peer", peer.String()).Msg("error extracting nonce as number from stdout, ignoring inference.")
 					continue
 				}
-				nonce = &types.Nonce{Nonce: nonceInt64}
+				nonce = &types.Nonce{BlockHeight: nonceInt64}
 			}
 
 			var (
@@ -500,8 +526,14 @@ func (ap *AppChain) SendReputerModeData(ctx context.Context, topicId uint64, res
 				})
 			}
 
+			// Sign the nonce
+			sig, _, err := ap.Client.Context().Keyring.Sign(ap.ReputerAccount.Name, []byte(responseValue.Nonce), signing.SignMode_SIGN_MODE_DIRECT)
+			if err != nil {
+				fmt.Println("Error signing the nonce: ", err)
+				break
+			}
+
 			valueBundle := &types.ReputerValueBundle{
-				Reputer: res.Address,
 				ValueBundle: &types.ValueBundle{
 					TopicId:                topicId,
 					CombinedValue:          alloraMath.MustNewDecFromString(nestedValueBundle.CombinedValue),
@@ -512,6 +544,7 @@ func (ap *AppChain) SendReputerModeData(ctx context.Context, topicId uint64, res
 					OneOutForecasterValues: outForecastVal,
 					OneInForecasterValues:  inInferVal,
 				},
+				Signature: sig,
 			}
 			// Print the valueBundle to be added
 			ap.Logger.Info().Interface("valueBundle", valueBundle).Msg("valueBundle to append")
@@ -523,8 +556,11 @@ func (ap *AppChain) SendReputerModeData(ctx context.Context, topicId uint64, res
 
 	// Make 1 request per worker
 	req := &types.MsgInsertBulkReputerPayload{
-		Sender:              ap.ReputerAddress,
-		Nonce:               nonce,
+		Sender: ap.ReputerAddress,
+		ReputerRequestNonce: &types.ReputerRequestNonce{
+			ReputerNonce: nonce,
+			WorkerNonce:  nonce,
+		},
 		TopicId:             topicId,
 		ReputerValueBundles: valueBundles,
 	}
