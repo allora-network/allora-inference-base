@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -13,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 
 	cosmossdk_io_math "cosmossdk.io/math"
 	alloraMath "github.com/allora-network/allora-chain/math"

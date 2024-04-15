@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"time"
 
@@ -19,6 +20,8 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/ziflex/lecho/v3"
 
+	alloraMath "github.com/allora-network/allora-chain/math"
+	"github.com/allora-network/allora-chain/x/emissions/types"
 	"github.com/allora-network/b7s/api"
 	"github.com/allora-network/b7s/executor"
 	"github.com/allora-network/b7s/executor/limits"
@@ -61,48 +64,114 @@ func NewAlloraExecutor(e blockless.Executor) *AlloraExecutor {
 func (e *AlloraExecutor) ExecuteFunction(requestID string, req execute.Request) (execute.Result, error) {
 	// First call the blockless.Executor's method to get the result
 	result, err := e.Executor.ExecuteFunction(requestID, req)
-	// Iterate env vars to get the ALLORA_NONCE, if found, sign it and add the signature to the result
+	// Get the topicId from the env var
+	var topicId uint64
+	topicFound := false
 	for _, envVar := range req.Config.Environment {
-
-		if envVar.Name == "ALLORA_NONCE" {
-			// Get the nonce from the environment variable, convert to bytes
-			// If appchain is null or SubmitTx is false, do not sign the nonce
-			if e.appChain != nil && e.appChain.Client != nil {
-				nonce := envVar.Value
-				nonceBytes := []byte(nonce)
-				// Get the account from the appchain
-				accountName := e.appChain.ReputerAccount.Name
-
-				// Sign using the e.appChain.ReputerAccount.
-				sig, _, err := e.appChain.Client.Context().Keyring.Sign(accountName, nonceBytes, signing.SignMode_SIGN_MODE_DIRECT)
-				if err != nil {
-					fmt.Println("Error signing the nonce: ", err)
-					break
-				}
-				// Marshalling/unmarshalling the result to add the signature to the result
-				stdout := make(map[string]interface{})
-				err = json.Unmarshal([]byte(result.Result.Stdout), &stdout)
-				if err != nil {
-					fmt.Println("Error unmarshalling the stdout: ", err)
-				} else {
-					// Add the signature to the stdout object
-					stdout["signature"] = sig
-					stdout["nonce"] = nonce
-					// Marshal the stdout map back into a JSON string
-					stdoutBytes, err := json.Marshal(stdout)
-					if err != nil {
-						fmt.Println("Error marshalling the stdout: ", err)
-					} else {
-						// Set the JSON string back to result.Result.Stdout
-						result.Result.Stdout = string(stdoutBytes)
-					}
-				}
-				// Process ALLORA_NONCE only once if found.
-			} else {
-				fmt.Println("Appchain is nil, cannot sign the nonce.")
+		if envVar.Name == "TOPIC_ID" {
+			topicFound = true
+			// Get the topicId from the environment variable from str  as uint64
+			topicId, err = strconv.ParseUint(envVar.Value, 10, 64)
+			if err != nil {
+				fmt.Println("Error parsing topic ID: ", err)
+				return result, err
 			}
-			break
 		}
+	}
+	if topicFound == false {
+		fmt.Println("No topic ID found in the environment variables.")
+		return result, nil
+	}
+
+	// Iterate env vars to get the ALLORA_NONCE, if found, sign it and add the signature to the result
+	// Check if this worker node is reputer or worker mode
+	if e.appChain.Config.WorkerMode == WorkerModeWorker {
+		undetectedBlockHeight := true
+		for _, envVar := range req.Config.Environment {
+			if envVar.Name == "ALLORA_NONCE" {
+				undetectedBlockHeight = false
+				// Get the nonce from the environment variable, convert to bytes
+				// If appchain is null or SubmitTx is false, do not sign the nonce
+				if e.appChain != nil && e.appChain.Client != nil {
+					nonce := envVar.Value
+					// Parse to int64
+					nonceInt, err := strconv.ParseInt(nonce, 10, 64)
+					if err != nil {
+						fmt.Println("Error parsing nonce: ", err)
+						break
+					}
+					// Get the account from the appchain
+					accountName := e.appChain.ReputerAccount.Name
+
+					var responseValue InferenceForecastResponse
+					err = json.Unmarshal([]byte(result.Result.Stdout), &responseValue)
+					if err != nil {
+						fmt.Println("Error serializing proto message: ", err)
+						continue
+					} else {
+						// Build inference
+						infererValue := alloraMath.MustNewDecFromString(responseValue.InfererValue)
+						inference := &types.Inference{
+							TopicId:     topicId,
+							Inferer:     e.appChain.ReputerAddress,
+							Value:       infererValue,
+							BlockHeight: nonceInt,
+						}
+						// Build Forecast
+						var forecasterVal []*types.ForecastElement
+						for _, val := range responseValue.ForecasterValues {
+							forecasterVal = append(forecasterVal, &types.ForecastElement{
+								Inferer: val.Worker,
+								Value:   alloraMath.MustNewDecFromString(val.Value),
+							})
+						}
+
+						forecasterValues := &types.Forecast{
+							TopicId:          topicId,
+							BlockHeight:      nonceInt,
+							Forecaster:       e.appChain.ReputerAddress,
+							ForecastElements: forecasterVal,
+						}
+
+						inferenceForecastsBundle := &types.InferenceForecastBundle{
+							Inference: inference,
+							Forecast:  forecasterValues,
+						}
+
+						// Marshall and sign the bundle
+						protoBytesIn, err := inferenceForecastsBundle.XXX_Marshal(nil, false)
+						if err != nil {
+							fmt.Println("Error serializing InferenceForecastsBundle: ", err)
+							continue
+						}
+						sig, _, err := e.appChain.Client.Context().Keyring.Sign(accountName, protoBytesIn, signing.SignMode_SIGN_MODE_DIRECT)
+						if err != nil {
+							fmt.Println("Error signing the proto message: ", err)
+							continue
+						}
+						// Create workerDataBundle with signature
+						workerDataBundle := &types.WorkerDataBundle{
+							Worker:                             e.appChain.ReputerAddress,
+							InferenceForecastsBundle:           inferenceForecastsBundle,
+							InferencesForecastsBundleSignature: sig,
+						}
+						// Serialize the workerDataBundle into json
+						workerDataBundleBytes, err := json.Marshal(workerDataBundle)
+						result.Result.Stdout = string(workerDataBundleBytes)
+					}
+					// Process ALLORA_NONCE only once if found.
+				} else {
+					fmt.Println("Appchain is nil, cannot sign the payload.")
+				}
+				break
+			}
+		}
+		if undetectedBlockHeight {
+			fmt.Println("No block height detected in the environment variables.")
+		}
+	} else if e.appChain.Config.WorkerMode == WorkerModeReputer {
+		// TODO if reputer mode
+
 	}
 
 	return result, err
