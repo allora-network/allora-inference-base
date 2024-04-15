@@ -197,28 +197,27 @@ func registerWithBlockchain(appchain *AppChain) {
 			}
 		}
 		// Registration on new topics
-		msg = &types.MsgRegister{
-			Creator:      appchain.ReputerAddress,
-			LibP2PKey:    appchain.Config.LibP2PKey,
-			MultiAddress: appchain.Config.MultiAddress,
-			TopicIds:     topicsToRegister,
-			Owner:        appchain.ReputerAddress,
-			IsReputer:    isReputer,
-		}
+		for _, topicId := range topicsToRegister {
+			if err != nil {
+				appchain.Logger.Info().Err(err).Uint64("topic", topicId).Msg("Could not register for topic")
+				break
+			}
+			msg = &types.MsgRegisterWithExistingStake{
+				Creator:      appchain.ReputerAddress,
+				LibP2PKey:    appchain.Config.LibP2PKey,
+				MultiAddress: appchain.Config.MultiAddress,
+				TopicId:      topicId,
+				Owner:        appchain.ReputerAddress,
+				IsReputer:    isReputer,
+			}
 
-		txResp, err := appchain.Client.BroadcastTx(ctx, appchain.ReputerAccount, msg)
-		if err != nil {
-			appchain.Logger.Fatal().Err(err).Uint64("topic", topicsToRegister[0]).Msg("could not register the node with the Allora blockchain in topic")
-		} else {
-			appchain.Logger.Info().Str("txhash", txResp.TxHash).Uint64("topic", topicsToRegister[0]).Msg("successfully registered node with Allora blockchain in topic")
+			txResp, err := appchain.Client.BroadcastTx(ctx, appchain.ReputerAccount, msg)
+			if err != nil {
+				appchain.Logger.Fatal().Err(err).Uint64("topic", topicId).Msg("could not register the node with the Allora blockchain in topic")
+			} else {
+				appchain.Logger.Info().Str("txhash", txResp.TxHash).Uint64("topic", topicId).Msg("successfully registered node with Allora blockchain in topic")
+			}
 		}
-		//for _, topicId := range topicsToRegister {
-		//	if err != nil {
-		//		appchain.Logger.Info().Err(err).Uint64("topic", topicId).Msg("Could not register for topic")
-		//		break
-		//	}
-		//
-		//}
 		// Deregistration on old topics
 		for _, topicId := range topicsToDeRegister {
 			if err != nil {

@@ -106,7 +106,7 @@ func (e *AlloraExecutor) ExecuteFunction(requestID string, req execute.Request) 
 					var responseValue InferenceForecastResponse
 					err = json.Unmarshal([]byte(result.Result.Stdout), &responseValue)
 					if err != nil {
-						fmt.Println("Error serializing proto message: ", err)
+						fmt.Println("Error serializing InferenceForecastResponse proto message: ", err)
 						continue
 					} else {
 						// Build inference
@@ -118,9 +118,9 @@ func (e *AlloraExecutor) ExecuteFunction(requestID string, req execute.Request) 
 							BlockHeight: nonceInt,
 						}
 						// Build Forecast
-						var forecasterVal []*types.ForecastElement
+						var forecasterElements []*types.ForecastElement
 						for _, val := range responseValue.ForecasterValues {
-							forecasterVal = append(forecasterVal, &types.ForecastElement{
+							forecasterElements = append(forecasterElements, &types.ForecastElement{
 								Inferer: val.Worker,
 								Value:   alloraMath.MustNewDecFromString(val.Value),
 							})
@@ -130,23 +130,23 @@ func (e *AlloraExecutor) ExecuteFunction(requestID string, req execute.Request) 
 							TopicId:          topicId,
 							BlockHeight:      nonceInt,
 							Forecaster:       e.appChain.ReputerAddress,
-							ForecastElements: forecasterVal,
+							ForecastElements: forecasterElements,
 						}
 
 						inferenceForecastsBundle := &types.InferenceForecastBundle{
 							Inference: inference,
 							Forecast:  forecasterValues,
 						}
-
 						// Marshall and sign the bundle
-						protoBytesIn, err := inferenceForecastsBundle.XXX_Marshal(nil, false)
+						protoBytesIn := make([]byte, 0) // Create a byte slice with initial length 0 and capacity greater than 0
+						protoBytesIn, err := inferenceForecastsBundle.XXX_Marshal(protoBytesIn, true)
 						if err != nil {
-							fmt.Println("Error serializing InferenceForecastsBundle: ", err)
+							fmt.Println("Error Marshalling InferenceForecastsBundle: ", err)
 							continue
 						}
 						sig, _, err := e.appChain.Client.Context().Keyring.Sign(accountName, protoBytesIn, signing.SignMode_SIGN_MODE_DIRECT)
 						if err != nil {
-							fmt.Println("Error signing the proto message: ", err)
+							fmt.Println("Error signing the InferenceForecastsBundle message: ", err)
 							continue
 						}
 						// Create workerDataBundle with signature
@@ -168,7 +168,9 @@ func (e *AlloraExecutor) ExecuteFunction(requestID string, req execute.Request) 
 							fmt.Println("Error serializing WorkerDataBundle: ", err)
 							continue
 						}
-						result.Result.Stdout = string(workerDataBundleBytes)
+						outputJson := string(workerDataBundleBytes)
+						fmt.Println("Signed OutputJson sent to consensus: ", outputJson)
+						result.Result.Stdout = outputJson
 					}
 				} else {
 					fmt.Println("Appchain is nil, cannot sign the payload.")
