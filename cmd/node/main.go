@@ -78,7 +78,7 @@ func (e *AlloraExecutor) ExecuteFunction(requestID string, req execute.Request) 
 			}
 		}
 	}
-	if topicFound == false {
+	if !topicFound {
 		fmt.Println("No topic ID found in the environment variables.")
 		return result, nil
 	}
@@ -155,11 +155,21 @@ func (e *AlloraExecutor) ExecuteFunction(requestID string, req execute.Request) 
 							InferenceForecastsBundle:           inferenceForecastsBundle,
 							InferencesForecastsBundleSignature: sig,
 						}
+
+						// Bundle it with topic and blockheight info
+						workerDataResponse := &WorkerDataResponse{
+							WorkerDataBundle: workerDataBundle,
+							BlockHeight:      nonceInt,
+							TopicId:          int64(topicId),
+						}
 						// Serialize the workerDataBundle into json
-						workerDataBundleBytes, err := json.Marshal(workerDataBundle)
+						workerDataBundleBytes, err := json.Marshal(workerDataResponse)
+						if err != nil {
+							fmt.Println("Error serializing WorkerDataBundle: ", err)
+							continue
+						}
 						result.Result.Stdout = string(workerDataBundleBytes)
 					}
-					// Process ALLORA_NONCE only once if found.
 				} else {
 					fmt.Println("Appchain is nil, cannot sign the payload.")
 				}
@@ -171,7 +181,7 @@ func (e *AlloraExecutor) ExecuteFunction(requestID string, req execute.Request) 
 		}
 	} else if e.appChain.Config.WorkerMode == WorkerModeReputer {
 		// TODO if reputer mode
-
+		fmt.Println("TODO Reputer mode not implemented yet.")
 	}
 
 	return result, err

@@ -328,13 +328,10 @@ func (ap *AppChain) SendDataWithRetry(ctx context.Context, req sdktypes.Msg, Max
 // Sending Inferences/Forecasts to the AppChain
 func (ap *AppChain) SendWorkerModeData(ctx context.Context, topicId uint64, results aggregate.Results) {
 	// Aggregate the inferences from all peers/workers
-	var inference *types.Inference
-	var forecasterValues *types.Forecast
+	WorkerDataBundles := make([]*types.WorkerDataBundle, 0)
 	var nonce *types.Nonce
-	var sig []byte
 	for _, result := range results {
 		for _, peer := range result.Peers {
-
 			ap.Logger.Debug().Str("worker peer", peer.String())
 
 			// Get Peer's $allo address
@@ -346,93 +343,43 @@ func (ap *AppChain) SendWorkerModeData(ctx context.Context, topicId uint64, resu
 				continue
 			}
 			ap.Logger.Debug().Str("worker address", res.Address).Msgf("%+v", result.Result)
+
 			// Parse the result from the worker to get the inference and forecasts
-			var value InferenceForecastResponse
+			var value WorkerDataResponse
 			err = json.Unmarshal([]byte(result.Result.Stdout), &value)
 			if err != nil {
-				ap.Logger.Warn().Err(err).Str("peer", peer.String()).Msg("error extracting value as number from stdout, ignoring inference.")
+				ap.Logger.Warn().Err(err).Str("peer", peer.String()).Msg("error extracting WorkerDataBundle from stdout, ignoring bundle.")
+				continue
+			}
+			if nonce == nil {
+				nonce = &types.Nonce{BlockHeight: value.BlockHeight}
+			}
+			// Here reputer leader can choose to validate data further to ensure set is correct and act accordingly
+			if value.WorkerDataBundle == nil {
+				ap.Logger.Warn().Str("peer", peer.String()).Msg("WorkerDataBundle is nil from stdout, ignoring bundle.")
+				continue
+			}
+			if value.WorkerDataBundle.InferenceForecastsBundle == nil {
+				ap.Logger.Warn().Str("peer", peer.String()).Msg("InferenceForecastsBundle is nil from stdout, ignoring bundle.")
+				continue
+			}
+			if value.WorkerDataBundle.InferenceForecastsBundle.Inference != nil &&
+				value.WorkerDataBundle.InferenceForecastsBundle.Inference.TopicId != topicId {
+				ap.Logger.Warn().Str("peer", peer.String()).Msg("InferenceForecastsBundle topicId does not match with request topic, ignoring bundle.")
 				continue
 			}
 
-			// Get first Nonce
-			if nonce == nil {
-				// Parse the value.nonce as str from the result as int64
-				nonceInt64, err := strconv.ParseInt(value.Nonce, 10, 64)
-				if err != nil {
-					ap.Logger.Warn().Err(err).Str("peer", peer.String()).Msg("error extracting nonce as number from stdout, ignoring inference.")
-					continue
-				}
-				nonce = &types.Nonce{BlockHeight: nonceInt64}
-			}
-
-			infererValue := alloraMath.MustNewDecFromString(value.InfererValue)
-			inference = &types.Inference{
-				TopicId:     topicId,
-				Inferer:     res.Address,
-				Value:       infererValue,
-				BlockHeight: nonce.BlockHeight,
-			}
-
-			// Aggregate forecasts
-			var forecasterVal []*types.ForecastElement
-			for _, val := range value.ForecasterValues {
-				forecasterVal = append(forecasterVal, &types.ForecastElement{
-					Inferer: val.Worker,
-					Value:   alloraMath.MustNewDecFromString(val.Value),
-					//Signature: []byte(value.Signature),
-				})
-			}
-
-			forecasterValues = &types.Forecast{
-				TopicId:          topicId,
-				BlockHeight:      nonce.BlockHeight,
-				Forecaster:       res.Address,
-				ForecastElements: forecasterVal,
-			}
-
-			// Sign the nonce
-			sig, _, err := ap.Client.Context().Keyring.Sign(ap.ReputerAccount.Name, []byte(value.Nonce), signing.SignMode_SIGN_MODE_DIRECT)
-			if err != nil {
-				fmt.Println("Error signing the nonce: ", err)
-				break
-			}
-			// Make 1 request per worker
-			req := &types.MsgInsertBulkWorkerPayload{
-				Sender:  ap.ReputerAddress,
-				Nonce:   nonce,
-				TopicId: topicId,
-				WorkerDataBundles: []*types.WorkerDataBundle{
-					{
-						Worker: inference.Inferer,
-						InferenceForecastsBundle: &types.InferenceForecastBundle{
-							Inference: inference,
-							Forecast:  forecasterValues,
-						},
-						InferencesForecastsBundleSignature: sig,
-					},
-				},
-			}
-			go func() {
-				_, _ = ap.SendDataWithRetry(ctx, req, 5, 0, 2)
-			}()
+			// Append the WorkerDataBundle (only) to the WorkerDataBundles slice
+			WorkerDataBundles = append(WorkerDataBundles, value.WorkerDataBundle)
 		}
 	}
 
 	// Make 1 request per worker
 	req := &types.MsgInsertBulkWorkerPayload{
-		Sender:  ap.ReputerAddress,
-		Nonce:   nonce,
-		TopicId: topicId,
-		WorkerDataBundles: []*types.WorkerDataBundle{
-			{
-				Worker: inference.Inferer,
-				InferenceForecastsBundle: &types.InferenceForecastBundle{
-					Inference: inference,
-					Forecast:  forecasterValues,
-				},
-				InferencesForecastsBundleSignature: sig,
-			},
-		},
+		Sender:            ap.ReputerAddress,
+		Nonce:             nonce,
+		TopicId:           topicId,
+		WorkerDataBundles: WorkerDataBundles,
 	}
 	go func() {
 		_, _ = ap.SendDataWithRetry(ctx, req, 5, 0, 2)

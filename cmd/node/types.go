@@ -54,6 +54,12 @@ type InferenceForecastResponse struct {
 	Signature        string      `json:"signature,omitempty"`
 }
 
+type WorkerDataResponse struct {
+	*types.WorkerDataBundle
+	BlockHeight int64 `json:"blockHeight,omitempty"`
+	TopicId     int64 `json:"topicId,omitempty"`
+}
+
 type ValueBundle struct {
 	CombinedValue          string      `json:"combinedValue,omitempty"`
 	NaiveValue             string      `json:"naiveValue,omitempty"`
