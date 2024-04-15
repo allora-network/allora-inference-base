@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -254,6 +255,8 @@ func registerWithBlockchain(appchain *AppChain) {
 				// Get uallo balance
 				//var ualloBalance uint64
 				var ualloBalance sdktypes.Coin
+				var initstake = appchain.Config.InitialStake
+				var expo = int64(math.Pow(10, AlloraExponential))
 				for _, coin := range balanceRes {
 					if coin.Denom == "uallo" {
 						// Found the balance in "uallo"
@@ -264,7 +267,10 @@ func registerWithBlockchain(appchain *AppChain) {
 						appchain.Logger.Info().Msg("Found allo balance in account, calculating...")
 					}
 				}
-				if ualloBalance.Amount.GTE(cosmossdk_io_math.NewInt(int64(appchain.Config.InitialStake))) {
+				if initstake > math.MaxInt64 {
+					initstake = math.MaxInt64
+				}
+				if ualloBalance.Amount.QuoRaw(expo).GTE(cosmossdk_io_math.NewInt(int64(initstake))) {
 					var topicsToRegister []uint64
 					for _, topicToRegisterUint64 := range b7sTopicIds {
 						if err != nil {

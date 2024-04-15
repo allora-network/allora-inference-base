@@ -85,3 +85,5 @@ type AlloraExecutor struct {
 	blockless.Executor
 	appChain *AppChain
 }
+
+const AlloraExponential = 18
