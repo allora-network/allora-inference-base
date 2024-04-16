@@ -250,11 +250,8 @@ func registerWithBlockchain(appchain *AppChain) {
 		} else {
 			if len(balanceRes) > 0 {
 				// Get uallo balance
-				//var ualloBalance uint64
 				var ualloBalance sdktypes.Coin
 				var initstake = appchain.Config.InitialStake
-				var expo = int64(math.Pow(10, AlloraExponential))
-				appchain.Logger.Info().Int64("expo", expo).Msg("exponent")
 				for _, coin := range balanceRes {
 					if coin.Denom == "uallo" {
 						// Found the balance in "uallo"
