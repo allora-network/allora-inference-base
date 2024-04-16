@@ -14,10 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cosmos/cosmos-sdk/types/tx/signing"
-
 	cosmossdk_io_math "cosmossdk.io/math"
-	alloraMath "github.com/allora-network/allora-chain/math"
 	"github.com/allora-network/allora-chain/x/emissions/types"
 	"github.com/allora-network/b7s/models/blockless"
 	"github.com/allora-network/b7s/node/aggregate"
@@ -400,6 +397,7 @@ func (ap *AppChain) SendReputerModeData(ctx context.Context, topicId uint64, res
 	for _, result := range results {
 		if len(result.Peers) > 0 {
 			peer := result.Peers[0]
+			ap.Logger.Debug().Str("worker peer", peer.String())
 
 			// Get Peer $allo address
 			res, err := ap.QueryClient.GetReputerAddressByP2PKey(ctx, &types.QueryReputerAddressByP2PKeyRequest{
@@ -413,95 +411,34 @@ func (ap *AppChain) SendReputerModeData(ctx context.Context, topicId uint64, res
 				ap.Logger.Info().Str("Reputer Address", res.Address).Msg("Reputer Address")
 			}
 
-			var responseValue LossResponse
-			err = json.Unmarshal([]byte(result.Result.Stdout), &responseValue)
+			// Parse the result from the reputer to get the inference and forecasts
+			// Parse the result from the worker to get the inference and forecasts
+			var value ReputerDataResponse
+			err = json.Unmarshal([]byte(result.Result.Stdout), &value)
 			if err != nil {
-				ap.Logger.Error().Err(err).Msg("error extracting loss object from stdout, ignoring loss.")
-			} else {
-				ap.Logger.Info().Msg("Response parsed successfully.")
+				ap.Logger.Warn().Err(err).Str("peer", peer.String()).Msg("error extracting WorkerDataBundle from stdout, ignoring bundle.")
+				continue
 			}
-			// Now get the string of the value, unescape it and unmarshall into ValueBundle
-			// Unmarshal the "value" field from the LossResponse struct
-			var nestedValueBundle ValueBundle
-			err = json.Unmarshal([]byte(responseValue.Value), &nestedValueBundle)
-			if err != nil {
-				ap.Logger.Error().Err(err).Msg("Error unmarshalling nested JSON:")
-				return
-			}
-
-			// Get first Nonce only - they're all the same
 			if nonce == nil {
-				// Parse the value.nonce as str from the result as int64
-				nonceInt64, err := strconv.ParseInt(responseValue.Nonce, 10, 64)
-				if err != nil {
-					ap.Logger.Warn().Err(err).Str("peer", peer.String()).Msg("error extracting nonce as number from stdout, ignoring inference.")
-					continue
-				}
-				nonce = &types.Nonce{BlockHeight: nonceInt64}
+				nonce = &types.Nonce{BlockHeight: value.BlockHeight}
 			}
 
-			var (
-				inferVal       []*types.WorkerAttributedValue
-				forecastsVal   []*types.WorkerAttributedValue
-				outInferVal    []*types.WithheldWorkerAttributedValue
-				outForecastVal []*types.WithheldWorkerAttributedValue
-				inInferVal     []*types.WorkerAttributedValue
-			)
+			// Here reputer leader can choose to validate data further to ensure set is correct and act accordingly
+			if value.ReputerValueBundle == nil {
+				ap.Logger.Warn().Str("peer", peer.String()).Msg("ReputerValueBundle is nil from stdout, ignoring bundle.")
+				continue
+			}
+			if value.ReputerValueBundle.ValueBundle == nil {
+				ap.Logger.Warn().Str("peer", peer.String()).Msg("ValueBundle is nil from stdout, ignoring bundle.")
+				continue
+			}
+			if value.ReputerValueBundle.ValueBundle.TopicId != topicId {
+				ap.Logger.Warn().Str("peer", peer.String()).Msg("ReputerValueBundle topicId does not match with request topicId, ignoring bundle.")
+				continue
+			}
+			// Append the WorkerDataBundle (only) to the WorkerDataBundles slice
+			valueBundles = append(valueBundles, value.ReputerValueBundle)
 
-			for _, inf := range nestedValueBundle.InferrerValues {
-				inferVal = append(inferVal, &types.WorkerAttributedValue{
-					Worker: inf.Worker,
-					Value:  alloraMath.MustNewDecFromString(inf.Value),
-				})
-			}
-			for _, inf := range nestedValueBundle.ForecasterValues {
-				forecastsVal = append(forecastsVal, &types.WorkerAttributedValue{
-					Worker: inf.Worker,
-					Value:  alloraMath.MustNewDecFromString(inf.Value),
-				})
-			}
-			for _, inf := range nestedValueBundle.OneOutInfererValues {
-				outInferVal = append(outInferVal, &types.WithheldWorkerAttributedValue{
-					Worker: inf.Worker,
-					Value:  alloraMath.MustNewDecFromString(inf.Value),
-				})
-			}
-			for _, inf := range nestedValueBundle.OneOutForecasterValues {
-				outForecastVal = append(outForecastVal, &types.WithheldWorkerAttributedValue{
-					Worker: inf.Worker,
-					Value:  alloraMath.MustNewDecFromString(inf.Value),
-				})
-			}
-			for _, inf := range nestedValueBundle.OneInForecasterValues {
-				inInferVal = append(inInferVal, &types.WorkerAttributedValue{
-					Worker: inf.Worker,
-					Value:  alloraMath.MustNewDecFromString(inf.Value),
-				})
-			}
-
-			// Sign the nonce
-			sig, _, err := ap.Client.Context().Keyring.Sign(ap.ReputerAccount.Name, []byte(responseValue.Nonce), signing.SignMode_SIGN_MODE_DIRECT)
-			if err != nil {
-				fmt.Println("Error signing the nonce: ", err)
-				break
-			}
-
-			valueBundle := &types.ReputerValueBundle{
-				ValueBundle: &types.ValueBundle{
-					TopicId:                topicId,
-					CombinedValue:          alloraMath.MustNewDecFromString(nestedValueBundle.CombinedValue),
-					NaiveValue:             alloraMath.MustNewDecFromString(nestedValueBundle.NaiveValue),
-					InfererValues:          inferVal,
-					ForecasterValues:       forecastsVal,
-					OneOutInfererValues:    outInferVal,
-					OneOutForecasterValues: outForecastVal,
-					OneInForecasterValues:  inInferVal,
-				},
-				Signature: sig,
-			}
-			// Print the valueBundle to be added
-			ap.Logger.Info().Interface("valueBundle", valueBundle).Msg("valueBundle to append")
-			valueBundles = append(valueBundles, valueBundle)
 		} else {
 			ap.Logger.Warn().Msg("No peers in the result, ignoring")
 		}
