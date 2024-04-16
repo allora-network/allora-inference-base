@@ -2,10 +2,15 @@ package main
 
 import (
 	"context"
+	"encoding/hex"
+	"fmt"
+	alloraMath "github.com/allora-network/allora-chain/math"
+	"github.com/allora-network/allora-chain/x/emissions/types"
 	"github.com/allora-network/b7s/host"
 	"github.com/allora-network/b7s/models/blockless"
 	"github.com/allora-network/b7s/models/execute"
 	"github.com/allora-network/b7s/node/aggregate"
+	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/suite"
@@ -130,4 +135,53 @@ func (ap *AppChainTestSuit) TestSendReputerModeData() {
 		},
 	}
 	ap.app.SendReputerModeData(ctx, 1, aggre)
+}
+func (ap *AppChainTestSuit) TestSendDataWithRetry() {
+	ctx, _ := context.WithCancel(context.Background())
+
+	req := &types.MsgInsertBulkWorkerPayload{
+		Sender:  "allo1mnfm9c7cdgqnkk66sganp78m0ydmcr4pce8kju",
+		Nonce:   &types.Nonce{BlockHeight: 1},
+		TopicId: 0,
+		WorkerDataBundles: []*types.WorkerDataBundle{
+			{
+				Worker: "allo1353a4uac03etdylz86tyq9ssm3x2704j66t99e",
+				InferenceForecastsBundle: &types.InferenceForecastBundle{
+					Inference: &types.Inference{
+						TopicId:     0,
+						BlockHeight: 1,
+						Inferer:     "allo163xn94xytks2375ulpxdv7kqvvvxfvazpxyqzh",
+						Value:       alloraMath.NewDecFromInt64(100),
+					},
+					Forecast: &types.Forecast{
+						TopicId:     0,
+						BlockHeight: 10,
+						Forecaster:  "allo1d8vj2se0f63x90u4msfuy5mva3arengrr7t5f6",
+						ForecastElements: []*types.ForecastElement{
+							{
+								Inferer: "allo148awdjfw7jf0847mkqvqn8mu4tqa92r52tzw5j",
+								Value:   alloraMath.NewDecFromInt64(100),
+							},
+							{
+								Inferer: "allo148awdjfw7jf0847mkqvqn8mu4tqa92r52tzw5j",
+								Value:   alloraMath.NewDecFromInt64(100),
+							},
+						},
+					},
+				},
+				InferencesForecastsBundleSignature: []byte("Signature"),
+			},
+		},
+	}
+	src := make([]byte, 0)
+	src, _ = req.WorkerDataBundles[0].InferenceForecastsBundle.XXX_Marshal(src, true)
+	sig, pk, err := ap.app.Client.Context().Keyring.Sign(ap.app.ReputerAccount.Name, src, signing.SignMode_SIGN_MODE_DIRECT)
+	pkStr := hex.EncodeToString(pk.Bytes())
+	if err != nil {
+		fmt.Println("Error signing the nonce: ", err)
+		return
+	}
+	req.WorkerDataBundles[0].Pubkey = pkStr
+	req.WorkerDataBundles[0].InferencesForecastsBundleSignature = sig
+	ap.app.SendDataWithRetry(ctx, req, 5, 0, 2)
 }

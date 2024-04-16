@@ -47,13 +47,20 @@ type NodeValue struct {
 	Value  string `json:"value,omitempty"`
 }
 
+// WORKER
 type InferenceForecastResponse struct {
 	InfererValue     string      `json:"infererValue,omitempty"`
 	ForecasterValues []NodeValue `json:"forecasterValue,omitempty"`
-	Nonce            string      `json:"nonce,omitempty"`
-	Signature        string      `json:"signature,omitempty"`
 }
 
+type WorkerDataResponse struct {
+	*types.WorkerDataBundle
+	BlockHeight int64 `json:"blockHeight,omitempty"`
+	TopicId     int64 `json:"topicId,omitempty"`
+}
+
+// REPUTER
+// Local struct to hold the value bundle from the wasm function response
 type ValueBundle struct {
 	CombinedValue          string      `json:"combinedValue,omitempty"`
 	NaiveValue             string      `json:"naiveValue,omitempty"`
@@ -64,10 +71,11 @@ type ValueBundle struct {
 	OneInForecasterValues  []NodeValue `json:"oneInForecasterValues,omitempty"`
 }
 
-type LossResponse struct {
-	Value     string `json:"value,omitempty"`
-	Nonce     string `json:"nonce,omitempty"`
-	Signature string `json:"signature,omitempty"`
+// Wrapper around the ReputerValueBundle to include the block height and topic id for the leader
+type ReputerDataResponse struct {
+	*types.ReputerValueBundle
+	BlockHeight int64 `json:"blockHeight,omitempty"`
+	TopicId     int64 `json:"topicId,omitempty"`
 }
 
 const (
@@ -79,3 +87,5 @@ type AlloraExecutor struct {
 	blockless.Executor
 	appChain *AppChain
 }
+
+const AlloraExponential = 18

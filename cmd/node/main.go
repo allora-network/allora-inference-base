@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"time"
 
@@ -19,6 +21,8 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/ziflex/lecho/v3"
 
+	alloraMath "github.com/allora-network/allora-chain/math"
+	"github.com/allora-network/allora-chain/x/emissions/types"
 	"github.com/allora-network/b7s/api"
 	"github.com/allora-network/b7s/executor"
 	"github.com/allora-network/b7s/executor/limits"
@@ -32,8 +36,9 @@ import (
 )
 
 const (
-	success = 0
-	failure = 1
+	success       = 0
+	failure       = 1
+	notFoundValue = -1
 )
 
 func main() {
@@ -61,50 +66,239 @@ func NewAlloraExecutor(e blockless.Executor) *AlloraExecutor {
 func (e *AlloraExecutor) ExecuteFunction(requestID string, req execute.Request) (execute.Result, error) {
 	// First call the blockless.Executor's method to get the result
 	result, err := e.Executor.ExecuteFunction(requestID, req)
-	// Iterate env vars to get the ALLORA_NONCE, if found, sign it and add the signature to the result
+	// Get the topicId from the env var
+	var topicId uint64
+	var topicFound bool = false
+	var alloraBlockHeightCurrent int64 = notFoundValue
+	var alloraBlockHeightEval int64 = notFoundValue
 	for _, envVar := range req.Config.Environment {
-
-		if envVar.Name == "ALLORA_NONCE" {
-			// Get the nonce from the environment variable, convert to bytes
-			// If appchain is null or SubmitTx is false, do not sign the nonce
-			if e.appChain != nil && e.appChain.Client != nil {
-				nonce := envVar.Value
-				nonceBytes := []byte(nonce)
-				// Get the account from the appchain
-				accountName := e.appChain.ReputerAccount.Name
-
-				// Sign using the e.appChain.ReputerAccount.
-				sig, _, err := e.appChain.Client.Context().Keyring.Sign(accountName, nonceBytes, signing.SignMode_SIGN_MODE_DIRECT)
-				if err != nil {
-					fmt.Println("Error signing the nonce: ", err)
-					break
-				}
-				// Marshalling/unmarshalling the result to add the signature to the result
-				stdout := make(map[string]interface{})
-				err = json.Unmarshal([]byte(result.Result.Stdout), &stdout)
-				if err != nil {
-					fmt.Println("Error unmarshalling the stdout: ", err)
-				} else {
-					// Add the signature to the stdout object
-					stdout["signature"] = sig
-					stdout["nonce"] = nonce
-					// Marshal the stdout map back into a JSON string
-					stdoutBytes, err := json.Marshal(stdout)
-					if err != nil {
-						fmt.Println("Error marshalling the stdout: ", err)
-					} else {
-						// Set the JSON string back to result.Result.Stdout
-						result.Result.Stdout = string(stdoutBytes)
-					}
-				}
-				// Process ALLORA_NONCE only once if found.
-			} else {
-				fmt.Println("Appchain is nil, cannot sign the nonce.")
+		if envVar.Name == "TOPIC_ID" {
+			topicFound = true
+			// Get the topicId from the environment variable from str  as uint64
+			topicId, err = strconv.ParseUint(envVar.Value, 10, 64)
+			if err != nil {
+				fmt.Println("Error parsing topic ID: ", err)
+				return result, err
 			}
-			break
+		} else if envVar.Name == "ALLORA_BLOCK_HEIGHT_CURRENT" {
+			alloraBlockHeightCurrent, err = strconv.ParseInt(envVar.Value, 10, 64)
+			if err != nil {
+				fmt.Println("Error parsing ALLORA_BLOCK_HEIGHT_CURRENT: ", err)
+				return result, err
+			}
+		} else if envVar.Name == "ALLORA_BLOCK_HEIGHT_EVAL" {
+			// Get the topicId from the environment variable from str  as uint64
+			alloraBlockHeightEval, err = strconv.ParseInt(envVar.Value, 10, 64)
+			if err != nil {
+				fmt.Println("Error parsing ALLORA_BLOCK_HEIGHT_EVAL: ", err)
+				return result, err
+			}
 		}
 	}
+	if !topicFound {
+		fmt.Println("No topic ID found in the environment variables.")
+		return result, nil
+	}
+	if alloraBlockHeightCurrent == notFoundValue {
+		fmt.Println("No ALLORA_BLOCK_HEIGHT_CURRENT found in the environment variables.")
+		return result, nil
+	}
 
+	// Iterate env vars to get the ALLORA_NONCE, if found, sign it and add the signature to the result
+	// Check if this worker node is reputer or worker mode
+	if e.appChain.Config.WorkerMode == WorkerModeWorker {
+		// Get the nonce from the environment variable, convert to bytes
+		// If appchain is null or SubmitTx is false, do not sign the nonce
+		if e.appChain != nil && e.appChain.Client != nil {
+			// Get the account from the appchain
+			accountName := e.appChain.ReputerAccount.Name
+			var responseValue InferenceForecastResponse
+			err = json.Unmarshal([]byte(result.Result.Stdout), &responseValue)
+			if err != nil {
+				fmt.Println("Error serializing InferenceForecastResponse proto message: ", err)
+			} else {
+				// Build inference
+				infererValue := alloraMath.MustNewDecFromString(responseValue.InfererValue)
+				inference := &types.Inference{
+					TopicId:     topicId,
+					Inferer:     e.appChain.ReputerAddress,
+					Value:       infererValue,
+					BlockHeight: alloraBlockHeightCurrent,
+				}
+				// Build Forecast
+				var forecasterElements []*types.ForecastElement
+				for _, val := range responseValue.ForecasterValues {
+					forecasterElements = append(forecasterElements, &types.ForecastElement{
+						Inferer: val.Worker,
+						Value:   alloraMath.MustNewDecFromString(val.Value),
+					})
+				}
+
+				forecasterValues := &types.Forecast{
+					TopicId:          topicId,
+					BlockHeight:      alloraBlockHeightCurrent,
+					Forecaster:       e.appChain.ReputerAddress,
+					ForecastElements: forecasterElements,
+				}
+
+				inferenceForecastsBundle := &types.InferenceForecastBundle{
+					Inference: inference,
+					Forecast:  forecasterValues,
+				}
+				// Marshall and sign the bundle
+				protoBytesIn := make([]byte, 0) // Create a byte slice with initial length 0 and capacity greater than 0
+				protoBytesIn, err := inferenceForecastsBundle.XXX_Marshal(protoBytesIn, true)
+				if err != nil {
+					fmt.Println("Error Marshalling InferenceForecastsBundle: ", err)
+					return result, err
+				}
+				sig, pk, err := e.appChain.Client.Context().Keyring.Sign(accountName, protoBytesIn, signing.SignMode_SIGN_MODE_DIRECT)
+				pkStr := hex.EncodeToString(pk.Bytes())
+				if err != nil {
+					fmt.Println("Error signing the InferenceForecastsBundle message: ", err)
+					return result, err
+				}
+				// Create workerDataBundle with signature
+				workerDataBundle := &types.WorkerDataBundle{
+					Worker:                             e.appChain.ReputerAddress,
+					InferenceForecastsBundle:           inferenceForecastsBundle,
+					InferencesForecastsBundleSignature: sig,
+					Pubkey:                             pkStr,
+				}
+
+				// Bundle it with topic and blockheight info
+				workerDataResponse := &WorkerDataResponse{
+					WorkerDataBundle: workerDataBundle,
+					BlockHeight:      alloraBlockHeightCurrent,
+					TopicId:          int64(topicId),
+				}
+				// Serialize the workerDataBundle into json
+				workerDataBundleBytes, err := json.Marshal(workerDataResponse)
+				if err != nil {
+					fmt.Println("Error serializing WorkerDataBundle: ", err)
+					return result, err
+				}
+				outputJson := string(workerDataBundleBytes)
+				fmt.Println("Signed OutputJson sent to consensus: ", outputJson)
+				result.Result.Stdout = outputJson
+			}
+		} else {
+			fmt.Println("Appchain is nil, cannot sign the payload.")
+		}
+	} else if e.appChain.Config.WorkerMode == WorkerModeReputer {
+		// Get the nonce from the environment variable, convert to bytes
+		// If appchain is null or SubmitTx is false, do not sign the nonce
+		if e.appChain != nil && e.appChain.Client != nil {
+			// Check also the EVAL nonce
+			if alloraBlockHeightEval == notFoundValue {
+				fmt.Println("No ALLORA_BLOCK_HEIGHT_EVAL found in the environment variables.")
+				return result, nil
+			}
+			// Create ReputerRequestNonce
+			reputerRequestNonce := &types.ReputerRequestNonce{
+				ReputerNonce: &types.Nonce{
+					BlockHeight: alloraBlockHeightCurrent,
+				},
+				WorkerNonce: &types.Nonce{
+					BlockHeight: alloraBlockHeightEval,
+				},
+			}
+
+			// Now get the string of the value, unescape it and unmarshall into ValueBundle
+			// Unmarshal the "value" field from the LossResponse struct
+			var nestedValueBundle ValueBundle
+			err = json.Unmarshal([]byte(result.Result.Stdout), &nestedValueBundle)
+			if err != nil {
+				e.appChain.Logger.Error().Err(err).Msg("Error unmarshalling nested JSON:")
+				return result, err
+			}
+			// Get the values from the nestedValueBundle
+			var (
+				inferVal       []*types.WorkerAttributedValue
+				forecastsVal   []*types.WorkerAttributedValue
+				outInferVal    []*types.WithheldWorkerAttributedValue
+				outForecastVal []*types.WithheldWorkerAttributedValue
+				inInferVal     []*types.WorkerAttributedValue
+			)
+
+			for _, inf := range nestedValueBundle.InferrerValues {
+				inferVal = append(inferVal, &types.WorkerAttributedValue{
+					Worker: inf.Worker,
+					Value:  alloraMath.MustNewDecFromString(inf.Value),
+				})
+			}
+			for _, inf := range nestedValueBundle.ForecasterValues {
+				forecastsVal = append(forecastsVal, &types.WorkerAttributedValue{
+					Worker: inf.Worker,
+					Value:  alloraMath.MustNewDecFromString(inf.Value),
+				})
+			}
+			for _, inf := range nestedValueBundle.OneOutInfererValues {
+				outInferVal = append(outInferVal, &types.WithheldWorkerAttributedValue{
+					Worker: inf.Worker,
+					Value:  alloraMath.MustNewDecFromString(inf.Value),
+				})
+			}
+			for _, inf := range nestedValueBundle.OneOutForecasterValues {
+				outForecastVal = append(outForecastVal, &types.WithheldWorkerAttributedValue{
+					Worker: inf.Worker,
+					Value:  alloraMath.MustNewDecFromString(inf.Value),
+				})
+			}
+			for _, inf := range nestedValueBundle.OneInForecasterValues {
+				inInferVal = append(inInferVal, &types.WorkerAttributedValue{
+					Worker: inf.Worker,
+					Value:  alloraMath.MustNewDecFromString(inf.Value),
+				})
+			}
+
+			newValueBundle := &types.ValueBundle{
+				TopicId:                topicId,
+				ReputerRequestNonce:    reputerRequestNonce,
+				Reputer:                e.appChain.ReputerAddress,
+				CombinedValue:          alloraMath.MustNewDecFromString(nestedValueBundle.CombinedValue),
+				NaiveValue:             alloraMath.MustNewDecFromString(nestedValueBundle.NaiveValue),
+				InfererValues:          inferVal,
+				ForecasterValues:       forecastsVal,
+				OneOutInfererValues:    outInferVal,
+				OneOutForecasterValues: outForecastVal,
+				OneInForecasterValues:  inInferVal,
+			}
+
+			// Marshall and sign the bundle
+			// Get the account from the appchain
+			accountName := e.appChain.ReputerAccount.Name
+			protoBytesIn := make([]byte, 0)
+			protoBytesIn, err := newValueBundle.XXX_Marshal(protoBytesIn, true)
+			if err != nil {
+				fmt.Println("Error Marshalling newValueBundle: ", err)
+				return result, err
+			}
+			sig, pk, err := e.appChain.Client.Context().Keyring.Sign(accountName, protoBytesIn, signing.SignMode_SIGN_MODE_DIRECT)
+			pkStr := hex.EncodeToString(pk.Bytes())
+			if err != nil {
+				fmt.Println("Error signing the InferenceForecastsBundle message: ", err)
+				return result, err
+			}
+
+			// Create workerDataBundle with signature and pubkey
+			valueBundle := &types.ReputerValueBundle{
+				ValueBundle: newValueBundle,
+				Signature:   sig,
+				Pubkey:      pkStr,
+			}
+
+			// Serialize the workerDataBundle into json
+			valueBundleBytes, err := json.Marshal(valueBundle)
+			if err != nil {
+				fmt.Println("Error serializing WorkerDataBundle: ", err)
+				return result, err
+			}
+			outputJson := string(valueBundleBytes)
+			fmt.Println("Signed OutputJson sent to consensus: ", outputJson)
+			result.Result.Stdout = outputJson
+		}
+	}
 	return result, err
 }
 
