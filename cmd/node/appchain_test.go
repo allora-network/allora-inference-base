@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/hex"
 	"fmt"
 	alloraMath "github.com/allora-network/allora-chain/math"
 	"github.com/allora-network/allora-chain/x/emissions/types"
@@ -14,7 +14,6 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/suite"
-	"log"
 	"os"
 	"testing"
 	"time"
@@ -143,19 +142,19 @@ func (ap *AppChainTestSuit) TestSendDataWithRetry() {
 	req := &types.MsgInsertBulkWorkerPayload{
 		Sender:  "allo1mnfm9c7cdgqnkk66sganp78m0ydmcr4pce8kju",
 		Nonce:   &types.Nonce{BlockHeight: 1},
-		TopicId: 1,
+		TopicId: 0,
 		WorkerDataBundles: []*types.WorkerDataBundle{
 			{
 				Worker: "allo1353a4uac03etdylz86tyq9ssm3x2704j66t99e",
 				InferenceForecastsBundle: &types.InferenceForecastBundle{
 					Inference: &types.Inference{
-						TopicId:     1,
+						TopicId:     0,
 						BlockHeight: 1,
 						Inferer:     "allo163xn94xytks2375ulpxdv7kqvvvxfvazpxyqzh",
 						Value:       alloraMath.NewDecFromInt64(100),
 					},
 					Forecast: &types.Forecast{
-						TopicId:     1,
+						TopicId:     0,
 						BlockHeight: 10,
 						Forecaster:  "allo1d8vj2se0f63x90u4msfuy5mva3arengrr7t5f6",
 						ForecastElements: []*types.ForecastElement{
@@ -174,13 +173,15 @@ func (ap *AppChainTestSuit) TestSendDataWithRetry() {
 			},
 		},
 	}
-	src, _ := json.Marshal(req.WorkerDataBundles)
-	sig, _, err := ap.app.Client.Context().Keyring.Sign(ap.app.ReputerAccount.Name, src, signing.SignMode_SIGN_MODE_DIRECT)
+	src := make([]byte, 0)
+	src, _ = req.WorkerDataBundles[0].InferenceForecastsBundle.XXX_Marshal(src, true)
+	sig, pk, err := ap.app.Client.Context().Keyring.Sign(ap.app.ReputerAccount.Name, src, signing.SignMode_SIGN_MODE_DIRECT)
+	pkStr := hex.EncodeToString(pk.Bytes())
 	if err != nil {
 		fmt.Println("Error signing the nonce: ", err)
 		return
 	}
-	sigStr := string(sig)
-	log.Println("str", sigStr)
+	req.WorkerDataBundles[0].Pubkey = pkStr
+	req.WorkerDataBundles[0].InferencesForecastsBundleSignature = sig
 	ap.app.SendDataWithRetry(ctx, req, 5, 0, 2)
 }

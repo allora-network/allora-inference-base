@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -144,7 +145,8 @@ func (e *AlloraExecutor) ExecuteFunction(requestID string, req execute.Request) 
 							fmt.Println("Error Marshalling InferenceForecastsBundle: ", err)
 							continue
 						}
-						sig, _, err := e.appChain.Client.Context().Keyring.Sign(accountName, protoBytesIn, signing.SignMode_SIGN_MODE_DIRECT)
+						sig, pk, err := e.appChain.Client.Context().Keyring.Sign(accountName, protoBytesIn, signing.SignMode_SIGN_MODE_DIRECT)
+						pkStr := hex.EncodeToString(pk.Bytes())
 						if err != nil {
 							fmt.Println("Error signing the InferenceForecastsBundle message: ", err)
 							continue
@@ -154,6 +156,7 @@ func (e *AlloraExecutor) ExecuteFunction(requestID string, req execute.Request) 
 							Worker:                             e.appChain.ReputerAddress,
 							InferenceForecastsBundle:           inferenceForecastsBundle,
 							InferencesForecastsBundleSignature: sig,
+							Pubkey:                             pkStr,
 						}
 
 						// Bundle it with topic and blockheight info

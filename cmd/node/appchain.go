@@ -260,7 +260,7 @@ func registerWithBlockchain(appchain *AppChain) {
 				for _, coin := range balanceRes {
 					if coin.Denom == "uallo" {
 						// Found the balance in "uallo"
-						appchain.Logger.Info().Str("balance", coin.Amount.BigInt().Text(10)).Msg("Found uallo balance in account, calculating...")
+						appchain.Logger.Info().Str("balance", coin.Amount.QuoRaw(expo).BigInt().Text(10)).Msg("Found uallo balance in account, calculating...")
 						ualloBalance = coin
 						break
 					} else if coin.Denom == "allo" {
