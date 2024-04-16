@@ -250,14 +250,12 @@ func registerWithBlockchain(appchain *AppChain) {
 		} else {
 			if len(balanceRes) > 0 {
 				// Get uallo balance
-				//var ualloBalance uint64
 				var ualloBalance sdktypes.Coin
 				var initstake = appchain.Config.InitialStake
-				var expo = int64(math.Pow(10, AlloraExponential))
 				for _, coin := range balanceRes {
 					if coin.Denom == "uallo" {
 						// Found the balance in "uallo"
-						appchain.Logger.Info().Str("balance", coin.Amount.QuoRaw(expo).BigInt().Text(10)).Msg("Found uallo balance in account, calculating...")
+						appchain.Logger.Info().Str("balance", coin.Amount.BigInt().String()).Msg("Found allo balance in account, calculating...")
 						ualloBalance = coin
 						break
 					} else if coin.Denom == "allo" {
@@ -267,7 +265,7 @@ func registerWithBlockchain(appchain *AppChain) {
 				if initstake > math.MaxInt64 {
 					initstake = math.MaxInt64
 				}
-				if ualloBalance.Amount.QuoRaw(expo).GTE(cosmossdk_io_math.NewInt(int64(initstake))) {
+				if ualloBalance.Amount.GTE(cosmossdk_io_math.NewInt(int64(initstake))) {
 					var topicsToRegister []uint64
 					for _, topicToRegisterUint64 := range b7sTopicIds {
 						if err != nil {
