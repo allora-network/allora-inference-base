@@ -77,8 +77,17 @@ func (e *AlloraExecutor) ExecuteFunction(requestID string, req execute.Request) 
 			// Get the topicId from the environment variable from str  as uint64
 			topicId, err = strconv.ParseUint(envVar.Value, 10, 64)
 			if err != nil {
-				fmt.Println("Error parsing topic ID: ", err)
-				return result, err
+				// check if it ends with "/reputer" and extract the previous numerical value
+				if len(envVar.Value) > 8 && envVar.Value[len(envVar.Value)-8:] == "/reputer" {
+					topicId, err = strconv.ParseUint(envVar.Value[:len(envVar.Value)-8], 10, 64)
+					if err != nil {
+						fmt.Println("Error parsing topic ID: ", err)
+						return result, err
+					}
+				} else {
+					fmt.Println("Error parsing topic ID: no int, no '/reputer' suffix ", err)
+					return result, err
+				}
 			}
 		} else if envVar.Name == "ALLORA_BLOCK_HEIGHT_CURRENT" {
 			alloraBlockHeightCurrent, err = strconv.ParseInt(envVar.Value, 10, 64)
@@ -104,6 +113,10 @@ func (e *AlloraExecutor) ExecuteFunction(requestID string, req execute.Request) 
 		return result, nil
 	}
 
+	if e.appChain == nil {
+		fmt.Println("Appchain is nil, cannot sign the payload, returning as is.")
+		return result, nil
+	}
 	// Iterate env vars to get the ALLORA_NONCE, if found, sign it and add the signature to the result
 	// Check if this worker node is reputer or worker mode
 	if e.appChain.Config.WorkerMode == WorkerModeWorker {
