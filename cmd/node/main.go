@@ -77,8 +77,8 @@ func (e *AlloraExecutor) ExecuteFunction(requestID string, req execute.Request) 
 			// Get the topicId from the environment variable from str  as uint64
 			topicId, err = strconv.ParseUint(envVar.Value, 10, 64)
 			if err != nil {
-				// check if it ends with "/reputer"
-				if envVar.Value[len(envVar.Value)-8:] == "/reputer" {
+				// check if it ends with "/reputer" and extract the previous numerical value
+				if len(envVar.Value) > 8 && envVar.Value[len(envVar.Value)-8:] == "/reputer" {
 					topicId, err = strconv.ParseUint(envVar.Value[:len(envVar.Value)-8], 10, 64)
 					if err != nil {
 						fmt.Println("Error parsing topic ID: ", err)
