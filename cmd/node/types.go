@@ -74,8 +74,13 @@ type ValueBundle struct {
 // Wrapper around the ReputerValueBundle to include the block height and topic id for the leader
 type ReputerDataResponse struct {
 	*types.ReputerValueBundle
-	BlockHeight int64 `json:"blockHeight,omitempty"`
-	TopicId     int64 `json:"topicId,omitempty"`
+	BlockHeight     int64 `json:"blockHeight,omitempty"`
+	BlockHeightEval int64 `json:"blockHeightEval,omitempty"`
+	TopicId         int64 `json:"topicId,omitempty"`
+}
+
+type ReputerWASMResponse struct {
+	Value string `json:"value,omitempty"`
 }
 
 const (
