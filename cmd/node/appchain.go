@@ -390,7 +390,8 @@ func (ap *AppChain) SendWorkerModeData(ctx context.Context, topicId uint64, resu
 func (ap *AppChain) SendReputerModeData(ctx context.Context, topicId uint64, results aggregate.Results) {
 	// Aggregate the forecast from reputer leader
 	var valueBundles []*types.ReputerValueBundle
-	var nonce *types.Nonce
+	var nonceCurrent *types.Nonce
+	var nonceEval *types.Nonce
 
 	for _, result := range results {
 		if len(result.Peers) > 0 {
@@ -417,8 +418,11 @@ func (ap *AppChain) SendReputerModeData(ctx context.Context, topicId uint64, res
 				ap.Logger.Warn().Err(err).Str("peer", peer.String()).Msg("error extracting WorkerDataBundle from stdout, ignoring bundle.")
 				continue
 			}
-			if nonce == nil {
-				nonce = &types.Nonce{BlockHeight: value.BlockHeight}
+			if nonceCurrent == nil {
+				nonceCurrent = &types.Nonce{BlockHeight: value.BlockHeight}
+			}
+			if nonceEval == nil {
+				nonceEval = &types.Nonce{BlockHeight: value.BlockHeightEval}
 			}
 
 			// Here reputer leader can choose to validate data further to ensure set is correct and act accordingly
@@ -446,8 +450,8 @@ func (ap *AppChain) SendReputerModeData(ctx context.Context, topicId uint64, res
 	req := &types.MsgInsertBulkReputerPayload{
 		Sender: ap.ReputerAddress,
 		ReputerRequestNonce: &types.ReputerRequestNonce{
-			ReputerNonce: nonce,
-			WorkerNonce:  nonce,
+			ReputerNonce: nonceCurrent,
+			WorkerNonce:  nonceEval,
 		},
 		TopicId:             topicId,
 		ReputerValueBundles: valueBundles,

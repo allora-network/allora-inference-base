@@ -66,6 +66,9 @@ func NewAlloraExecutor(e blockless.Executor) *AlloraExecutor {
 func (e *AlloraExecutor) ExecuteFunction(requestID string, req execute.Request) (execute.Result, error) {
 	// First call the blockless.Executor's method to get the result
 	result, err := e.Executor.ExecuteFunction(requestID, req)
+	// print incoming result:
+	fmt.Println("Result from WASM: ", result.Result.Stdout)
+
 	// Get the topicId from the env var
 	var topicId uint64
 	var topicFound bool = false
@@ -89,12 +92,14 @@ func (e *AlloraExecutor) ExecuteFunction(requestID string, req execute.Request) 
 					return result, err
 				}
 			}
+			fmt.Println("TOPIC_ID: ", topicId)
 		} else if envVar.Name == "ALLORA_BLOCK_HEIGHT_CURRENT" {
 			alloraBlockHeightCurrent, err = strconv.ParseInt(envVar.Value, 10, 64)
 			if err != nil {
 				fmt.Println("Error parsing ALLORA_BLOCK_HEIGHT_CURRENT: ", err)
 				return result, err
 			}
+			fmt.Println("ALLORA_BLOCK_HEIGHT_CURRENT: ", alloraBlockHeightCurrent)
 		} else if envVar.Name == "ALLORA_BLOCK_HEIGHT_EVAL" {
 			// Get the topicId from the environment variable from str  as uint64
 			alloraBlockHeightEval, err = strconv.ParseInt(envVar.Value, 10, 64)
@@ -102,6 +107,7 @@ func (e *AlloraExecutor) ExecuteFunction(requestID string, req execute.Request) 
 				fmt.Println("Error parsing ALLORA_BLOCK_HEIGHT_EVAL: ", err)
 				return result, err
 			}
+			fmt.Println("ALLORA_BLOCK_HEIGHT_EVAL: ", alloraBlockHeightEval)
 		}
 	}
 	if !topicFound {
@@ -202,6 +208,7 @@ func (e *AlloraExecutor) ExecuteFunction(requestID string, req execute.Request) 
 		// Get the nonce from the environment variable, convert to bytes
 		// If appchain is null or SubmitTx is false, do not sign the nonce
 		if e.appChain != nil && e.appChain.Client != nil {
+			fmt.Println("Worker mode is Reputer, packaging output for consensus.")
 			// Check also the EVAL nonce
 			if alloraBlockHeightEval == notFoundValue {
 				fmt.Println("No ALLORA_BLOCK_HEIGHT_EVAL found in the environment variables.")
@@ -219,12 +226,19 @@ func (e *AlloraExecutor) ExecuteFunction(requestID string, req execute.Request) 
 
 			// Now get the string of the value, unescape it and unmarshall into ValueBundle
 			// Unmarshal the "value" field from the LossResponse struct
-			var nestedValueBundle ValueBundle
-			err = json.Unmarshal([]byte(result.Result.Stdout), &nestedValueBundle)
+			var wasmValueBundle ReputerWASMResponse
+			err = json.Unmarshal([]byte(result.Result.Stdout), &wasmValueBundle)
 			if err != nil {
-				e.appChain.Logger.Error().Err(err).Msg("Error unmarshalling nested JSON:")
+				e.appChain.Logger.Error().Err(err).Msg("Error unmarshalling JSON Value.")
 				return result, err
 			}
+			var nestedValueBundle ValueBundle
+			err = json.Unmarshal([]byte(wasmValueBundle.Value), &nestedValueBundle)
+			if err != nil {
+				e.appChain.Logger.Error().Err(err).Msg("Error unmarshalling nested JSON ValueBundle:")
+				return result, err
+			}
+
 			// Get the values from the nestedValueBundle
 			var (
 				inferVal       []*types.WorkerAttributedValue
@@ -301,13 +315,20 @@ func (e *AlloraExecutor) ExecuteFunction(requestID string, req execute.Request) 
 				Pubkey:      pkStr,
 			}
 
+			reputerDataResponse := &ReputerDataResponse{
+				ReputerValueBundle: valueBundle,
+				BlockHeight:        alloraBlockHeightCurrent,
+				BlockHeightEval:    alloraBlockHeightEval,
+				TopicId:            int64(topicId),
+			}
+
 			// Serialize the workerDataBundle into json
-			valueBundleBytes, err := json.Marshal(valueBundle)
+			reputerDataResponseBytes, err := json.Marshal(reputerDataResponse)
 			if err != nil {
 				fmt.Println("Error serializing WorkerDataBundle: ", err)
 				return result, err
 			}
-			outputJson := string(valueBundleBytes)
+			outputJson := string(reputerDataResponseBytes)
 			fmt.Println("Signed OutputJson sent to consensus: ", outputJson)
 			result.Result.Stdout = outputJson
 		}
