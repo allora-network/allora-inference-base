@@ -26,6 +26,20 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// Exponential backoff retry settings
+const NUM_WORKER_RETRIES = 5
+const NUM_REPUTER_RETRIES = 5
+const NUM_REGISTRATION_RETRIES = 3
+const NUM_STAKING_RETRIES = 3
+const NUM_WORKER_RETRY_MIN_DELAY = 0
+const NUM_WORKER_RETRY_MAX_DELAY = 2
+const NUM_REPUTER_RETRY_MIN_DELAY = 0
+const NUM_REPUTER_RETRY_MAX_DELAY = 2
+const NUM_REGISTRATION_RETRY_MIN_DELAY = 1
+const NUM_REGISTRATION_RETRY_MAX_DELAY = 2
+const NUM_STAKING_RETRY_MIN_DELAY = 1
+const NUM_STAKING_RETRY_MAX_DELAY = 2
+
 func getAlloraClient(config AppChainConfig) (*cosmosclient.Client, error) {
 	// create a allora client instance
 	ctx := context.Background()
@@ -47,7 +61,13 @@ func getAlloraClient(config AppChainConfig) (*cosmosclient.Client, error) {
 		log.Info().Err(err).Str("directory", alloraClientHome).Msg("allora client home directory created")
 	}
 
-	client, err := cosmosclient.New(ctx, cosmosclient.WithNodeAddress(config.NodeRPCAddress), cosmosclient.WithAddressPrefix(config.AddressPrefix), cosmosclient.WithHome(alloraClientHome))
+	client, err := cosmosclient.New(ctx,
+		cosmosclient.WithNodeAddress(config.NodeRPCAddress),
+		cosmosclient.WithAddressPrefix(config.AddressPrefix),
+		cosmosclient.WithHome(alloraClientHome),
+		cosmosclient.WithGas(config.Gas),
+		cosmosclient.WithGasAdjustment(config.GasAdjustment),
+	)
 	if err != nil {
 		log.Warn().Err(err).Msg("unable to create an allora blockchain client")
 		config.SubmitTx = false
@@ -208,7 +228,8 @@ func registerWithBlockchain(appchain *AppChain) {
 				Owner:        appchain.ReputerAddress,
 				IsReputer:    isReputer,
 			}
-			res, err := appchain.SendDataWithRetry(ctx, msg, 3, 0, 2, "registered node")
+			res, err := appchain.SendDataWithRetry(ctx, msg, NUM_REGISTRATION_RETRIES,
+				NUM_REGISTRATION_RETRY_MIN_DELAY, NUM_REGISTRATION_RETRY_MAX_DELAY, "register node")
 			if err != nil {
 				appchain.Logger.Fatal().Err(err).Uint64("topic", topicId).Str("txHash", res.TxHash).Msg("could not register the node with the Allora blockchain in topic")
 			} else {
@@ -220,7 +241,7 @@ func registerWithBlockchain(appchain *AppChain) {
 							Amount:  cosmossdk_io_math.NewUint(initstake),
 							TopicId: topicId,
 						}
-						res, err := appchain.SendDataWithRetry(ctx, msg, 3, 0, 2, "add stake")
+						res, err := appchain.SendDataWithRetry(ctx, msg, NUM_STAKING_RETRIES, NUM_STAKING_RETRY_MIN_DELAY, NUM_STAKING_RETRY_MAX_DELAY, "add stake")
 						if err != nil {
 							appchain.Logger.Error().Err(err).Uint64("topic", topicId).Str("txHash", res.TxHash).Msg("could not register the node with the Allora blockchain in specified topic")
 						}
@@ -242,7 +263,8 @@ func registerWithBlockchain(appchain *AppChain) {
 				IsReputer: isReputer,
 			}
 
-			res, err := appchain.SendDataWithRetry(ctx, msg, 3, 0, 2, "deregister node")
+			res, err := appchain.SendDataWithRetry(ctx, msg, NUM_REGISTRATION_RETRIES,
+				NUM_REGISTRATION_RETRY_MIN_DELAY, NUM_REGISTRATION_RETRY_MAX_DELAY, "deregister node")
 			if err != nil {
 				appchain.Logger.Fatal().Err(err).Uint64("topic", topicId).Msg("could not deregister the node with the Allora blockchain in topic")
 			} else {
@@ -290,7 +312,8 @@ func registerWithBlockchain(appchain *AppChain) {
 							Owner:        appchain.ReputerAddress,
 							IsReputer:    isReputer,
 						}
-						res, err := appchain.SendDataWithRetry(ctx, msg, 3, 0, 2, "register node")
+						res, err := appchain.SendDataWithRetry(ctx, msg, NUM_REGISTRATION_RETRIES,
+							NUM_REGISTRATION_RETRY_MIN_DELAY, NUM_REGISTRATION_RETRY_MAX_DELAY, "register node")
 						if err != nil {
 							appchain.Logger.Fatal().Err(err).Msg("could not register the node with the Allora blockchain in specified topics")
 						} else {
@@ -302,7 +325,7 @@ func registerWithBlockchain(appchain *AppChain) {
 										Amount:  cosmossdk_io_math.NewUint(initstake),
 										TopicId: topicToRegisterUint64,
 									}
-									res, err := appchain.SendDataWithRetry(ctx, msg, 3, 0, 2, "add stake")
+									res, err := appchain.SendDataWithRetry(ctx, msg, NUM_STAKING_RETRIES, NUM_STAKING_RETRY_MIN_DELAY, NUM_STAKING_RETRY_MAX_DELAY, "add stake")
 									if err != nil {
 										appchain.Logger.Fatal().Err(err).Msg("could not register the node with the Allora blockchain in specified topics")
 									} else {
@@ -330,7 +353,6 @@ func registerWithBlockchain(appchain *AppChain) {
 func (ap *AppChain) SendDataWithRetry(ctx context.Context, req sdktypes.Msg, MaxRetries, MinDelay, MaxDelay int, SuccessMsg string) (*cosmosclient.Response, error) {
 	var txResp *cosmosclient.Response
 	var err error
-
 	for retryCount := 0; retryCount <= MaxRetries; retryCount++ {
 		txResponse, err := ap.Client.BroadcastTx(ctx, ap.ReputerAccount, req)
 		txResp = &txResponse
@@ -415,7 +437,7 @@ func (ap *AppChain) SendWorkerModeData(ctx context.Context, topicId uint64, resu
 	}
 
 	go func() {
-		_, _ = ap.SendDataWithRetry(ctx, req, 5, 0, 2, "Sent Worker Leader Data")
+		_, _ = ap.SendDataWithRetry(ctx, req, NUM_WORKER_RETRIES, NUM_WORKER_RETRY_MIN_DELAY, NUM_WORKER_RETRY_MAX_DELAY, "Sent Worker Leader Data")
 	}()
 }
 
@@ -497,5 +519,7 @@ func (ap *AppChain) SendReputerModeData(ctx context.Context, topicId uint64, res
 		ap.Logger.Info().Str("req_json", string(reqJSON)).Msg("Sending Reputer Mode Data")
 	}
 
-	_, _ = ap.SendDataWithRetry(ctx, req, 5, 0, 2, "Send Reputer Leader Data")
+	go func() {
+		_, _ = ap.SendDataWithRetry(ctx, req, NUM_REPUTER_RETRIES, NUM_REPUTER_RETRY_MIN_DELAY, NUM_REPUTER_RETRY_MAX_DELAY, "Send Reputer Leader Data")
+	}()
 }

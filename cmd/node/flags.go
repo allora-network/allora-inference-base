@@ -64,6 +64,8 @@ func parseFlags() *alloraCfg {
 	pflag.Uint64Var(&cfg.AppChainConfig.ReconnectSeconds, "allora-chain-reconnect-seconds", 60, "If connection to Allora Appchain breaks, it will attempt to reconnect with this interval. O means no reconnection.")
 	pflag.Uint64Var(&cfg.AppChainConfig.InitialStake, "allora-chain-initial-stake", 100, "Upon registering on a new topic, amount of stake to use.")
 	pflag.StringVarP(&cfg.AppChainConfig.WorkerMode, "allora-chain-worker-mode", "", WorkerModeWorker, "Worker mode of an Allora Network node.")
+	pflag.StringVar(&cfg.AppChainConfig.Gas, "allora-chain-gas", "auto", "Max gas on Allora client.")
+	pflag.Float64Var(&cfg.AppChainConfig.GasAdjustment, "allora-chain-gas-adjustment", 0.1, "Gas adjustment on Allora client.")
 	pflag.CommandLine.SortFlags = false
 
 	pflag.Parse()
