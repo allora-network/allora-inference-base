@@ -212,17 +212,21 @@ func registerWithBlockchain(appchain *AppChain) {
 			if err != nil {
 				appchain.Logger.Fatal().Err(err).Uint64("topic", topicId).Str("txHash", res.TxHash).Msg("could not register the node with the Allora blockchain in topic")
 			} else {
-				var initstake = appchain.Config.InitialStake
-				if initstake > 0 {
-					msg = &types.MsgAddStake{
-						Sender:  appchain.ReputerAddress,
-						Amount:  cosmossdk_io_math.NewUint(initstake),
-						TopicId: topicId,
+				if isReputer {
+					var initstake = appchain.Config.InitialStake
+					if initstake > 0 {
+						msg = &types.MsgAddStake{
+							Sender:  appchain.ReputerAddress,
+							Amount:  cosmossdk_io_math.NewUint(initstake),
+							TopicId: topicId,
+						}
+						res, err := appchain.SendDataWithRetry(ctx, msg, 3, 0, 2, "add stake")
+						if err != nil {
+							appchain.Logger.Error().Err(err).Uint64("topic", topicId).Str("txHash", res.TxHash).Msg("could not register the node with the Allora blockchain in specified topic")
+						}
 					}
-					res, err := appchain.SendDataWithRetry(ctx, msg, 3, 0, 2, "add stake")
-					if err != nil {
-						appchain.Logger.Error().Err(err).Uint64("topic", topicId).Str("txHash", res.TxHash).Msg("could not register the node with the Allora blockchain in specified topic")
-					}
+				} else {
+					appchain.Logger.Info().Msg("No initial stake configured")
 				}
 			}
 		}
@@ -291,17 +295,21 @@ func registerWithBlockchain(appchain *AppChain) {
 							appchain.Logger.Fatal().Err(err).Msg("could not register the node with the Allora blockchain in specified topics")
 						} else {
 							appchain.Logger.Info().Str("txhash", res.TxHash).Msg("successfully registered node with Allora blockchain")
-							if initstake > 0 {
-								msg = &types.MsgAddStake{
-									Sender:  appchain.ReputerAddress,
-									Amount:  cosmossdk_io_math.NewUint(initstake),
-									TopicId: topicToRegisterUint64,
-								}
-								res, err := appchain.SendDataWithRetry(ctx, msg, 3, 0, 2, "add stake")
-								if err != nil {
-									appchain.Logger.Fatal().Err(err).Msg("could not register the node with the Allora blockchain in specified topics")
+							if isReputer {
+								if initstake > 0 {
+									msg = &types.MsgAddStake{
+										Sender:  appchain.ReputerAddress,
+										Amount:  cosmossdk_io_math.NewUint(initstake),
+										TopicId: topicToRegisterUint64,
+									}
+									res, err := appchain.SendDataWithRetry(ctx, msg, 3, 0, 2, "add stake")
+									if err != nil {
+										appchain.Logger.Fatal().Err(err).Msg("could not register the node with the Allora blockchain in specified topics")
+									} else {
+										appchain.Logger.Info().Str("txhash", res.TxHash).Uint64("stake", initstake).Msg("successfully staked with Allora blockchain")
+									}
 								} else {
-									appchain.Logger.Info().Str("txhash", res.TxHash).Uint64("stake", initstake).Msg("successfully staked with Allora blockchain")
+									appchain.Logger.Info().Msg("No initial stake configured")
 								}
 							}
 						}
