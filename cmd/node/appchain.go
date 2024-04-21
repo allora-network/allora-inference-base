@@ -332,7 +332,8 @@ func (ap *AppChain) SendDataWithRetry(ctx context.Context, req sdktypes.Msg, Max
 	var err error
 
 	for retryCount := 0; retryCount <= MaxRetries; retryCount++ {
-		txResp, err := ap.Client.BroadcastTx(ctx, ap.ReputerAccount, req)
+		txResponse, err := ap.Client.BroadcastTx(ctx, ap.ReputerAccount, req)
+		txResp = &txResponse
 		if err == nil {
 			ap.Logger.Info().Str("Tx Hash:", txResp.TxHash).Msg("Success: " + SuccessMsg)
 			break
