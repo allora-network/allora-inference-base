@@ -200,20 +200,34 @@ func registerWithBlockchain(appchain *AppChain) {
 				appchain.Logger.Info().Err(err).Uint64("topic", topicId).Msg("Could not register for topic")
 				break
 			}
-			msg = &types.MsgRegisterWithExistingStake{
-				Creator:      appchain.ReputerAddress,
+			msg = &types.MsgRegister{
+				Sender:       appchain.ReputerAddress,
 				LibP2PKey:    appchain.Config.LibP2PKey,
 				MultiAddress: appchain.Config.MultiAddress,
 				TopicId:      topicId,
 				Owner:        appchain.ReputerAddress,
 				IsReputer:    isReputer,
 			}
-
-			txResp, err := appchain.Client.BroadcastTx(ctx, appchain.ReputerAccount, msg)
+			res, err := appchain.SendDataWithRetry(ctx, msg, 3, 0, 2, "registered node")
 			if err != nil {
-				appchain.Logger.Fatal().Err(err).Uint64("topic", topicId).Msg("could not register the node with the Allora blockchain in topic")
+				appchain.Logger.Fatal().Err(err).Uint64("topic", topicId).Str("txHash", res.TxHash).Msg("could not register the node with the Allora blockchain in topic")
 			} else {
-				appchain.Logger.Info().Str("txhash", txResp.TxHash).Uint64("topic", topicId).Msg("successfully registered node with Allora blockchain in topic")
+				if isReputer {
+					var initstake = appchain.Config.InitialStake
+					if initstake > 0 {
+						msg = &types.MsgAddStake{
+							Sender:  appchain.ReputerAddress,
+							Amount:  cosmossdk_io_math.NewUint(initstake),
+							TopicId: topicId,
+						}
+						res, err := appchain.SendDataWithRetry(ctx, msg, 3, 0, 2, "add stake")
+						if err != nil {
+							appchain.Logger.Error().Err(err).Uint64("topic", topicId).Str("txHash", res.TxHash).Msg("could not register the node with the Allora blockchain in specified topic")
+						}
+					}
+				} else {
+					appchain.Logger.Info().Msg("No initial stake configured")
+				}
 			}
 		}
 		// Deregistration on old topics
@@ -223,16 +237,16 @@ func registerWithBlockchain(appchain *AppChain) {
 				break
 			}
 			msg = &types.MsgRemoveRegistration{
-				Creator:   appchain.ReputerAddress,
+				Sender:    appchain.ReputerAddress,
 				TopicId:   topicId,
 				IsReputer: isReputer,
 			}
 
-			txResp, err := appchain.Client.BroadcastTx(ctx, appchain.ReputerAccount, msg)
+			res, err := appchain.SendDataWithRetry(ctx, msg, 3, 0, 2, "deregister node")
 			if err != nil {
 				appchain.Logger.Fatal().Err(err).Uint64("topic", topicId).Msg("could not deregister the node with the Allora blockchain in topic")
 			} else {
-				appchain.Logger.Info().Str("txhash", txResp.TxHash).Uint64("topic", topicId).Msg("successfully deregistered node with Allora blockchain in topic")
+				appchain.Logger.Info().Str("txhash", res.TxHash).Uint64("topic", topicId).Msg("successfully deregistered node with Allora blockchain in topic")
 			}
 		}
 	} else {
@@ -266,31 +280,41 @@ func registerWithBlockchain(appchain *AppChain) {
 					initstake = math.MaxInt64
 				}
 				if ualloBalance.Amount.GTE(cosmossdk_io_math.NewInt(int64(initstake))) {
-					var topicsToRegister []uint64
 					for _, topicToRegisterUint64 := range b7sTopicIds {
-						if err != nil {
-							appchain.Logger.Info().Err(err).Uint64("topicId", topicToRegisterUint64).Msg("Could not register for topic, not numerical, skipping")
-						} else {
-							topicsToRegister = append(topicsToRegister, topicToRegisterUint64)
+						// If not registered in any topic
+						msg = &types.MsgRegister{
+							Sender:       appchain.ReputerAddress,
+							LibP2PKey:    appchain.Config.LibP2PKey,
+							MultiAddress: appchain.Config.MultiAddress,
+							TopicId:      topicToRegisterUint64,
+							Owner:        appchain.ReputerAddress,
+							IsReputer:    isReputer,
 						}
+						res, err := appchain.SendDataWithRetry(ctx, msg, 3, 0, 2, "register node")
+						if err != nil {
+							appchain.Logger.Fatal().Err(err).Msg("could not register the node with the Allora blockchain in specified topics")
+						} else {
+							appchain.Logger.Info().Str("txhash", res.TxHash).Msg("successfully registered node with Allora blockchain")
+							if isReputer {
+								if initstake > 0 {
+									msg = &types.MsgAddStake{
+										Sender:  appchain.ReputerAddress,
+										Amount:  cosmossdk_io_math.NewUint(initstake),
+										TopicId: topicToRegisterUint64,
+									}
+									res, err := appchain.SendDataWithRetry(ctx, msg, 3, 0, 2, "add stake")
+									if err != nil {
+										appchain.Logger.Fatal().Err(err).Msg("could not register the node with the Allora blockchain in specified topics")
+									} else {
+										appchain.Logger.Info().Str("txhash", res.TxHash).Uint64("stake", initstake).Msg("successfully staked with Allora blockchain")
+									}
+								} else {
+									appchain.Logger.Info().Msg("No initial stake configured")
+								}
+							}
+						}
+						appchain.Logger.Info().Str("balance", balanceRes.String()).Msg("Registered Node")
 					}
-					// If not registered in any topic, need an initial stake
-					msg = &types.MsgRegister{
-						Creator:      appchain.ReputerAddress,
-						LibP2PKey:    appchain.Config.LibP2PKey,
-						MultiAddress: appchain.Config.MultiAddress,
-						InitialStake: cosmossdk_io_math.NewUint(appchain.Config.InitialStake),
-						TopicIds:     topicsToRegister,
-						Owner:        appchain.ReputerAddress,
-						IsReputer:    isReputer,
-					}
-					txResp, err := appchain.Client.BroadcastTx(ctx, appchain.ReputerAccount, msg)
-					if err != nil {
-						appchain.Logger.Fatal().Err(err).Msg("could not register the node with the Allora blockchain in specified topics")
-					} else {
-						appchain.Logger.Info().Str("txhash", txResp.TxHash).Msg("successfully registered node with Allora blockchain")
-					}
-					appchain.Logger.Info().Str("balance", balanceRes.String()).Msg("Registered Node")
 				} else {
 					appchain.Logger.Fatal().Str("balance", ualloBalance.Amount.BigInt().Text(10)).Int("InitialStake", int(appchain.Config.InitialStake)).Msg("account balance is lower than the initialStake requested")
 				}
@@ -303,18 +327,18 @@ func registerWithBlockchain(appchain *AppChain) {
 }
 
 // Retry function with a constant number of retries.
-func (ap *AppChain) SendDataWithRetry(ctx context.Context, req sdktypes.Msg, MaxRetries, MinDelay, MaxDelay int) (*cosmosclient.Response, error) {
+func (ap *AppChain) SendDataWithRetry(ctx context.Context, req sdktypes.Msg, MaxRetries, MinDelay, MaxDelay int, SuccessMsg string) (*cosmosclient.Response, error) {
 	var txResp *cosmosclient.Response
 	var err error
 
 	for retryCount := 0; retryCount <= MaxRetries; retryCount++ {
 		txResp, err := ap.Client.BroadcastTx(ctx, ap.ReputerAccount, req)
 		if err == nil {
-			ap.Logger.Info().Str("Tx Hash:", txResp.TxHash).Msg("successfully sent inferences to allora blockchain")
+			ap.Logger.Info().Str("Tx Hash:", txResp.TxHash).Msg("Success: " + SuccessMsg)
 			break
 		}
 		// Log the error for each retry.
-		ap.Logger.Info().Err(err).Msgf("Failed to send inferences to allora blockchain, retrying... (Retry %d/%d)", retryCount, MaxRetries)
+		ap.Logger.Info().Err(err).Msgf("Failed: "+SuccessMsg+", retrying... (Retry %d/%d)", retryCount, MaxRetries)
 		// Generate a random number between MinDelay and MaxDelay
 		randomDelay := rand.Intn(MaxDelay-MinDelay+1) + MinDelay
 		// Apply exponential backoff to the random delay
@@ -381,8 +405,16 @@ func (ap *AppChain) SendWorkerModeData(ctx context.Context, topicId uint64, resu
 		TopicId:           topicId,
 		WorkerDataBundles: WorkerDataBundles,
 	}
+	// Print req as JSON to the log
+	reqJSON, err := json.Marshal(req)
+	if err != nil {
+		ap.Logger.Error().Err(err).Msg("Error marshaling MsgInsertBulkWorkerPayload to print Msg as JSON")
+	} else {
+		ap.Logger.Info().Str("req_json", string(reqJSON)).Msg("Sending Worker Mode Data")
+	}
+
 	go func() {
-		_, _ = ap.SendDataWithRetry(ctx, req, 5, 0, 2)
+		_, _ = ap.SendDataWithRetry(ctx, req, 5, 0, 2, "Sent Worker Leader Data")
 	}()
 }
 
@@ -464,5 +496,5 @@ func (ap *AppChain) SendReputerModeData(ctx context.Context, topicId uint64, res
 		ap.Logger.Info().Str("req_json", string(reqJSON)).Msg("Sending Reputer Mode Data")
 	}
 
-	_, _ = ap.SendDataWithRetry(ctx, req, 5, 0, 2)
+	_, _ = ap.SendDataWithRetry(ctx, req, 5, 0, 2, "Send Reputer Leader Data")
 }

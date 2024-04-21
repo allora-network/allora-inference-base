@@ -1,16 +1,14 @@
 module github.com/allora-network/allora-inference-base
 
-go 1.21.1
-
-toolchain go1.21.5
+go 1.22.2
 
 require (
 	cosmossdk.io/math v1.3.0
-	github.com/allora-network/allora-chain v0.0.11-0.20240416003547-3047c4549ded
+	github.com/allora-network/allora-chain v0.0.11-0.20240420173103-00e789106f23
 	github.com/allora-network/b7s v0.0.2-0.20240418175046-eca9bfd68831
 	github.com/cockroachdb/pebble v1.1.0
 	github.com/cosmos/cosmos-sdk v0.50.5
-	github.com/ignite/cli/v28 v28.1.1
+	github.com/ignite/cli/v28 v28.3.0
 	github.com/labstack/echo/v4 v4.11.4
 	github.com/libp2p/go-libp2p v0.32.2
 	github.com/multiformats/go-multiaddr v0.12.2
@@ -246,10 +244,10 @@ require (
 	golang.org/x/term v0.17.0 // indirect
 	golang.org/x/tools v0.18.0 // indirect
 	gonum.org/v1/gonum v0.14.0 // indirect
-	google.golang.org/genproto v0.0.0-20240213162025-012b6fc9bca9 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20240205150955-31a09d347014 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20240221002015-b0ce06bbee7c // indirect
-	google.golang.org/grpc v1.62.0 // indirect
+	google.golang.org/genproto v0.0.0-20240227224415-6ceb2ff114de // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20240227224415-6ceb2ff114de // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20240227224415-6ceb2ff114de // indirect
+	google.golang.org/grpc v1.63.2 // indirect
 	google.golang.org/protobuf v1.33.0 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
