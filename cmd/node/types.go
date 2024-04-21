@@ -37,9 +37,11 @@ type AppChainConfig struct {
 	MultiAddress             string
 	TopicIds                 []string
 	NodeRole                 blockless.NodeRole
-	ReconnectSeconds         uint64 // seconds to wait for reconnection
-	InitialStake             uint64 // uallo to initially stake upon registration on a new topi
-	WorkerMode               string // Allora Network worker mode to use
+	ReconnectSeconds         uint64  // seconds to wait for reconnection
+	InitialStake             uint64  // uallo to initially stake upon registration on a new topi
+	WorkerMode               string  // Allora Network worker mode to use
+	Gas                      string  // gas to use for the allora client
+	GasAdjustment            float64 // gas adjustment to use for the allora client
 }
 
 type NodeValue struct {
