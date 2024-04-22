@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"math/rand"
 	"net/http"
 	"os"
 	"os/signal"
@@ -129,78 +130,86 @@ func (e *AlloraExecutor) ExecuteFunction(requestID string, req execute.Request) 
 		// Get the nonce from the environment variable, convert to bytes
 		// If appchain is null or SubmitTx is false, do not sign the nonce
 		if e.appChain != nil && e.appChain.Client != nil {
+			// TODO
+			// Testing code here
 			// Get the account from the appchain
-			accountName := e.appChain.ReputerAccount.Name
-			var responseValue InferenceForecastResponse
-			err = json.Unmarshal([]byte(result.Result.Stdout), &responseValue)
-			if err != nil {
-				fmt.Println("Error serializing InferenceForecastResponse proto message: ", err)
-			} else {
-				// Build inference
-				infererValue := alloraMath.MustNewDecFromString(responseValue.InfererValue)
-				inference := &types.Inference{
-					TopicId:     topicId,
-					Inferer:     e.appChain.ReputerAddress,
-					Value:       infererValue,
-					BlockHeight: alloraBlockHeightCurrent,
-				}
-				// Build Forecast
-				var forecasterElements []*types.ForecastElement
-				for _, val := range responseValue.ForecasterValues {
-					forecasterElements = append(forecasterElements, &types.ForecastElement{
-						Inferer: val.Worker,
-						Value:   alloraMath.MustNewDecFromString(val.Value),
-					})
-				}
-
-				forecasterValues := &types.Forecast{
-					TopicId:          topicId,
-					BlockHeight:      alloraBlockHeightCurrent,
-					Forecaster:       e.appChain.ReputerAddress,
-					ForecastElements: forecasterElements,
-				}
-
-				inferenceForecastsBundle := &types.InferenceForecastBundle{
-					Inference: inference,
-					Forecast:  forecasterValues,
-				}
-				// Marshall and sign the bundle
-				protoBytesIn := make([]byte, 0) // Create a byte slice with initial length 0 and capacity greater than 0
-				protoBytesIn, err := inferenceForecastsBundle.XXX_Marshal(protoBytesIn, true)
-				if err != nil {
-					fmt.Println("Error Marshalling InferenceForecastsBundle: ", err)
-					return result, err
-				}
-				sig, pk, err := e.appChain.Client.Context().Keyring.Sign(accountName, protoBytesIn, signing.SignMode_SIGN_MODE_DIRECT)
-				pkStr := hex.EncodeToString(pk.Bytes())
-				if err != nil {
-					fmt.Println("Error signing the InferenceForecastsBundle message: ", err)
-					return result, err
-				}
-				// Create workerDataBundle with signature
-				workerDataBundle := &types.WorkerDataBundle{
-					Worker:                             e.appChain.ReputerAddress,
-					InferenceForecastsBundle:           inferenceForecastsBundle,
-					InferencesForecastsBundleSignature: sig,
-					Pubkey:                             pkStr,
-				}
-
-				// Bundle it with topic and blockheight info
-				workerDataResponse := &WorkerDataResponse{
-					WorkerDataBundle: workerDataBundle,
-					BlockHeight:      alloraBlockHeightCurrent,
-					TopicId:          int64(topicId),
-				}
-				// Serialize the workerDataBundle into json
-				workerDataBundleBytes, err := json.Marshal(workerDataResponse)
-				if err != nil {
-					fmt.Println("Error serializing WorkerDataBundle: ", err)
-					return result, err
-				}
-				outputJson := string(workerDataBundleBytes)
-				fmt.Println("Signed OutputJson sent to consensus: ", outputJson)
-				result.Result.Stdout = outputJson
+			// gen random number between 3000 and 4000 into a string "strRandomInfererValue"
+			randFloat := 3000 + rand.Float64()*1000
+			strRandomInfererValue := fmt.Sprintf("%f", randFloat)
+			infererValue := alloraMath.MustNewDecFromString(strRandomInfererValue)
+			// infererValue := alloraMath.MustNewDecFromString(responseValue.InfererValue)
+			inference := &types.Inference{
+				TopicId:     topicId,
+				Inferer:     e.appChain.ReputerAddress,
+				Value:       infererValue,
+				BlockHeight: alloraBlockHeightCurrent,
 			}
+			// Build Forecast
+			var forecasterElements []*types.ForecastElement
+			// for _, val := range responseValue.ForecasterValues {
+			// 	forecasterElements = append(forecasterElements, &types.ForecastElement{
+			// 		Inferer: val.Worker,
+			// 		Value:   alloraMath.MustNewDecFromString(val.Value),
+			// 	})
+			// }
+			forecasterElements = append(forecasterElements, &types.ForecastElement{
+				Inferer: "allo1tvh6nv02vq6m4mevsa9wkscw53yxvfn7xt8rud",
+				Value:   alloraMath.MustNewDecFromString(fmt.Sprintf("%f", rand.Float64()*100)),
+			})
+			forecasterElements = append(forecasterElements, &types.ForecastElement{
+				Inferer: "allo12vncm038gpyr2u2v524pgqmmdg39uqn3qgnjjc",
+				Value:   alloraMath.MustNewDecFromString(fmt.Sprintf("%f", rand.Float64()*100)),
+			})
+
+			forecasterValues := &types.Forecast{
+				TopicId:          topicId,
+				BlockHeight:      alloraBlockHeightCurrent,
+				Forecaster:       e.appChain.ReputerAddress,
+				ForecastElements: forecasterElements,
+			}
+
+			inferenceForecastsBundle := &types.InferenceForecastBundle{
+				Inference: inference,
+				Forecast:  forecasterValues,
+			}
+			// Marshall and sign the bundle
+			accountName := e.appChain.ReputerAccount.Name
+			protoBytesIn := make([]byte, 0) // Create a byte slice with initial length 0 and capacity greater than 0
+			protoBytesIn, err := inferenceForecastsBundle.XXX_Marshal(protoBytesIn, true)
+			if err != nil {
+				fmt.Println("Error Marshalling InferenceForecastsBundle: ", err)
+				return result, err
+			}
+			sig, pk, err := e.appChain.Client.Context().Keyring.Sign(accountName, protoBytesIn, signing.SignMode_SIGN_MODE_DIRECT)
+			pkStr := hex.EncodeToString(pk.Bytes())
+			if err != nil {
+				fmt.Println("Error signing the InferenceForecastsBundle message: ", err)
+				return result, err
+			}
+			// Create workerDataBundle with signature
+			workerDataBundle := &types.WorkerDataBundle{
+				Worker:                             e.appChain.ReputerAddress,
+				InferenceForecastsBundle:           inferenceForecastsBundle,
+				InferencesForecastsBundleSignature: sig,
+				Pubkey:                             pkStr,
+			}
+
+			// Bundle it with topic and blockheight info
+			workerDataResponse := &WorkerDataResponse{
+				WorkerDataBundle: workerDataBundle,
+				BlockHeight:      alloraBlockHeightCurrent,
+				TopicId:          int64(topicId),
+			}
+			// Serialize the workerDataBundle into json
+			workerDataBundleBytes, err := json.Marshal(workerDataResponse)
+			if err != nil {
+				fmt.Println("Error serializing WorkerDataBundle: ", err)
+				return result, err
+			}
+			outputJson := string(workerDataBundleBytes)
+			fmt.Println("Signed OutputJson sent to consensus: ", outputJson)
+			result.Result.Stdout = outputJson
+			// }
 		} else {
 			fmt.Println("Appchain is nil, cannot sign the payload.")
 		}
