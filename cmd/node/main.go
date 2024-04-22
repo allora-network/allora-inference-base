@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"math/rand"
 	"net/http"
 	"os"
 	"os/signal"
@@ -248,43 +249,102 @@ func (e *AlloraExecutor) ExecuteFunction(requestID string, req execute.Request) 
 				inInferVal     []*types.WorkerAttributedValue
 			)
 
-			for _, inf := range nestedValueBundle.InferrerValues {
-				inferVal = append(inferVal, &types.WorkerAttributedValue{
-					Worker: inf.Worker,
-					Value:  alloraMath.MustNewDecFromString(inf.Value),
-				})
-			}
-			for _, inf := range nestedValueBundle.ForecasterValues {
-				forecastsVal = append(forecastsVal, &types.WorkerAttributedValue{
-					Worker: inf.Worker,
-					Value:  alloraMath.MustNewDecFromString(inf.Value),
-				})
-			}
-			for _, inf := range nestedValueBundle.OneOutInfererValues {
-				outInferVal = append(outInferVal, &types.WithheldWorkerAttributedValue{
-					Worker: inf.Worker,
-					Value:  alloraMath.MustNewDecFromString(inf.Value),
-				})
-			}
-			for _, inf := range nestedValueBundle.OneOutForecasterValues {
-				outForecastVal = append(outForecastVal, &types.WithheldWorkerAttributedValue{
-					Worker: inf.Worker,
-					Value:  alloraMath.MustNewDecFromString(inf.Value),
-				})
-			}
-			for _, inf := range nestedValueBundle.OneInForecasterValues {
-				inInferVal = append(inInferVal, &types.WorkerAttributedValue{
-					Worker: inf.Worker,
-					Value:  alloraMath.MustNewDecFromString(inf.Value),
-				})
-			}
+			//
+			// Test Data
+			inferer1address := "allo1tvh6nv02vq6m4mevsa9wkscw53yxvfn7xt8rud"
+			inferer2address := "allo12vncm038gpyr2u2v524pgqmmdg39uqn3qgnjjc"
+			inferVal = make([]*types.WorkerAttributedValue, 0)
+			forecastsVal = make([]*types.WorkerAttributedValue, 0)
+			outInferVal = make([]*types.WithheldWorkerAttributedValue, 0)
+			outForecastVal = make([]*types.WithheldWorkerAttributedValue, 0)
+			inInferVal = make([]*types.WorkerAttributedValue, 0)
+			inferVal = append(inferVal, &types.WorkerAttributedValue{
+				Worker: inferer1address,
+				Value:  alloraMath.MustNewDecFromString(fmt.Sprintf("%f", rand.Float64()*100)),
+			})
+			inferVal = append(inferVal, &types.WorkerAttributedValue{
+				Worker: inferer2address,
+				Value:  alloraMath.MustNewDecFromString(fmt.Sprintf("%f", rand.Float64()*100)),
+			})
 
+			forecastsVal = append(forecastsVal, &types.WorkerAttributedValue{
+				Worker: inferer1address,
+				Value:  alloraMath.MustNewDecFromString(fmt.Sprintf("%f", rand.Float64()*100)),
+			})
+			forecastsVal = append(forecastsVal, &types.WorkerAttributedValue{
+				Worker: inferer2address,
+				Value:  alloraMath.MustNewDecFromString(fmt.Sprintf("%f", rand.Float64()*100)),
+			})
+
+			outInferVal = append(outInferVal, &types.WithheldWorkerAttributedValue{
+				Worker: inferer1address,
+				Value:  alloraMath.MustNewDecFromString(fmt.Sprintf("%f", rand.Float64()*100)),
+			})
+			outInferVal = append(outInferVal, &types.WithheldWorkerAttributedValue{
+				Worker: inferer2address,
+				Value:  alloraMath.MustNewDecFromString(fmt.Sprintf("%f", rand.Float64()*100)),
+			})
+
+			outForecastVal = append(outForecastVal, &types.WithheldWorkerAttributedValue{
+				Worker: inferer1address,
+				Value:  alloraMath.MustNewDecFromString(fmt.Sprintf("%f", rand.Float64()*100)),
+			})
+			outForecastVal = append(outForecastVal, &types.WithheldWorkerAttributedValue{
+				Worker: inferer2address,
+				Value:  alloraMath.MustNewDecFromString(fmt.Sprintf("%f", rand.Float64()*100)),
+			})
+
+			inInferVal = append(inInferVal, &types.WorkerAttributedValue{
+				Worker: inferer1address,
+				Value:  alloraMath.MustNewDecFromString(fmt.Sprintf("%f", rand.Float64()*100)),
+			})
+			inInferVal = append(inInferVal, &types.WorkerAttributedValue{
+				Worker: inferer2address,
+				Value:  alloraMath.MustNewDecFromString(fmt.Sprintf("%f", rand.Float64()*100)),
+			})
+			incomingCombinedValue := alloraMath.MustNewDecFromString(fmt.Sprintf("%f", rand.Float64()*100))
+			incomingNaiveValue := alloraMath.MustNewDecFromString(fmt.Sprintf("%f", rand.Float64()*100))
+
+			// for _, inf := range nestedValueBundle.InferrerValues {
+			// 	inferVal = append(inferVal, &types.WorkerAttributedValue{
+			// 		Worker: inf.Worker,
+			// 		Value:  alloraMath.MustNewDecFromString(inf.Value),
+			// 	})
+			// }
+			// for _, inf := range nestedValueBundle.ForecasterValues {
+			// 	forecastsVal = append(forecastsVal, &types.WorkerAttributedValue{
+			// 		Worker: inf.Worker,
+			// 		Value:  alloraMath.MustNewDecFromString(inf.Value),
+			// 	})
+			// }
+			// for _, inf := range nestedValueBundle.OneOutInfererValues {
+			// 	outInferVal = append(outInferVal, &types.WithheldWorkerAttributedValue{
+			// 		Worker: inf.Worker,
+			// 		Value:  alloraMath.MustNewDecFromString(inf.Value),
+			// 	})
+			// }
+			// for _, inf := range nestedValueBundle.OneOutForecasterValues {
+			// 	outForecastVal = append(outForecastVal, &types.WithheldWorkerAttributedValue{
+			// 		Worker: inf.Worker,
+			// 		Value:  alloraMath.MustNewDecFromString(inf.Value),
+			// 	})
+			// }
+			// for _, inf := range nestedValueBundle.OneInForecasterValues {
+			// 	inInferVal = append(inInferVal, &types.WorkerAttributedValue{
+			// 		Worker: inf.Worker,
+			// 		Value:  alloraMath.MustNewDecFromString(inf.Value),
+			// 	})
+			// }
+			// incomingCombinedValue := alloraMath.MustNewDecFromString(nestedValueBundle.CombinedValue)
+			// incomingNaiveValue := alloraMath.MustNewDecFromString(nestedValueBundle.NaiveValue)
+
+			// Create ValueBundle
 			newValueBundle := &types.ValueBundle{
 				TopicId:                topicId,
 				ReputerRequestNonce:    reputerRequestNonce,
 				Reputer:                e.appChain.ReputerAddress,
-				CombinedValue:          alloraMath.MustNewDecFromString(nestedValueBundle.CombinedValue),
-				NaiveValue:             alloraMath.MustNewDecFromString(nestedValueBundle.NaiveValue),
+				CombinedValue:          incomingCombinedValue,
+				NaiveValue:             incomingNaiveValue,
 				InfererValues:          inferVal,
 				ForecasterValues:       forecastsVal,
 				OneOutInfererValues:    outInferVal,
