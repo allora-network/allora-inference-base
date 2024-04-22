@@ -57,8 +57,8 @@ github.com/alecthomas/template v0.0.0-20190718012654-fb15b899a751/go.mod h1:LOuy
 github.com/alecthomas/units v0.0.0-20151022065526-2efee857e7cf/go.mod h1:ybxpYRFXyAe+OPACYpWeL0wqObRcbAqCMya13uyzqw0=
 github.com/alecthomas/units v0.0.0-20190717042225-c3de453c63f4/go.mod h1:ybxpYRFXyAe+OPACYpWeL0wqObRcbAqCMya13uyzqw0=
 github.com/alecthomas/units v0.0.0-20190924025748-f65c72e2690d/go.mod h1:rBZYJk541a8SKzHPHnH3zbiI+7dagKZ0cgpgrD7Fyho=
-github.com/allora-network/allora-chain v0.0.11-0.20240420173103-00e789106f23 h1:EmXS/v16rcbnNCV8yCSG7/zmUuL6yfYc3VH2GPCX6ps=
-github.com/allora-network/allora-chain v0.0.11-0.20240420173103-00e789106f23/go.mod h1:evALp8UB4d8uR9XJ3EM1NQdsj9CpwJOJ9bZqhgl54eM=
+github.com/allora-network/allora-chain v0.0.11-0.20240422054910-25675aeea1e5 h1:qLRT8LQNJPiSLMon4OpiexljOTRCVMZox3i8fj9631g=
+github.com/allora-network/allora-chain v0.0.11-0.20240422054910-25675aeea1e5/go.mod h1:evALp8UB4d8uR9XJ3EM1NQdsj9CpwJOJ9bZqhgl54eM=
 github.com/allora-network/b7s v0.0.2-0.20240418175046-eca9bfd68831 h1:4s9e1sjeHlqG4SWoV29vcf/WGX9KeATx1V38X4k2f+I=
 github.com/allora-network/b7s v0.0.2-0.20240418175046-eca9bfd68831/go.mod h1:rJJrdC5Y83LEDFxo/iJp3JJpi8I6TJncOTigMWk8ieE=
 github.com/anmitsu/go-shlex v0.0.0-20161002113705-648efa622239/go.mod h1:2FmKhYUyUczH0OGQWaF5ceTx0UBShxjsH6f8oGKYe2c=
