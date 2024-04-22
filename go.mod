@@ -4,7 +4,7 @@ go 1.22.2
 
 require (
 	cosmossdk.io/math v1.3.0
-	github.com/allora-network/allora-chain v0.0.11-0.20240422054910-25675aeea1e5
+	github.com/allora-network/allora-chain v0.0.11-0.20240422191608-2da85ac47fb4
 	github.com/allora-network/b7s v0.0.2-0.20240418175046-eca9bfd68831
 	github.com/cockroachdb/pebble v1.1.0
 	github.com/cosmos/cosmos-sdk v0.50.5
