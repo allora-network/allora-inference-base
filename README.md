@@ -111,13 +111,13 @@ Blockless nodes need to define a number of directories:
 To build the image for the head:
 
 ```
-docker build -f docker/Dockerfile_head -t allora-inference-base:dev-head --build-arg "GH_TOKEN=${YOUR_GH_TOKEN}" --build-arg "BLS_EXTENSION_VER=${BLS_EXTENSION_VERSION}" . 
+docker build --pull -f docker/Dockerfile_head -t allora-inference-base:dev-head --build-arg "GH_TOKEN=${YOUR_GH_TOKEN}" --build-arg "BLS_EXTENSION_VER=${BLS_EXTENSION_VERSION}" . 
 ```
 
-Then to build the image for the head:
+Then to build the image for the worker:
 
 ```
-docker build -f docker/Dockerfile_worker -t allora-inference-base:dev-worker --build-arg "GH_TOKEN=${YOUR_GH_TOKEN}" --build-arg "BLS_EXTENSION_VER=${BLS_EXTENSION_VERSION}" . 
+docker build --pull -f docker/Dockerfile_worker -t allora-inference-base:dev-worker --build-arg "GH_TOKEN=${YOUR_GH_TOKEN}" --build-arg "BLS_EXTENSION_VER=${BLS_EXTENSION_VERSION}" . 
 ```
 
 where `YOUR_GH_TOKEN` is your Github token, and optionally `BLS_EXTENSION_VER` is the release version of the [Allora inference extension](https://github.com/allora-network/allora-inference-extension) to use (it will use latest if none is set).
