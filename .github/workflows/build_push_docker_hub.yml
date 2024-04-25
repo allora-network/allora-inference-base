@@ -18,6 +18,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Set BLS_EXTENSION_VER for main branch
+        run: echo "BLS_EXTENSION_VER=v0.1.4" >> $GITHUB_ENV
+        if: github.ref == 'refs/heads/main'
+
       - name: Checkout
         uses: actions/checkout@v3
 
