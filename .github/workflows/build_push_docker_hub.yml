@@ -73,6 +73,7 @@ jobs:
 
           docker build --pull -f docker/Dockerfile_worker_py3.9 \
               --build-arg "GH_TOKEN=${{ secrets.GH_READONLY_PAT }}" \
+              --build-arg "BLS_EXTENSION_VER=$BLS_EXTENSION_VER" \
               -t $DOCKERHUB_USERNAME/$DOCKERHUB_REPOSITORY:python3.9-$IMAGE_TAG .
           docker push $DOCKERHUB_USERNAME/$DOCKERHUB_REPOSITORY:python3.9-$IMAGE_TAG
 
