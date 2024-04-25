@@ -18,6 +18,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Set BLS_EXTENSION_VER for main branch
+        run: echo "BLS_EXTENSION_VER=v0.1.4" >> $GITHUB_ENV
+        if: github.ref == 'refs/heads/main'
+
       - name: Checkout
         uses: actions/checkout@v3
 
@@ -56,6 +60,7 @@ jobs:
 
           docker build --pull -f docker/Dockerfile_worker \
               --build-arg "GH_TOKEN=${{ secrets.GH_READONLY_PAT }}" \
+              --build-arg "BLS_EXTENSION_VER=$BLS_EXTENSION_VER" \
               -t $DOCKERHUB_USERNAME/$DOCKERHUB_REPOSITORY:$IMAGE_TAG .
           docker push $DOCKERHUB_USERNAME/$DOCKERHUB_REPOSITORY:$IMAGE_TAG
 
@@ -68,6 +73,7 @@ jobs:
 
           docker build --pull -f docker/Dockerfile_worker_py3.9 \
               --build-arg "GH_TOKEN=${{ secrets.GH_READONLY_PAT }}" \
+              --build-arg "BLS_EXTENSION_VER=$BLS_EXTENSION_VER" \
               -t $DOCKERHUB_USERNAME/$DOCKERHUB_REPOSITORY:python3.9-$IMAGE_TAG .
           docker push $DOCKERHUB_USERNAME/$DOCKERHUB_REPOSITORY:python3.9-$IMAGE_TAG
 
