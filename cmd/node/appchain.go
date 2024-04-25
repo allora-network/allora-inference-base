@@ -206,56 +206,56 @@ func registerWithBlockchain(appchain *AppChain) {
 	topicsList := strings.Join(strings.Fields(fmt.Sprint(b7sTopicIds)), ", ")
 	appchain.Logger.Info().Str("topicsList", topicsList).Msg("Topics list")
 
-	if isReputer {
-		// Iterate each topic
-		for _, topicId := range b7sTopicIds {
-			var is_registered bool
-			var err error
-			if isReputer {
-				is_registered, err = isReputerRegistered(appchain, topicId)
-			} else {
-				is_registered, err = isWorkerRegistered(appchain, topicId)
+	// Iterate each topic
+	for _, topicId := range b7sTopicIds {
+		var is_registered bool
+		var err error
+		if isReputer {
+			is_registered, err = isReputerRegistered(appchain, topicId)
+		} else {
+			is_registered, err = isWorkerRegistered(appchain, topicId)
+		}
+		if err != nil {
+			appchain.Logger.Error().Err(err).Uint64("topicId", topicId).Msg("could not check if the node is already registered for topic, skipping.")
+			continue
+		}
+		if !is_registered {
+			// register the wroker in the topic
+			msg := &types.MsgRegister{
+				Sender:       appchain.ReputerAddress,
+				LibP2PKey:    appchain.Config.LibP2PKey,
+				MultiAddress: appchain.Config.MultiAddress,
+				TopicId:      topicId,
+				Owner:        appchain.ReputerAddress,
+				IsReputer:    isReputer,
 			}
+			res, err := appchain.SendDataWithRetry(ctx, msg, NUM_REGISTRATION_RETRIES,
+				NUM_REGISTRATION_RETRY_MIN_DELAY, NUM_REGISTRATION_RETRY_MAX_DELAY, "register node")
 			if err != nil {
-				appchain.Logger.Error().Err(err).Uint64("topicId", topicId).Msg("could not check if the node is already registered for topic, skipping.")
-				continue
-			}
-			if !is_registered {
-				// register the wroker in the topic
-				msg := &types.MsgRegister{
-					Sender:       appchain.ReputerAddress,
-					LibP2PKey:    appchain.Config.LibP2PKey,
-					MultiAddress: appchain.Config.MultiAddress,
-					TopicId:      topicId,
-					Owner:        appchain.ReputerAddress,
-					IsReputer:    isReputer,
-				}
-				res, err := appchain.SendDataWithRetry(ctx, msg, NUM_REGISTRATION_RETRIES,
-					NUM_REGISTRATION_RETRY_MIN_DELAY, NUM_REGISTRATION_RETRY_MAX_DELAY, "register node")
-				if err != nil {
-					appchain.Logger.Fatal().Err(err).Uint64("topic", topicId).Str("txHash", res.TxHash).
-						Msg("could not register the node with the Allora blockchain in topic")
-				} else {
-					if isReputer {
-						var initstake = appchain.Config.InitialStake
-						if initstake > 0 {
-							msg := &types.MsgAddStake{
-								Sender:  appchain.ReputerAddress,
-								Amount:  cosmossdk_io_math.NewUint(initstake),
-								TopicId: topicId,
-							}
-							res, err := appchain.SendDataWithRetry(ctx, msg, NUM_STAKING_RETRIES,
-								NUM_STAKING_RETRY_MIN_DELAY, NUM_STAKING_RETRY_MAX_DELAY, "add stake")
-							if err != nil {
-								appchain.Logger.Error().Err(err).Uint64("topic", topicId).Str("txHash", res.TxHash).
-									Msg("could not register the node with the Allora blockchain in specified topic")
-							}
+				appchain.Logger.Fatal().Err(err).Uint64("topic", topicId).Str("txHash", res.TxHash).
+					Msg("could not register the node with the Allora blockchain in topic")
+			} else {
+				if isReputer {
+					var initstake = appchain.Config.InitialStake
+					if initstake > 0 {
+						msg := &types.MsgAddStake{
+							Sender:  appchain.ReputerAddress,
+							Amount:  cosmossdk_io_math.NewUint(initstake),
+							TopicId: topicId,
 						}
-					} else {
-						appchain.Logger.Info().Msg("No initial stake configured")
+						res, err := appchain.SendDataWithRetry(ctx, msg, NUM_STAKING_RETRIES,
+							NUM_STAKING_RETRY_MIN_DELAY, NUM_STAKING_RETRY_MAX_DELAY, "add stake")
+						if err != nil {
+							appchain.Logger.Error().Err(err).Uint64("topic", topicId).Str("txHash", res.TxHash).
+								Msg("could not stake the node with the Allora blockchain in specified topic")
+						}
 					}
+				} else {
+					appchain.Logger.Info().Msg("No initial stake configured")
 				}
 			}
+		} else {
+			appchain.Logger.Info().Uint64("topic", topicId).Msg("node already registered for topic")
 		}
 	}
 }
