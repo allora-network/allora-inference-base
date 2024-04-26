@@ -60,8 +60,20 @@ func sendResultsToChain(log zerolog.Logger, appChainClient *AppChain, res node.C
 		}
 		appChainClient.SendWorkerModeData(reqCtx, topicId, aggregate.Aggregate(res.Data))
 	} else { // for losses
+		// if topicId does not end in "/reputer
+
+		if !strings.HasSuffix(res.Topic, REPUTER_TOPIC_SUFFIX) {
+			log.Error().Str("Topic", res.Topic).Str("worker mode", appChainClient.Config.WorkerMode).Msg("Invalid reputer topic format")
+			return
+		}
 		// Get the topicId from the reputer topic string
-		topicId, err := strconv.ParseUint(res.Topic[:strings.Index(res.Topic, "/")], 10, 64)
+		index := strings.Index(res.Topic, "/")
+		if index == -1 {
+			// Handle the error: "/" not found in res.Topic
+			log.Error().Str("Topic", res.Topic).Msg("Invalid topic format")
+			return
+		}
+		topicId, err := strconv.ParseUint(res.Topic[:index], 10, 64)
 		if err != nil {
 			log.Error().Str("Topic", res.Topic).Str("worker mode", appChainClient.Config.WorkerMode).Err(err).Msg("Cannot parse reputer topic ID")
 			return
