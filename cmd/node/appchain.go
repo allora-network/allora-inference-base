@@ -36,6 +36,7 @@ const NUM_REGISTRATION_RETRY_MIN_DELAY = 1
 const NUM_REGISTRATION_RETRY_MAX_DELAY = 2
 const NUM_STAKING_RETRY_MIN_DELAY = 1
 const NUM_STAKING_RETRY_MAX_DELAY = 2
+const REPUTER_TOPIC_SUFFIX = "/reputer"
 
 func getAlloraClient(config AppChainConfig) (*cosmosclient.Client, error) {
 	// create a allora client instance
