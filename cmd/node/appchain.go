@@ -250,9 +250,9 @@ func registerWithBlockchain(appchain *AppChain) {
 							appchain.Logger.Error().Err(err).Uint64("topic", topicId).Str("txHash", res.TxHash).
 								Msg("could not stake the node with the Allora blockchain in specified topic")
 						}
+					} else {
+						appchain.Logger.Info().Msg("No initial stake configured")
 					}
-				} else {
-					appchain.Logger.Info().Msg("No initial stake configured")
 				}
 			}
 		} else {
