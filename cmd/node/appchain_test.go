@@ -4,6 +4,10 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"os"
+	"testing"
+	"time"
+
 	alloraMath "github.com/allora-network/allora-chain/math"
 	"github.com/allora-network/allora-chain/x/emissions/types"
 	"github.com/allora-network/b7s/host"
@@ -14,9 +18,6 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/suite"
-	"os"
-	"testing"
-	"time"
 )
 
 type AppChainTestSuit struct {
@@ -183,5 +184,5 @@ func (ap *AppChainTestSuit) TestSendDataWithRetry() {
 	}
 	req.WorkerDataBundles[0].Pubkey = pkStr
 	req.WorkerDataBundles[0].InferencesForecastsBundleSignature = sig
-	ap.app.SendDataWithRetry(ctx, req, 5, 0, 2)
+	ap.app.SendDataWithRetry(ctx, req, 5, 0, 2, "test send with retry")
 }
