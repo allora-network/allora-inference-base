@@ -333,6 +333,11 @@ func (ap *AppChain) SendWorkerModeData(ctx context.Context, topicId uint64, resu
 		}
 	}
 
+	if nonce == nil {
+		ap.Logger.Warn().Msg("No valid WorkerDataBundles with nonces found, not sending data to the chain")
+		return
+	}
+
 	// Make 1 request per worker
 	req := &types.MsgInsertBulkWorkerPayload{
 		Sender:            ap.ReputerAddress,
@@ -411,6 +416,11 @@ func (ap *AppChain) SendReputerModeData(ctx context.Context, topicId uint64, res
 		} else {
 			ap.Logger.Warn().Msg("No peers in the result, ignoring")
 		}
+	}
+
+	if nonceCurrent == nil || nonceEval == nil {
+		ap.Logger.Error().Uint64("topic", topicId).Msg("No valid ReputerDataBundles with nonces found, not sending data to the chain")
+		return
 	}
 
 	// Make 1 request per worker
