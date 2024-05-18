@@ -74,7 +74,7 @@ func (e *AlloraExecutor) ExecuteFunction(requestID string, req execute.Request) 
 	var topicFound bool = false
 	var alloraBlockHeightCurrent int64 = notFoundValue
 	var alloraBlockHeightEval int64 = notFoundValue
-	var topicIsNeverNegative bool = false
+	var topicIsNeverNegative bool = true
 	for _, envVar := range req.Config.Environment {
 		if envVar.Name == "TOPIC_ID" {
 			topicFound = true
@@ -111,7 +111,7 @@ func (e *AlloraExecutor) ExecuteFunction(requestID string, req execute.Request) 
 			fmt.Println("ALLORA_BLOCK_HEIGHT_EVAL: ", alloraBlockHeightEval)
 		} else if envVar.Name == "IS_NEVER_NEGATIVE" {
 			if envVar.Value == "false" {
-				topicIsNeverNegative = true
+				topicIsNeverNegative = false
 			}
 			fmt.Println("IS_NEVER_NEGATIVE: ", strconv.FormatBool(topicIsNeverNegative))
 		}
@@ -153,9 +153,18 @@ func (e *AlloraExecutor) ExecuteFunction(requestID string, req execute.Request) 
 				// Build Forecast
 				var forecasterElements []*types.ForecastElement
 				for _, val := range responseValue.ForecasterValues {
+					decVal := alloraMath.MustNewDecFromString(val.Value)
+					if topicIsNeverNegative {
+						decVal, err = alloraMath.Log10(decVal)
+						if err != nil {
+							fmt.Println("Error Log10 forecasterElements: ", err)
+							return result, err
+						}
+					}
+
 					forecasterElements = append(forecasterElements, &types.ForecastElement{
 						Inferer: val.Worker,
-						Value:   alloraMath.MustNewDecFromString(val.Value),
+						Value:   decVal,
 					})
 				}
 
