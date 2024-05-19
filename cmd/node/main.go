@@ -74,6 +74,7 @@ func (e *AlloraExecutor) ExecuteFunction(requestID string, req execute.Request) 
 	var topicFound bool = false
 	var alloraBlockHeightCurrent int64 = notFoundValue
 	var alloraBlockHeightEval int64 = notFoundValue
+	var topicAllowsNegative bool = false
 	for _, envVar := range req.Config.Environment {
 		if envVar.Name == "TOPIC_ID" {
 			topicFound = true
@@ -108,6 +109,11 @@ func (e *AlloraExecutor) ExecuteFunction(requestID string, req execute.Request) 
 				return result, err
 			}
 			fmt.Println("ALLORA_BLOCK_HEIGHT_EVAL: ", alloraBlockHeightEval)
+		} else if envVar.Name == "LOSS_FUNCTION_ALLOWS_NEGATIVE" {
+			if envVar.Value == "true" {
+				topicAllowsNegative = true
+			}
+			fmt.Println("LOSS_FUNCTION_ALLOWS_NEGATIVE: ", strconv.FormatBool(topicAllowsNegative))
 		}
 	}
 	if !topicFound {
@@ -147,9 +153,18 @@ func (e *AlloraExecutor) ExecuteFunction(requestID string, req execute.Request) 
 				// Build Forecast
 				var forecasterElements []*types.ForecastElement
 				for _, val := range responseValue.ForecasterValues {
+					decVal := alloraMath.MustNewDecFromString(val.Value)
+					if !topicAllowsNegative {
+						decVal, err = alloraMath.Log10(decVal)
+						if err != nil {
+							fmt.Println("Error Log10 forecasterElements: ", err)
+							return result, err
+						}
+					}
+
 					forecasterElements = append(forecasterElements, &types.ForecastElement{
 						Inferer: val.Worker,
-						Value:   alloraMath.MustNewDecFromString(val.Value),
+						Value:   decVal,
 					})
 				}
 
@@ -239,6 +254,23 @@ func (e *AlloraExecutor) ExecuteFunction(requestID string, req execute.Request) 
 				return result, err
 			}
 
+			combinedValue := alloraMath.MustNewDecFromString(nestedValueBundle.CombinedValue)
+			naiveValue := alloraMath.MustNewDecFromString(nestedValueBundle.NaiveValue)
+
+			// Log10 values the output when never_negative is set as true
+			if !topicAllowsNegative {
+				combinedValue, err = alloraMath.Log10(combinedValue)
+				if err != nil {
+					e.appChain.Logger.Error().Err(err).Msg("Error Log10 for Combined Value:")
+					return result, err
+				}
+				naiveValue, err = alloraMath.Log10(naiveValue)
+				if err != nil {
+					e.appChain.Logger.Error().Err(err).Msg("Error Log10 for Naive Value:")
+					return result, err
+				}
+			}
+
 			// Get the values from the nestedValueBundle
 			var (
 				inferVal       []*types.WorkerAttributedValue
@@ -248,34 +280,74 @@ func (e *AlloraExecutor) ExecuteFunction(requestID string, req execute.Request) 
 				inInferVal     []*types.WorkerAttributedValue
 			)
 
-			for _, inf := range nestedValueBundle.InferrerValues {
+			for _, inf := range nestedValueBundle.InfererValues {
+				value := alloraMath.MustNewDecFromString(inf.Value)
+				if !topicAllowsNegative {
+					value, err = alloraMath.Log10(value)
+					if err != nil {
+						e.appChain.Logger.Error().Err(err).Msg("Error Log10 for Inferer Value:")
+						return result, err
+					}
+				}
 				inferVal = append(inferVal, &types.WorkerAttributedValue{
 					Worker: inf.Worker,
-					Value:  alloraMath.MustNewDecFromString(inf.Value),
+					Value:  value,
 				})
 			}
 			for _, inf := range nestedValueBundle.ForecasterValues {
+				value := alloraMath.MustNewDecFromString(inf.Value)
+				if !topicAllowsNegative {
+					value, err = alloraMath.Log10(value)
+					if err != nil {
+						e.appChain.Logger.Error().Err(err).Msg("Error Log10 for Forecaster Value:")
+						return result, err
+					}
+				}
 				forecastsVal = append(forecastsVal, &types.WorkerAttributedValue{
 					Worker: inf.Worker,
-					Value:  alloraMath.MustNewDecFromString(inf.Value),
+					Value:  value,
 				})
 			}
 			for _, inf := range nestedValueBundle.OneOutInfererValues {
+				value := alloraMath.MustNewDecFromString(inf.Value)
+				if !topicAllowsNegative {
+					value, err = alloraMath.Log10(value)
+					if err != nil {
+						e.appChain.Logger.Error().Err(err).Msg("Error Log10 for OutInferer Value:")
+						return result, err
+					}
+				}
 				outInferVal = append(outInferVal, &types.WithheldWorkerAttributedValue{
 					Worker: inf.Worker,
-					Value:  alloraMath.MustNewDecFromString(inf.Value),
+					Value:  value,
 				})
 			}
 			for _, inf := range nestedValueBundle.OneOutForecasterValues {
+				value := alloraMath.MustNewDecFromString(inf.Value)
+				if !topicAllowsNegative {
+					value, err = alloraMath.Log10(value)
+					if err != nil {
+						e.appChain.Logger.Error().Err(err).Msg("Error Log10 for OutForecaster Value:")
+						return result, err
+					}
+				}
 				outForecastVal = append(outForecastVal, &types.WithheldWorkerAttributedValue{
 					Worker: inf.Worker,
-					Value:  alloraMath.MustNewDecFromString(inf.Value),
+					Value:  value,
 				})
 			}
 			for _, inf := range nestedValueBundle.OneInForecasterValues {
+				value := alloraMath.MustNewDecFromString(inf.Value)
+				if !topicAllowsNegative {
+					value, err = alloraMath.Log10(value)
+					if err != nil {
+						e.appChain.Logger.Error().Err(err).Msg("Error Log10 for InForecaster Value:")
+						return result, err
+					}
+				}
 				inInferVal = append(inInferVal, &types.WorkerAttributedValue{
 					Worker: inf.Worker,
-					Value:  alloraMath.MustNewDecFromString(inf.Value),
+					Value:  value,
 				})
 			}
 
@@ -283,8 +355,8 @@ func (e *AlloraExecutor) ExecuteFunction(requestID string, req execute.Request) 
 				TopicId:                topicId,
 				ReputerRequestNonce:    reputerRequestNonce,
 				Reputer:                e.appChain.ReputerAddress,
-				CombinedValue:          alloraMath.MustNewDecFromString(nestedValueBundle.CombinedValue),
-				NaiveValue:             alloraMath.MustNewDecFromString(nestedValueBundle.NaiveValue),
+				CombinedValue:          combinedValue,
+				NaiveValue:             naiveValue,
 				InfererValues:          inferVal,
 				ForecasterValues:       forecastsVal,
 				OneOutInfererValues:    outInferVal,
@@ -570,17 +642,6 @@ func run() int {
 
 		log.Info().Msg("Allora Node stopped")
 	}()
-	//go func() {
-	//	select {
-	//	case msg := <-node.CommunicatorAppLayer():
-	//		msgerr := json.Unmarshal(msg, &response)
-	//		if msgerr == nil {
-	//			sendResultsToChain(log, appchain, response)
-	//		} else {
-	//			log.Error().Err(msgerr).Msg("Unable to unmarshall")
-	//		}
-	//	}
-	//}()
 
 	// If we're a head node - start the REST API.
 	if role == blockless.HeadNode {

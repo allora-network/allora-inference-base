@@ -66,7 +66,7 @@ type WorkerDataResponse struct {
 type ValueBundle struct {
 	CombinedValue          string      `json:"combinedValue,omitempty"`
 	NaiveValue             string      `json:"naiveValue,omitempty"`
-	InferrerValues         []NodeValue `json:"infererValues,omitempty"`
+	InfererValues          []NodeValue `json:"infererValues,omitempty"`
 	ForecasterValues       []NodeValue `json:"forecasterValues,omitempty"`
 	OneOutInfererValues    []NodeValue `json:"oneOutInfererValues,omitempty"`
 	OneOutForecasterValues []NodeValue `json:"oneOutForecasterValues,omitempty"`
