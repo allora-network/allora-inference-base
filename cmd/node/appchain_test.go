@@ -176,7 +176,7 @@ func (ap *AppChainTestSuit) TestSendDataWithRetry() {
 	}
 	src := make([]byte, 0)
 	src, _ = req.WorkerDataBundles[0].InferenceForecastsBundle.XXX_Marshal(src, true)
-	sig, pk, err := ap.app.Client.Context().Keyring.Sign(ap.app.ReputerAccount.Name, src, signing.SignMode_SIGN_MODE_DIRECT)
+	sig, pk, err := ap.app.Client.Context().Keyring.Sign(ap.app.Account.Name, src, signing.SignMode_SIGN_MODE_DIRECT)
 	pkStr := hex.EncodeToString(pk.Bytes())
 	if err != nil {
 		fmt.Println("Error signing the nonce: ", err)
