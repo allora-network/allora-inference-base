@@ -15,13 +15,12 @@ type alloraCfg struct {
 }
 
 type AppChain struct {
-	ReputerAddress string
-	ReputerAccount cosmosaccount.Account
-	Client         *cosmosclient.Client
-	QueryClient    types.QueryClient
-	WorkersAddress map[string]string
-	Config         AppChainConfig
-	Logger         zerolog.Logger
+	Address     string
+	Account     cosmosaccount.Account
+	Client      *cosmosclient.Client
+	QueryClient types.QueryClient
+	Config      AppChainConfig
+	Logger      zerolog.Logger
 }
 
 type AppChainConfig struct {
@@ -38,7 +37,7 @@ type AppChainConfig struct {
 	TopicIds                 []string
 	NodeRole                 blockless.NodeRole
 	ReconnectSeconds         uint64  // seconds to wait for reconnection
-	InitialStake             uint64  // uallo to initially stake upon registration on a new topi
+	InitialStake             int64   // uallo to initially stake upon registration on a new topi
 	WorkerMode               string  // Allora Network worker mode to use
 	Gas                      string  // gas to use for the allora client
 	GasAdjustment            float64 // gas adjustment to use for the allora client

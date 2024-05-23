@@ -126,12 +126,12 @@ func NewAppChain(config AppChainConfig, log zerolog.Logger) (*AppChain, error) {
 	}
 
 	appchain := &AppChain{
-		ReputerAddress: address,
-		ReputerAccount: account,
-		Logger:         log,
-		Client:         client,
-		QueryClient:    queryClient,
-		Config:         config,
+		Address:     address,
+		Account:     account,
+		Logger:      log,
+		Client:      client,
+		QueryClient: queryClient,
+		Config:      config,
 	}
 
 	if config.NodeRole == blockless.WorkerNode {
@@ -162,7 +162,7 @@ func isReputerRegistered(appchain *AppChain, topicId uint64) (bool, error) {
 
 	res, err := appchain.QueryClient.IsReputerRegisteredInTopicId(ctx, &types.QueryIsReputerRegisteredInTopicIdRequest{
 		TopicId: topicId,
-		Address: appchain.ReputerAddress,
+		Address: appchain.Address,
 	})
 
 	if err != nil {
@@ -177,7 +177,7 @@ func isWorkerRegistered(appchain *AppChain, topicId uint64) (bool, error) {
 
 	res, err := appchain.QueryClient.IsWorkerRegisteredInTopicId(ctx, &types.QueryIsWorkerRegisteredInTopicIdRequest{
 		TopicId: topicId,
-		Address: appchain.ReputerAddress,
+		Address: appchain.Address,
 	})
 
 	if err != nil {
@@ -223,11 +223,11 @@ func registerWithBlockchain(appchain *AppChain) {
 		if !is_registered {
 			// register the wroker in the topic
 			msg := &types.MsgRegister{
-				Sender:       appchain.ReputerAddress,
+				Sender:       appchain.Address,
 				LibP2PKey:    appchain.Config.LibP2PKey,
 				MultiAddress: appchain.Config.MultiAddress,
 				TopicId:      topicId,
-				Owner:        appchain.ReputerAddress,
+				Owner:        appchain.Address,
 				IsReputer:    isReputer,
 			}
 			res, err := appchain.SendDataWithRetry(ctx, msg, NUM_REGISTRATION_RETRIES,
@@ -240,8 +240,8 @@ func registerWithBlockchain(appchain *AppChain) {
 					var initstake = appchain.Config.InitialStake
 					if initstake > 0 {
 						msg := &types.MsgAddStake{
-							Sender:  appchain.ReputerAddress,
-							Amount:  cosmossdk_io_math.NewUint(initstake),
+							Sender:  appchain.Address,
+							Amount:  cosmossdk_io_math.NewInt(initstake),
 							TopicId: topicId,
 						}
 						res, err := appchain.SendDataWithRetry(ctx, msg, NUM_STAKING_RETRIES,
@@ -266,7 +266,7 @@ func (ap *AppChain) SendDataWithRetry(ctx context.Context, req sdktypes.Msg, Max
 	var txResp *cosmosclient.Response
 	var err error
 	for retryCount := 0; retryCount <= MaxRetries; retryCount++ {
-		txResponse, err := ap.Client.BroadcastTx(ctx, ap.ReputerAccount, req)
+		txResponse, err := ap.Client.BroadcastTx(ctx, ap.Account, req)
 		txResp = &txResponse
 		if err == nil {
 			ap.Logger.Info().Str("Tx Hash:", txResp.TxHash).Msg("Success: " + SuccessMsg)
@@ -340,7 +340,7 @@ func (ap *AppChain) SendWorkerModeData(ctx context.Context, topicId uint64, resu
 
 	// Make 1 request per worker
 	req := &types.MsgInsertBulkWorkerPayload{
-		Sender:            ap.ReputerAddress,
+		Sender:            ap.Address,
 		Nonce:             nonce,
 		TopicId:           topicId,
 		WorkerDataBundles: WorkerDataBundles,
@@ -425,7 +425,7 @@ func (ap *AppChain) SendReputerModeData(ctx context.Context, topicId uint64, res
 
 	// Make 1 request per worker
 	req := &types.MsgInsertBulkReputerPayload{
-		Sender: ap.ReputerAddress,
+		Sender: ap.Address,
 		ReputerRequestNonce: &types.ReputerRequestNonce{
 			ReputerNonce: nonceCurrent,
 			WorkerNonce:  nonceEval,

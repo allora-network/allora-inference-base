@@ -136,49 +136,54 @@ func (e *AlloraExecutor) ExecuteFunction(requestID string, req execute.Request) 
 		// If appchain is null or SubmitTx is false, do not sign the nonce
 		if e.appChain != nil && e.appChain.Client != nil {
 			// Get the account from the appchain
-			accountName := e.appChain.ReputerAccount.Name
+			accountName := e.appChain.Account.Name
 			var responseValue InferenceForecastResponse
 			err = json.Unmarshal([]byte(result.Result.Stdout), &responseValue)
 			if err != nil {
 				fmt.Println("Error serializing InferenceForecastResponse proto message: ", err)
 			} else {
-				// Build inference
-				infererValue := alloraMath.MustNewDecFromString(responseValue.InfererValue)
-				inference := &types.Inference{
-					TopicId:     topicId,
-					Inferer:     e.appChain.ReputerAddress,
-					Value:       infererValue,
-					BlockHeight: alloraBlockHeightCurrent,
+				// Define an empty bundle
+				inferenceForecastsBundle := &types.InferenceForecastBundle{}
+				// Build inference if existent
+				if responseValue.InfererValue != "" {
+					infererValue := alloraMath.MustNewDecFromString(responseValue.InfererValue)
+					inference := &types.Inference{
+						TopicId:     topicId,
+						Inferer:     e.appChain.Address,
+						Value:       infererValue,
+						BlockHeight: alloraBlockHeightCurrent,
+					}
+					inferenceForecastsBundle.Inference = inference
 				}
 				// Build Forecast
-				var forecasterElements []*types.ForecastElement
-				for _, val := range responseValue.ForecasterValues {
-					decVal := alloraMath.MustNewDecFromString(val.Value)
-					if !topicAllowsNegative {
-						decVal, err = alloraMath.Log10(decVal)
-						if err != nil {
-							fmt.Println("Error Log10 forecasterElements: ", err)
-							return result, err
+				if len(responseValue.ForecasterValues) > 0 {
+					var forecasterElements []*types.ForecastElement
+					for _, val := range responseValue.ForecasterValues {
+						decVal := alloraMath.MustNewDecFromString(val.Value)
+						if !topicAllowsNegative {
+							decVal, err = alloraMath.Log10(decVal)
+							if err != nil {
+								fmt.Println("Error Log10 forecasterElements: ", err)
+								return result, err
+							}
 						}
+						forecasterElements = append(forecasterElements, &types.ForecastElement{
+							Inferer: val.Worker,
+							Value:   decVal,
+						})
 					}
 
-					forecasterElements = append(forecasterElements, &types.ForecastElement{
-						Inferer: val.Worker,
-						Value:   decVal,
-					})
+					if len(forecasterElements) > 0 {
+						forecasterValues := &types.Forecast{
+							TopicId:          topicId,
+							BlockHeight:      alloraBlockHeightCurrent,
+							Forecaster:       e.appChain.Address,
+							ForecastElements: forecasterElements,
+						}
+						inferenceForecastsBundle.Forecast = forecasterValues
+					}
 				}
 
-				forecasterValues := &types.Forecast{
-					TopicId:          topicId,
-					BlockHeight:      alloraBlockHeightCurrent,
-					Forecaster:       e.appChain.ReputerAddress,
-					ForecastElements: forecasterElements,
-				}
-
-				inferenceForecastsBundle := &types.InferenceForecastBundle{
-					Inference: inference,
-					Forecast:  forecasterValues,
-				}
 				// Marshall and sign the bundle
 				protoBytesIn := make([]byte, 0) // Create a byte slice with initial length 0 and capacity greater than 0
 				protoBytesIn, err := inferenceForecastsBundle.XXX_Marshal(protoBytesIn, true)
@@ -194,7 +199,7 @@ func (e *AlloraExecutor) ExecuteFunction(requestID string, req execute.Request) 
 				}
 				// Create workerDataBundle with signature
 				workerDataBundle := &types.WorkerDataBundle{
-					Worker:                             e.appChain.ReputerAddress,
+					Worker:                             e.appChain.Address,
 					InferenceForecastsBundle:           inferenceForecastsBundle,
 					InferencesForecastsBundleSignature: sig,
 					Pubkey:                             pkStr,
@@ -354,7 +359,7 @@ func (e *AlloraExecutor) ExecuteFunction(requestID string, req execute.Request) 
 			newValueBundle := &types.ValueBundle{
 				TopicId:                topicId,
 				ReputerRequestNonce:    reputerRequestNonce,
-				Reputer:                e.appChain.ReputerAddress,
+				Reputer:                e.appChain.Address,
 				CombinedValue:          combinedValue,
 				NaiveValue:             naiveValue,
 				InfererValues:          inferVal,
@@ -366,7 +371,7 @@ func (e *AlloraExecutor) ExecuteFunction(requestID string, req execute.Request) 
 
 			// Marshall and sign the bundle
 			// Get the account from the appchain
-			accountName := e.appChain.ReputerAccount.Name
+			accountName := e.appChain.Account.Name
 			protoBytesIn := make([]byte, 0)
 			protoBytesIn, err := newValueBundle.XXX_Marshal(protoBytesIn, true)
 			if err != nil {
