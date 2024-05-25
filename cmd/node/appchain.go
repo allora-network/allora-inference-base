@@ -364,7 +364,7 @@ const MAX_REPUTER_ADDRS_PER_QUERY = 100
 func (ap *AppChain) getStakePerReputer(ctx context.Context, topicId uint64, reputerAddrs []*string) (map[string]cosmossdk_io_math.Int, error) {
 	res, err := ap.QueryClient.GetMultiReputerStakeInTopic(ctx, &types.QueryMultiReputerStakeInTopicRequest{
 		TopicId:   topicId,
-		Addresses: reputerAddrs[MAX_REPUTER_ADDRS_PER_QUERY:],
+		Addresses: reputerAddrs[:MAX_REPUTER_ADDRS_PER_QUERY],
 	})
 	if err != nil {
 		ap.Logger.Error().Err(err).Uint64("topic", topicId).Msg("could not get reputer stakes from the chain")
