@@ -358,12 +358,110 @@ func (ap *AppChain) SendWorkerModeData(ctx context.Context, topicId uint64, resu
 	}()
 }
 
+// Can only look up the topic stakes of this many reputers at a time
+const MAX_REPUTER_ADDRS_PER_QUERY = 100
+
+func (ap *AppChain) getStakePerReputer(ctx context.Context, topicId uint64, reputerAddrs []*string) (map[string]cosmossdk_io_math.Int, error) {
+	res, err := ap.QueryClient.GetMultiReputerStakeInTopic(ctx, &types.QueryMultiReputerStakeInTopicRequest{
+		TopicId:   topicId,
+		Addresses: reputerAddrs[MAX_REPUTER_ADDRS_PER_QUERY:],
+	})
+	if err != nil {
+		ap.Logger.Error().Err(err).Uint64("topic", topicId).Msg("could not get reputer stakes from the chain")
+		return nil, err
+	}
+
+	// Create a map of reputer addresses to their stakes
+	var stakesPerReputer = make(map[string]cosmossdk_io_math.Int)
+	for _, stake := range res.Amounts {
+		stakesPerReputer[stake.Address] = stake.Stake
+	}
+
+	return stakesPerReputer, err
+}
+
+func (ap *AppChain) argmaxBlockByStake(
+	blockToReputer *map[int64][]string,
+	stakesPerReputer map[string]cosmossdk_io_math.Int,
+) int64 {
+	// Find the current block height with the highest voting power
+	firstIter := true
+	highestVotingPower := cosmossdk_io_math.ZeroInt()
+	blockOfMaxPower := int64(-1)
+	for block, reputersWhoVotedForBlock := range *blockToReputer {
+		// Calc voting power of this candidate block by total voting reputer stake
+		blockVotingPower := cosmossdk_io_math.ZeroInt()
+		for _, reputerAddr := range reputersWhoVotedForBlock {
+			blockVotingPower = blockVotingPower.Add(stakesPerReputer[reputerAddr])
+		}
+
+		// Decide if voting power exceeds that of current front-runner
+		if firstIter || blockVotingPower.GT(highestVotingPower) {
+			blockOfMaxPower = block
+		}
+
+		firstIter = false
+	}
+
+	return blockOfMaxPower
+}
+
+func (ap *AppChain) argmaxBlockByCount(
+	blockToReputer *map[int64][]string,
+) int64 {
+	// Find the current block height with the highest voting power
+	firstIter := true
+	highestVotingPower := cosmossdk_io_math.ZeroInt()
+	blockOfMaxPower := int64(-1)
+	for block, reputersWhoVotedForBlock := range *blockToReputer {
+		// Calc voting power of this candidate block by total reputer count
+		blockVotingPower := cosmossdk_io_math.NewInt(int64(len(reputersWhoVotedForBlock)))
+
+		// Decide if voting power exceeds that of current front-runner
+		if firstIter || blockVotingPower.GT(highestVotingPower) {
+			blockOfMaxPower = block
+		}
+
+		firstIter = false
+	}
+
+	return blockOfMaxPower
+}
+
+// Take stake-weighted vote of what the reputer leader thinks the current and eval block heights should be
+func (ap *AppChain) getStakeWeightedBlockHeights(
+	ctx context.Context,
+	topicId uint64,
+	blockCurrentToReputer, blockEvalToReputer *map[int64][]string,
+	reputerAddrs []*string,
+) (int64, int64, error) {
+	useWeightedVote := true
+	stakesPerReputer, err := ap.getStakePerReputer(ctx, topicId, reputerAddrs)
+	if err != nil {
+		ap.Logger.Error().Err(err).Uint64("topic", topicId).Msg("error getting reputer stakes from the chain => using unweighted vote")
+		// This removes a strict requirement for the reputer leader to have the correct stake
+		// at the cost of potentially allowing sybil attacks, though Blockless itself somewhat mitigates this
+		useWeightedVote = false
+	}
+
+	// Find the current and ev block height with the highest voting power
+	if useWeightedVote {
+		return ap.argmaxBlockByStake(blockCurrentToReputer, stakesPerReputer), ap.argmaxBlockByStake(blockEvalToReputer, stakesPerReputer), nil
+	} else {
+		return ap.argmaxBlockByCount(blockCurrentToReputer), ap.argmaxBlockByCount(blockEvalToReputer), nil
+	}
+}
+
 // Sending Losses to the AppChain
 func (ap *AppChain) SendReputerModeData(ctx context.Context, topicId uint64, results aggregate.Results) {
 	// Aggregate the forecast from reputer leader
 	var valueBundles []*types.ReputerValueBundle
+	var reputerAddrs []*string
+	var reputerAddrSet = make(map[string]bool) // Prevents duplicate reputer addresses from being counted in vote tally
 	var nonceCurrent *types.Nonce
 	var nonceEval *types.Nonce
+	var blockCurrentToReputer = make(map[int64][]string) // map topicId to addresses of reputers who sent data for current block height
+	var blockEvalToReputer = make(map[int64][]string)    // map topicId to addresses of reputers who sent data for eval block height
 
 	for _, result := range results {
 		if len(result.Peers) > 0 {
@@ -382,46 +480,57 @@ func (ap *AppChain) SendReputerModeData(ctx context.Context, topicId uint64, res
 				ap.Logger.Info().Str("Reputer Address", res.Address).Msg("Reputer Address")
 			}
 
-			// Parse the result from the reputer to get the inference and forecasts
-			// Parse the result from the worker to get the inference and forecasts
-			var value ReputerDataResponse
-			err = json.Unmarshal([]byte(result.Result.Stdout), &value)
-			if err != nil {
-				ap.Logger.Warn().Err(err).Str("peer", peer.String()).Msg("error extracting WorkerDataBundle from stdout, ignoring bundle.")
-				continue
-			}
-			if nonceCurrent == nil {
-				nonceCurrent = &types.Nonce{BlockHeight: value.BlockHeight}
-			}
-			if nonceEval == nil {
-				nonceEval = &types.Nonce{BlockHeight: value.BlockHeightEval}
-			}
+			if _, ok := reputerAddrSet[res.Address]; !ok {
+				reputerAddrSet[res.Address] = true
 
-			// Here reputer leader can choose to validate data further to ensure set is correct and act accordingly
-			if value.ReputerValueBundle == nil {
-				ap.Logger.Warn().Str("peer", peer.String()).Msg("ReputerValueBundle is nil from stdout, ignoring bundle.")
-				continue
-			}
-			if value.ReputerValueBundle.ValueBundle == nil {
-				ap.Logger.Warn().Str("peer", peer.String()).Msg("ValueBundle is nil from stdout, ignoring bundle.")
-				continue
-			}
-			if value.ReputerValueBundle.ValueBundle.TopicId != topicId {
-				ap.Logger.Warn().Str("peer", peer.String()).Msg("ReputerValueBundle topicId does not match with request topicId, ignoring bundle.")
-				continue
-			}
-			// Append the WorkerDataBundle (only) to the WorkerDataBundles slice
-			valueBundles = append(valueBundles, value.ReputerValueBundle)
+				// Parse the result from the reputer to get the losses
+				// Parse the result from the worker to get the inferences and forecasts
+				var value ReputerDataResponse
+				err = json.Unmarshal([]byte(result.Result.Stdout), &value)
+				if err != nil {
+					ap.Logger.Warn().Err(err).Str("peer", peer.String()).Msg("error extracting WorkerDataBundle from stdout, ignoring bundle.")
+					continue
+				}
 
+				// Here reputer leader can choose to validate data further to ensure set is correct and act accordingly
+				if value.ReputerValueBundle == nil {
+					ap.Logger.Warn().Str("peer", peer.String()).Msg("ReputerValueBundle is nil from stdout, ignoring bundle.")
+					continue
+				}
+				if value.ReputerValueBundle.ValueBundle == nil {
+					ap.Logger.Warn().Str("peer", peer.String()).Msg("ValueBundle is nil from stdout, ignoring bundle.")
+					continue
+				}
+				if value.ReputerValueBundle.ValueBundle.TopicId != topicId {
+					ap.Logger.Warn().Str("peer", peer.String()).Msg("ReputerValueBundle topicId does not match with request topicId, ignoring bundle.")
+					continue
+				}
+				// Append the WorkerDataBundle (only) to the WorkerDataBundles slice
+				valueBundles = append(valueBundles, value.ReputerValueBundle)
+				reputerAddrs = append(reputerAddrs, &res.Address)
+				blockCurrentToReputer[value.BlockHeight] = append(blockCurrentToReputer[value.BlockHeight], res.Address)
+				blockEvalToReputer[value.BlockHeightEval] = append(blockEvalToReputer[value.BlockHeightEval], res.Address)
+			}
 		} else {
 			ap.Logger.Warn().Msg("No peers in the result, ignoring")
 		}
 	}
 
-	if nonceCurrent == nil || nonceEval == nil {
-		ap.Logger.Error().Uint64("topic", topicId).Msg("No valid ReputerDataBundles with nonces found, not sending data to the chain")
+	blockCurrentHeight, blockEvalHeight, err := ap.getStakeWeightedBlockHeights(ctx, topicId, &blockCurrentToReputer, &blockEvalToReputer, reputerAddrs)
+	if err != nil {
+		ap.Logger.Error().Err(err).Msg("could not get stake-weighted block heights, not sending data to the chain")
 		return
 	}
+	if blockCurrentHeight == -1 || blockEvalHeight == -1 {
+		ap.Logger.Error().Msg("could not get stake-weighted block heights, not sending data to the chain")
+		return
+	}
+	if blockCurrentHeight < blockEvalHeight {
+		ap.Logger.Error().Int64("blockCurrentHeight", blockCurrentHeight).Int64("blockEvalHeight", blockEvalHeight).Msg("blockCurrentHeight < blockEvalHeight, not sending data to the chain")
+		return
+	}
+	nonceCurrent = &types.Nonce{BlockHeight: blockCurrentHeight}
+	nonceEval = &types.Nonce{BlockHeight: blockEvalHeight}
 
 	// Make 1 request per worker
 	req := &types.MsgInsertBulkReputerPayload{
