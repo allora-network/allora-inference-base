@@ -361,6 +361,9 @@ func (ap *AppChain) SendWorkerModeData(ctx context.Context, topicId uint64, resu
 // Can only look up the topic stakes of this many reputers at a time
 const DEFAULT_MAX_REPUTERS_FOR_STAKE_QUERY = uint64(100)
 
+// Only this number times MaxLimit (whose default is given above) of reputer stakes can be gathered at once
+const MAX_NUMBER_STAKE_QUERIES_PER_REQUEST = uint64(3)
+
 func (ap *AppChain) getStakePerReputer(ctx context.Context, topicId uint64, reputerAddrs []*string) (map[string]cosmossdk_io_math.Int, error) {
 	maxReputers := DEFAULT_MAX_REPUTERS_FOR_STAKE_QUERY
 	params, err := ap.QueryClient.Params(ctx, &types.QueryParamsRequest{})
@@ -370,19 +373,23 @@ func (ap *AppChain) getStakePerReputer(ctx context.Context, topicId uint64, repu
 	if err == nil {
 		maxReputers = params.Params.MaxLimit
 	}
-	res, err := ap.QueryClient.GetMultiReputerStakeInTopic(ctx, &types.QueryMultiReputerStakeInTopicRequest{
-		TopicId:   topicId,
-		Addresses: reputerAddrs[:maxReputers],
-	})
-	if err != nil {
-		ap.Logger.Error().Err(err).Uint64("topic", topicId).Msg("could not get reputer stakes from the chain")
-		return nil, err
-	}
 
-	// Create a map of reputer addresses to their stakes
-	var stakesPerReputer = make(map[string]cosmossdk_io_math.Int)
-	for _, stake := range res.Amounts {
-		stakesPerReputer[stake.Address] = stake.Stake
+	numberRequestsForStake := MAX_NUMBER_STAKE_QUERIES_PER_REQUEST
+	var stakesPerReputer = make(map[string]cosmossdk_io_math.Int) // This will be populated with each request/loop below
+	for i := uint64(0); i < numberRequestsForStake; i++ {
+		res, err := ap.QueryClient.GetMultiReputerStakeInTopic(ctx, &types.QueryMultiReputerStakeInTopicRequest{
+			TopicId:   topicId,
+			Addresses: reputerAddrs[i*maxReputers : (i+1)*maxReputers],
+		})
+		if err != nil {
+			ap.Logger.Error().Err(err).Uint64("topic", topicId).Msg("could not get reputer stakes from the chain")
+			return nil, err
+		}
+
+		// Create a map of reputer addresses to their stakes
+		for _, stake := range res.Amounts {
+			stakesPerReputer[stake.Address] = stake.Stake
+		}
 	}
 
 	return stakesPerReputer, err
