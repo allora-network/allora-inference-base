@@ -359,12 +359,20 @@ func (ap *AppChain) SendWorkerModeData(ctx context.Context, topicId uint64, resu
 }
 
 // Can only look up the topic stakes of this many reputers at a time
-const MAX_REPUTER_ADDRS_PER_QUERY = 100
+const DEFAULT_MAX_REPUTERS_FOR_STAKE_QUERY = uint64(100)
 
 func (ap *AppChain) getStakePerReputer(ctx context.Context, topicId uint64, reputerAddrs []*string) (map[string]cosmossdk_io_math.Int, error) {
+	maxReputers := DEFAULT_MAX_REPUTERS_FOR_STAKE_QUERY
+	params, err := ap.QueryClient.Params(ctx, &types.QueryParamsRequest{})
+	if err != nil {
+		ap.Logger.Error().Err(err).Uint64("topic", topicId).Msg("could not get chain params")
+	}
+	if err == nil {
+		maxReputers = params.Params.MaxLimit
+	}
 	res, err := ap.QueryClient.GetMultiReputerStakeInTopic(ctx, &types.QueryMultiReputerStakeInTopicRequest{
 		TopicId:   topicId,
-		Addresses: reputerAddrs[:MAX_REPUTER_ADDRS_PER_QUERY],
+		Addresses: reputerAddrs[:maxReputers],
 	})
 	if err != nil {
 		ap.Logger.Error().Err(err).Uint64("topic", topicId).Msg("could not get reputer stakes from the chain")
