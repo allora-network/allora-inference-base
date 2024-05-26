@@ -377,9 +377,14 @@ func (ap *AppChain) getStakePerReputer(ctx context.Context, topicId uint64, repu
 	numberRequestsForStake := MAX_NUMBER_STAKE_QUERIES_PER_REQUEST
 	var stakesPerReputer = make(map[string]cosmossdk_io_math.Int) // This will be populated with each request/loop below
 	for i := uint64(0); i < numberRequestsForStake; i++ {
+		// Dereference only the needed reputer addresses to get the actual strings
+		addresses := make([]string, 0)
+		for _, addr := range reputerAddrs[i*maxReputers : (i+1)*maxReputers] {
+			addresses = append(addresses, *addr)
+		}
 		res, err := ap.QueryClient.GetMultiReputerStakeInTopic(ctx, &types.QueryMultiReputerStakeInTopicRequest{
 			TopicId:   topicId,
-			Addresses: reputerAddrs[i*maxReputers : (i+1)*maxReputers],
+			Addresses: addresses,
 		})
 		if err != nil {
 			ap.Logger.Error().Err(err).Uint64("topic", topicId).Msg("could not get reputer stakes from the chain")
@@ -388,7 +393,7 @@ func (ap *AppChain) getStakePerReputer(ctx context.Context, topicId uint64, repu
 
 		// Create a map of reputer addresses to their stakes
 		for _, stake := range res.Amounts {
-			stakesPerReputer[stake.Address] = stake.Stake
+			stakesPerReputer[stake.Reputer] = stake.Amount
 		}
 	}
 
