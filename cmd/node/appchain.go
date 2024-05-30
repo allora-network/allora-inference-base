@@ -372,7 +372,7 @@ func (ap *AppChain) getStakePerReputer(ctx context.Context, topicId uint64, repu
 		ap.Logger.Error().Err(err).Uint64("topic", topicId).Msg("could not get chain params")
 	}
 	if err == nil {
-		maxReputers = params.Params.MaxLimit
+		maxReputers = params.Params.MaxPageLimit
 	}
 
 	numberRequestsForStake := MAX_NUMBER_STAKE_QUERIES_PER_REQUEST
