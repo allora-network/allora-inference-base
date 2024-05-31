@@ -61,6 +61,8 @@ github.com/allora-network/allora-chain v0.1.0-dev.a53b6d4.0.20240526151956-574b2
 github.com/allora-network/allora-chain v0.1.0-dev.a53b6d4.0.20240526151956-574b2f09d09e/go.mod h1:7UrL7qr/wLTnBBfTGZHHui9tjDfx89FvDj22YD2TVow=
 github.com/allora-network/allora-chain v0.1.0-dev.a53b6d4.0.20240530034517-701b22338ce3 h1:udZYnIlglfhJ4zJNsMyl/fXJxie3vWrfdP04zIOyPXg=
 github.com/allora-network/allora-chain v0.1.0-dev.a53b6d4.0.20240530034517-701b22338ce3/go.mod h1:7UrL7qr/wLTnBBfTGZHHui9tjDfx89FvDj22YD2TVow=
+github.com/allora-network/allora-chain v0.2.1-dev h1:Cjq86Va8WEr7Hixw52BR3nO8vwEfmk8ndOd++Jm7fWE=
+github.com/allora-network/allora-chain v0.2.1-dev/go.mod h1:7UrL7qr/wLTnBBfTGZHHui9tjDfx89FvDj22YD2TVow=
 github.com/allora-network/b7s v0.0.2-0.20240418175046-eca9bfd68831 h1:4s9e1sjeHlqG4SWoV29vcf/WGX9KeATx1V38X4k2f+I=
 github.com/allora-network/b7s v0.0.2-0.20240418175046-eca9bfd68831/go.mod h1:rJJrdC5Y83LEDFxo/iJp3JJpi8I6TJncOTigMWk8ieE=
 github.com/anmitsu/go-shlex v0.0.0-20161002113705-648efa622239/go.mod h1:2FmKhYUyUczH0OGQWaF5ceTx0UBShxjsH6f8oGKYe2c=
