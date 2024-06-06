@@ -1,9 +1,9 @@
 package main
 
 import (
-	types "github.com/allora-network/allora-chain/x/emissions"
-	"github.com/blocklessnetwork/b7s/config"
-	"github.com/blocklessnetwork/b7s/models/blockless"
+	"github.com/allora-network/allora-chain/x/emissions/types"
+	"github.com/allora-network/b7s/config"
+	"github.com/allora-network/b7s/models/blockless"
 	"github.com/ignite/cli/v28/ignite/pkg/cosmosaccount"
 	"github.com/ignite/cli/v28/ignite/pkg/cosmosclient"
 	"github.com/rs/zerolog"
@@ -15,13 +15,12 @@ type alloraCfg struct {
 }
 
 type AppChain struct {
-	ReputerAddress string
-	ReputerAccount cosmosaccount.Account
-	Client         *cosmosclient.Client
-	QueryClient    types.QueryClient
-	WorkersAddress map[string]string
-	Config         AppChainConfig
-	Logger         zerolog.Logger
+	Address     string
+	Account     cosmosaccount.Account
+	Client      *cosmosclient.Client
+	QueryClient types.QueryClient
+	Config      AppChainConfig
+	Logger      zerolog.Logger
 }
 
 type AppChainConfig struct {
@@ -37,34 +36,62 @@ type AppChainConfig struct {
 	MultiAddress             string
 	TopicIds                 []string
 	NodeRole                 blockless.NodeRole
-	ReconnectSeconds         uint64 // seconds to wait for reconnection
-	InitialStake             uint64 // uallo to initially stake upon registration on a new topi
+	ReconnectSeconds         uint64  // seconds to wait for reconnection
+	InitialStake             int64   // uallo to initially stake upon registration on a new topi
+	WorkerMode               string  // Allora Network worker mode to use
+	Gas                      string  // gas to use for the allora client
+	GasAdjustment            float64 // gas adjustment to use for the allora client
 }
 
-type WeightsResponse struct {
-	Value string `json:"value"`
+type NodeValue struct {
+	Worker string `json:"worker,omitempty"`
+	Value  string `json:"value,omitempty"`
 }
 
-type WorkerWeights struct {
-	Type    string            `json:"type"`
-	Weights map[string]string `json:"weights"`
+// WORKER
+type InferenceForecastResponse struct {
+	InfererValue     string      `json:"infererValue,omitempty"`
+	ForecasterValues []NodeValue `json:"forecasterValue,omitempty"`
 }
 
-type WeightsCalcDependencies struct {
-	LatestWeights map[string]float64
-	ActualPrice   float64
+type WorkerDataResponse struct {
+	*types.WorkerDataBundle
+	BlockHeight int64 `json:"blockHeight,omitempty"`
+	TopicId     int64 `json:"topicId,omitempty"`
 }
 
-type ResponseInfo struct {
-	FunctionType string `json:"type"`
+// REPUTER
+// Local struct to hold the value bundle from the wasm function response
+type ValueBundle struct {
+	CombinedValue          string      `json:"combinedValue,omitempty"`
+	NaiveValue             string      `json:"naiveValue,omitempty"`
+	InfererValues          []NodeValue `json:"infererValues,omitempty"`
+	ForecasterValues       []NodeValue `json:"forecasterValues,omitempty"`
+	OneOutInfererValues    []NodeValue `json:"oneOutInfererValues,omitempty"`
+	OneOutForecasterValues []NodeValue `json:"oneOutForecasterValues,omitempty"`
+	OneInForecasterValues  []NodeValue `json:"oneInForecasterValues,omitempty"`
 }
 
-type Response struct {
+// Wrapper around the ReputerValueBundle to include the block height and topic id for the leader
+type ReputerDataResponse struct {
+	*types.ReputerValueBundle
+	BlockHeight     int64 `json:"blockHeight,omitempty"`
+	BlockHeightEval int64 `json:"blockHeightEval,omitempty"`
+	TopicId         int64 `json:"topicId,omitempty"`
+}
+
+type ReputerWASMResponse struct {
 	Value string `json:"value,omitempty"`
-	Error string `json:"error,omitempty"`
 }
 
-var (
-	inferenceType = "inferences"
-	weightsType   = "weights"
+const (
+	WorkerModeWorker  = "worker"
+	WorkerModeReputer = "reputer"
 )
+
+type AlloraExecutor struct {
+	blockless.Executor
+	appChain *AppChain
+}
+
+const AlloraExponential = 18

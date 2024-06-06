@@ -2,18 +2,20 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
-	"github.com/blocklessnetwork/b7s/api"
-	"github.com/blocklessnetwork/b7s/models/blockless"
-	"github.com/blocklessnetwork/b7s/models/codes"
-	"github.com/blocklessnetwork/b7s/models/execute"
-	"github.com/blocklessnetwork/b7s/node/aggregate"
+	"github.com/allora-network/b7s/api"
+	"github.com/allora-network/b7s/models/blockless"
+	"github.com/allora-network/b7s/models/codes"
+	"github.com/allora-network/b7s/models/execute"
+	"github.com/allora-network/b7s/node"
+	"github.com/allora-network/b7s/node/aggregate"
 	"github.com/labstack/echo/v4"
+	"github.com/rs/zerolog"
 )
 
 // ExecuteRequest describes the payload for the REST API request for function execution.
@@ -31,55 +33,57 @@ type ExecuteResponse struct {
 	Cluster   execute.Cluster   `json:"cluster,omitempty"`
 }
 
-// ExecuteResult represents the API representation of a single execution response.
-// It is similar to the model in `execute.Result`, except it omits the usage information for now.
-type ExecuteResult struct {
-	Code      codes.Code            `json:"code,omitempty"`
-	Result    execute.RuntimeOutput `json:"result,omitempty"`
-	RequestID string                `json:"request_id,omitempty"`
-}
-
-func sendResultsToChain(ctx echo.Context, a api.API, appChainClient AppChain, req ExecuteRequest, res ExecuteResponse) {
-
-	// Only in weight functions that we will have a "type" in the response
-	functionType := "inferences"
-	functionTypeFromFn, err := getResponseInfo(res.Results[0].Result.Stdout)
-	if err != nil {
-		a.Log.Warn().Str("function", req.FunctionID).Err(err).Msg("node failed to extract response info from stdout")
-	} else {
-		if functionTypeFromFn != "" {
-			functionType = functionTypeFromFn
+func sendResultsToChain(log zerolog.Logger, appChainClient *AppChain, res node.ChanData) {
+	log.Info().Msg("Sending Results to chain")
+	if appChainClient == nil || res.Res != codes.OK {
+		reason := "unknown"
+		if appChainClient == nil {
+			reason = "AppChainClient is disabled"
+		} else if res.Res != codes.OK {
+			reason = fmt.Sprintf("Response code is not OK: %s", res.Res)
 		}
-	}
-
-	// var topicId uint64 = req.Topic
-	topicId, err := strconv.ParseUint(req.Topic, 10, 64)
-	if err != nil {
-		a.Log.Error().Str("Topic", req.Topic).Str("function", functionType).Err(err).Msg("Cannot parse topic ID")
+		log.Warn().Msgf("Worker results not submitted to chain, not attempted. Reason: %s", reason)
 		return
 	}
-	a.Log.Debug().Str("Topic", req.Topic).Str("function", functionType).Msg("Found topic ID")
+	stdout := aggregate.Aggregate(res.Data)[0].Result.Stdout
+	log.Info().Str("stdout", stdout).Msg("Aggregated stdout result")
+
+	log.Debug().Str("Topic", res.Topic).Str("worker mode", appChainClient.Config.WorkerMode).Msg("Found topic ID")
 
 	// TODO: We can move this context to the AppChain struct (previous context was breaking the tx broadcast response)
 	reqCtx := context.Background()
-	if functionType == inferenceType {
-		appChainClient.SendInferences(reqCtx, topicId, res.Results)
-	} else if functionType == weightsType {
-		appChainClient.SendUpdatedWeights(reqCtx, topicId, res.Results)
+	if appChainClient.Config.WorkerMode == WorkerModeWorker { // for inference or forecast
+		topicId, err := strconv.ParseUint(res.Topic, 10, 64)
+		if err != nil {
+			log.Error().Str("Topic", res.Topic).Str("worker mode", appChainClient.Config.WorkerMode).Err(err).Msg("Cannot parse worker topic ID")
+			return
+		}
+		appChainClient.SendWorkerModeData(reqCtx, topicId, aggregate.Aggregate(res.Data))
+	} else { // for losses
+		// if topicId does not end in "/reputer
+
+		if !strings.HasSuffix(res.Topic, REPUTER_TOPIC_SUFFIX) {
+			log.Error().Str("Topic", res.Topic).Str("worker mode", appChainClient.Config.WorkerMode).Msg("Invalid reputer topic format")
+			return
+		}
+		// Get the topicId from the reputer topic string
+		index := strings.Index(res.Topic, "/")
+		if index == -1 {
+			// Handle the error: "/" not found in res.Topic
+			log.Error().Str("Topic", res.Topic).Msg("Invalid topic format")
+			return
+		}
+		topicId, err := strconv.ParseUint(res.Topic[:index], 10, 64)
+		if err != nil {
+			log.Error().Str("Topic", res.Topic).Str("worker mode", appChainClient.Config.WorkerMode).Err(err).Msg("Cannot parse reputer topic ID")
+			return
+		}
+		appChainClient.SendReputerModeData(reqCtx, topicId, aggregate.Aggregate(res.Data))
 	}
 }
 
-func getResponseInfo(stdout string) (string, error) {
-	var responseInfo ResponseInfo
-	err := json.Unmarshal([]byte(stdout), &responseInfo)
-	if err != nil {
-		return "", err
-	}
+func createExecutor(a api.API) func(ctx echo.Context) error {
 
-	return responseInfo.FunctionType, nil
-}
-
-func createExecutor(a api.API, appChainClient *AppChain) func(ctx echo.Context) error {
 	return func(ctx echo.Context) error {
 
 		// Unpack the API request.
@@ -114,23 +118,6 @@ func createExecutor(a api.API, appChainClient *AppChain) func(ctx echo.Context) 
 		// Communicate the reason for failure in these cases.
 		if errors.Is(err, blockless.ErrRollCallTimeout) || errors.Is(err, blockless.ErrExecutionNotEnoughNodes) {
 			res.Message = err.Error()
-		}
-
-		// Might be disabled if so we should log out
-		if appChainClient != nil && appChainClient.Config.SubmitTx && res.Code == codes.OK {
-			// don't block the return to the consumer to send these to chain
-			go sendResultsToChain(ctx, a, *appChainClient, req, res)
-		} else {
-			a.Log.Debug().Msg("Inference results would have been submitted to chain.")
-			reason := "unknown"
-			if appChainClient == nil {
-				reason = "AppChainClient is disabled"
-			} else if !appChainClient.Config.SubmitTx {
-				reason = "Submitting transactions is disabled in AppChainClient"
-			} else if res.Code != codes.OK {
-				reason = fmt.Sprintf("Response code is not OK: %s, message: %s", res.Code, res.Message)
-			}
-			a.Log.Warn().Msgf("Inference results not submitted to chain, not attempted. Reason: %s", reason)
 		}
 
 		// Send the response.

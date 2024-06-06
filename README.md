@@ -15,14 +15,6 @@ In order to build locally:
 GOOS=linux GOARCH=amd64 make
 ```
 
-***WARNING***
-
-This repo is currently relying on a private module, current development requires
-
-```bash
-export GOPRIVATE=github.com/allora-network/allora-appchain
-```
-
 # Run locally
 
 ## Head
@@ -44,6 +36,8 @@ export GOPRIVATE=github.com/allora-network/allora-appchain
 ```
 ## Worker
 
+Worker (for inference or forecast requests) node: 
+
 ```
 ./allora-node \
   --role=worker  \
@@ -60,12 +54,35 @@ export GOPRIVATE=github.com/allora-network/allora-appchain
   --allora-chain-key-name=local-worker \
   --allora-chain-restore-mnemonic='your mnemonic words...' --allora-node-rpc-address=https://some-allora-rpc-address/ \
   --allora-chain-topic-id=1 \
-  --allora-chain-initial-stake=1000
+  --allora-chain-initial-stake=1000 \
+  --allora-chain-worker-mode=worker
+```
+
+Reputer (for reputation requests) node: 
+
+```
+./allora-node \
+  --role=worker  \
+  --peer-db=/data/peerdb \
+  --function-db=/data/function-db \
+  --runtime-path=/app/runtime \
+  --runtime-cli=bls-runtime \
+  --workspace=/data/workspace \
+  --private-key=/var/keys/priv.bin \
+  --port=9011 \
+  --rest-api=:6000 \
+  --boot-nodes=/ip4/<head-ip-addr>/tcp/9010/p2p/<advertised-head-peerid-key>
+  --topic=1 \
+  --allora-chain-key-name=local-worker \
+  --allora-chain-restore-mnemonic='your mnemonic words...' --allora-node-rpc-address=https://some-allora-rpc-address/ \
+  --allora-chain-topic-id=1 \
+  --allora-chain-initial-stake=1000 \
+  --allora-chain-worker-mode=reputer
 ```
 
 ## Notes 
 
-If you plan to deploy without wanting to connect to the Allora blockchain, just by testing your setup and your inferences, do not set any `--allora-...` flag.
+If you plan to deploy temporarily without attempting to connect to the Allora blockchain, e.g. just for testing your setup and your inferences and forecasts, do not set any `--allora-...` flag.
 
 ### Topic registration
 
@@ -94,13 +111,13 @@ Blockless nodes need to define a number of directories:
 To build the image for the head:
 
 ```
-docker build -f docker/Dockerfile_head -t allora-inference-base:dev-head --build-arg "GH_TOKEN=${YOUR_GH_TOKEN}" --build-arg "BLS_EXTENSION_VER=${BLS_EXTENSION_VERSION}" . 
+docker build --pull -f docker/Dockerfile_head -t allora-inference-base:dev-head --build-arg "GH_TOKEN=${YOUR_GH_TOKEN}" --build-arg "BLS_EXTENSION_VER=${BLS_EXTENSION_VERSION}" . 
 ```
 
-Then to build the image for the head:
+To build the image for the worker:
 
 ```
-docker build -f docker/Dockerfile_worker -t allora-inference-base:dev-worker --build-arg "GH_TOKEN=${YOUR_GH_TOKEN}" --build-arg "BLS_EXTENSION_VER=${BLS_EXTENSION_VERSION}" . 
+docker build --pull -f docker/Dockerfile_worker -t allora-inference-base:dev-worker --build-arg "GH_TOKEN=${YOUR_GH_TOKEN}" --build-arg "BLS_EXTENSION_VER=${BLS_EXTENSION_VERSION}" . 
 ```
 
 where `YOUR_GH_TOKEN` is your Github token, and optionally `BLS_EXTENSION_VER` is the release version of the [Allora inference extension](https://github.com/allora-network/allora-inference-extension) to use (it will use latest if none is set).
