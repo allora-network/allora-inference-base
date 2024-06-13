@@ -252,7 +252,7 @@ func registerWithBlockchain(appchain *AppChain) {
 				continue
 			}
 			if !hasBalance {
-				appchain.Logger.Error().Err(err).
+				appchain.Logger.Error().
 					Uint64("topic", topicId).
 					Str("addr", appchain.Address).
 					Msg("node does not have enough balance to register, skipping.")
