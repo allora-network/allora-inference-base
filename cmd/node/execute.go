@@ -50,7 +50,6 @@ func sendResultsToChain(log zerolog.Logger, appChainClient *AppChain, res node.C
 
 	log.Debug().Str("Topic", res.Topic).Str("worker mode", appChainClient.Config.WorkerMode).Msg("Found topic ID")
 
-	// TODO: We can move this context to the AppChain struct (previous context was breaking the tx broadcast response)
 	reqCtx := context.Background()
 	if appChainClient.Config.WorkerMode == WorkerModeWorker { // for inference or forecast
 		topicId, err := strconv.ParseUint(res.Topic, 10, 64)
