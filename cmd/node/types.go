@@ -1,9 +1,10 @@
 package main
 
 import (
-	"github.com/allora-network/allora-chain/x/emissions/types"
+	emissionstypes "github.com/allora-network/allora-chain/x/emissions/types"
 	"github.com/allora-network/b7s/config"
 	"github.com/allora-network/b7s/models/blockless"
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/ignite/cli/v28/ignite/pkg/cosmosaccount"
 	"github.com/ignite/cli/v28/ignite/pkg/cosmosclient"
 	"github.com/rs/zerolog"
@@ -15,12 +16,13 @@ type alloraCfg struct {
 }
 
 type AppChain struct {
-	Address     string
-	Account     cosmosaccount.Account
-	Client      *cosmosclient.Client
-	QueryClient types.QueryClient
-	Config      AppChainConfig
-	Logger      zerolog.Logger
+	Address              string
+	Account              cosmosaccount.Account
+	Client               *cosmosclient.Client
+	EmissionsQueryClient emissionstypes.QueryClient
+	BankQueryClient      banktypes.QueryClient
+	Config               AppChainConfig
+	Logger               zerolog.Logger
 }
 
 type AppChainConfig struct {
@@ -55,7 +57,7 @@ type InferenceForecastResponse struct {
 }
 
 type WorkerDataResponse struct {
-	*types.WorkerDataBundle
+	*emissionstypes.WorkerDataBundle
 	BlockHeight int64 `json:"blockHeight,omitempty"`
 	TopicId     int64 `json:"topicId,omitempty"`
 }
@@ -74,7 +76,7 @@ type ValueBundle struct {
 
 // Wrapper around the ReputerValueBundle to include the block height and topic id for the leader
 type ReputerDataResponse struct {
-	*types.ReputerValueBundle
+	*emissionstypes.ReputerValueBundle
 	BlockHeight     int64 `json:"blockHeight,omitempty"`
 	BlockHeightEval int64 `json:"blockHeightEval,omitempty"`
 	TopicId         int64 `json:"topicId,omitempty"`
