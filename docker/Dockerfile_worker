@@ -16,8 +16,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     APP_PATH=/app
 
 ## curl, unzip other utilities
-#! libssl-dev - BLS_RUNTIME dependency   # - temporary use libssl 1.1 TODO: Should use fresher libssl
-#! gh - to downaload release from priv repo
+#! gh - to download release from priv repo
 RUN apt update && \
     apt -y dist-upgrade && \
     apt install -y --no-install-recommends \
