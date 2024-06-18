@@ -122,6 +122,9 @@ func NewAppChain(config AppChainConfig, log zerolog.Logger) (*AppChain, error) {
 	// Create query client
 	queryClient := emissionstypes.NewQueryClient(client.Context())
 
+	// Create bank client
+	bankClient := banktypes.NewQueryClient(client.Context())
+
 	// this is terrible, no isConnected as part of this code path
 	if client.Context().ChainID == "" {
 		return nil, nil
@@ -133,6 +136,7 @@ func NewAppChain(config AppChainConfig, log zerolog.Logger) (*AppChain, error) {
 		Logger:               log,
 		Client:               client,
 		EmissionsQueryClient: queryClient,
+		BankQueryClient:      bankClient,
 		Config:               config,
 	}
 
