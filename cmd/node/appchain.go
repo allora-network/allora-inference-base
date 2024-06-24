@@ -262,7 +262,8 @@ func registerWithBlockchain(appchain *AppChain) {
 					Msg("node does not have enough balance to register, skipping.")
 				continue
 			}
-			// register the wroker in the topic
+			// register the worker
+			//in the topic
 			msg := &emissionstypes.MsgRegister{
 				Sender:       appchain.Address,
 				LibP2PKey:    appchain.Config.LibP2PKey,
