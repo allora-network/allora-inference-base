@@ -18,7 +18,10 @@ import (
 	"github.com/rs/zerolog"
 )
 
-const B7S_TOPIC_FORMAT = "allora-topic-{num}"
+const (
+	WORKER_B7S_TOPIC_FORMAT  = "allora-topic-{num}-worker"
+	REPUTER_B7S_TOPIC_FORMAT = "allora-topic-{num}-reputer"
+)
 
 // ExecuteRequest describes the payload for the REST API request for function execution.
 type ExecuteRequest struct {
@@ -53,7 +56,13 @@ func sendResultsToChain(log zerolog.Logger, appChainClient *AppChain, res node.C
 	log.Debug().Str("Topic", res.Topic).Str("worker mode", appChainClient.Config.WorkerMode).Msg("Found topic ID")
 
 	reqCtx := context.Background()
-	numTopicId := res.Topic[13:] // remove prfix "allora-topic-"
+	numTopicId := "0"
+	// remove prffix and suffix from "allora-topic-{xxx}-reputer/worker"
+	if strings.Contains(res.Topic, "reputer") {
+		numTopicId = res.Topic[13 : len(res.Topic)-8]
+	} else {
+		numTopicId = res.Topic[13 : len(res.Topic)-7]
+	}
 	topicId, err := strconv.ParseUint(numTopicId, 10, 64)
 	if err != nil {
 		log.Error().Str("Topic", res.Topic).Str("worker mode", appChainClient.Config.WorkerMode).Err(err).Msg("Cannot parse reputer topic ID")
@@ -113,9 +122,9 @@ func buildb7sTopic(alloraTopic string) string {
 	res := ""
 	if strings.Contains(alloraTopic, "reputer") {
 		topicNum := alloraTopic[0 : len(alloraTopic)-8]
-		res = strings.Replace(B7S_TOPIC_FORMAT, "{num}", topicNum, -1)
+		res = strings.Replace(REPUTER_B7S_TOPIC_FORMAT, "{num}", topicNum, -1)
 	} else {
-		res = strings.Replace(B7S_TOPIC_FORMAT, "{num}", alloraTopic, -1)
+		res = strings.Replace(WORKER_B7S_TOPIC_FORMAT, "{num}", alloraTopic, -1)
 	}
 	return res
 }
