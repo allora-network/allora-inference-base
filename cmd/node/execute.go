@@ -18,6 +18,8 @@ import (
 	"github.com/rs/zerolog"
 )
 
+const B7S_TOPIC_FORMAT = "allora-topic-{num}"
+
 // ExecuteRequest describes the payload for the REST API request for function execution.
 type ExecuteRequest struct {
 	execute.Request
@@ -51,32 +53,15 @@ func sendResultsToChain(log zerolog.Logger, appChainClient *AppChain, res node.C
 	log.Debug().Str("Topic", res.Topic).Str("worker mode", appChainClient.Config.WorkerMode).Msg("Found topic ID")
 
 	reqCtx := context.Background()
+	numTopicId := res.Topic[13:] // remove prfix "allora-topic-"
+	topicId, err := strconv.ParseUint(numTopicId, 10, 64)
+	if err != nil {
+		log.Error().Str("Topic", res.Topic).Str("worker mode", appChainClient.Config.WorkerMode).Err(err).Msg("Cannot parse reputer topic ID")
+		return
+	}
 	if appChainClient.Config.WorkerMode == WorkerModeWorker { // for inference or forecast
-		topicId, err := strconv.ParseUint(res.Topic, 10, 64)
-		if err != nil {
-			log.Error().Str("Topic", res.Topic).Str("worker mode", appChainClient.Config.WorkerMode).Err(err).Msg("Cannot parse worker topic ID")
-			return
-		}
 		appChainClient.SendWorkerModeData(reqCtx, topicId, aggregate.Aggregate(res.Data))
 	} else { // for losses
-		// if topicId does not end in "/reputer
-
-		if !strings.HasSuffix(res.Topic, REPUTER_TOPIC_SUFFIX) {
-			log.Error().Str("Topic", res.Topic).Str("worker mode", appChainClient.Config.WorkerMode).Msg("Invalid reputer topic format")
-			return
-		}
-		// Get the topicId from the reputer topic string
-		index := strings.Index(res.Topic, "/")
-		if index == -1 {
-			// Handle the error: "/" not found in res.Topic
-			log.Error().Str("Topic", res.Topic).Msg("Invalid topic format")
-			return
-		}
-		topicId, err := strconv.ParseUint(res.Topic[:index], 10, 64)
-		if err != nil {
-			log.Error().Str("Topic", res.Topic).Str("worker mode", appChainClient.Config.WorkerMode).Err(err).Msg("Cannot parse reputer topic ID")
-			return
-		}
 		appChainClient.SendReputerModeData(reqCtx, topicId, aggregate.Aggregate(res.Data))
 	}
 }
@@ -101,7 +86,7 @@ func createExecutor(a api.API) func(ctx echo.Context) error {
 		})
 
 		// Get the execution result.
-		code, id, results, cluster, err := a.Node.ExecuteFunction(ctx.Request().Context(), execute.Request(req.Request), req.Topic)
+		code, id, results, cluster, err := a.Node.ExecuteFunction(ctx.Request().Context(), execute.Request(req.Request), buildb7sTopic(req.Topic))
 		if err != nil {
 			a.Log.Warn().Str("function", req.FunctionID).Err(err).Msg("node failed to execute function")
 		}
@@ -122,4 +107,15 @@ func createExecutor(a api.API) func(ctx echo.Context) error {
 		// Send the response.
 		return ctx.JSON(http.StatusOK, res)
 	}
+}
+
+func buildb7sTopic(alloraTopic string) string {
+	res := ""
+	if strings.Contains(alloraTopic, "reputer") {
+		topicNum := alloraTopic[0 : len(alloraTopic)-8]
+		res = strings.Replace(B7S_TOPIC_FORMAT, "{num}", topicNum, -1)
+	} else {
+		res = strings.Replace(B7S_TOPIC_FORMAT, "{num}", alloraTopic, -1)
+	}
+	return res
 }
