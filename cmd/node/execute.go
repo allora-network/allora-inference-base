@@ -53,14 +53,7 @@ func sendResultsToChain(log zerolog.Logger, appChainClient *AppChain, res node.C
 	log.Debug().Str("Topic", res.Topic).Str("worker mode", appChainClient.Config.WorkerMode).Msg("Found topic ID")
 
 	reqCtx := context.Background()
-	numTopicId := "0"
-	// remove prffix and suffix from "allora-topic-{xxx}-reputer/worker"
-	if strings.Contains(res.Topic, "reputer") {
-		numTopicId = res.Topic[len(B7S_TOPIC_FORMAT_PREFIX) : len(res.Topic)-len(WorkerModeReputer)-1]
-	} else {
-		numTopicId = res.Topic[len(B7S_TOPIC_FORMAT_PREFIX) : len(res.Topic)-len(WorkerModeWorker)-1]
-	}
-	topicId, err := strconv.ParseUint(numTopicId, 10, 64)
+	topicId, err := strconv.ParseUint(extractNumFromb7sTopic(res.Topic), 10, 64)
 	if err != nil {
 		log.Error().Str("Topic", res.Topic).Str("worker mode", appChainClient.Config.WorkerMode).Err(err).Msg("Cannot parse reputer topic ID")
 		return
@@ -124,4 +117,15 @@ func buildb7sTopic(alloraTopic string) string {
 		res = B7S_TOPIC_FORMAT_PREFIX + alloraTopic + "-" + WorkerModeWorker
 	}
 	return res
+}
+
+func extractNumFromb7sTopic(b7sTopic string) string {
+	numTopicId := "0"
+	// remove prffix and suffix from "allora-topic-{xxx}-reputer/worker"
+	if strings.Contains(b7sTopic, "reputer") {
+		numTopicId = b7sTopic[len(B7S_TOPIC_FORMAT_PREFIX) : len(b7sTopic)-len(WorkerModeReputer)-1]
+	} else {
+		numTopicId = b7sTopic[len(B7S_TOPIC_FORMAT_PREFIX) : len(b7sTopic)-len(WorkerModeWorker)-1]
+	}
+	return numTopicId
 }
