@@ -1,9 +1,12 @@
-allora-node \
---peer-db /tmp/avs/head-peer-db \
---function-db /tmp/avs/head-fdb \
+./dist/allora-node \
+--peer-db /Volumes/Data/01_Projects/blockchains/1/06_upShot/01_Source/allora/allora-inference-base/avs/head-peer-db \
+--function-db /Volumes/Data/01_Projects/blockchains/1/06_upShot/01_Source/allora/allora-inference-base/avs/head-fdb \
 --log-level debug \
 --port 9527 \
 --role head \
---workspace /tmp/debug/head \
---private-key ./testkeys/head/priv.bin \
---rest-api :8081
+--workspace /Volumes/Data/01_Projects/blockchains/1/06_upShot/01_Source/allora/allora-inference-base/debug/head \
+--private-key ./configs/testkeys/ident1/priv.bin \
+--rest-api :6000 \
+--allora-chain-key-name=head \
+--runtime-path=/Volumes/Data/01_Projects/blockchains/1/06_upShot/01_Source/allora/allora-inference-base/app/runtime \
+--runtime-cli=bls-runtime

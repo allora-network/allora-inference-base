@@ -14,4 +14,8 @@ data-head
 data-worker
 data-worker-2
 main.py
+avs/
+vendor/
+debug/
+configs/
 .DS_Store

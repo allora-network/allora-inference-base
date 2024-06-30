@@ -146,7 +146,10 @@ func (e *AlloraExecutor) ExecuteFunction(requestID string, req execute.Request) 
 				inferenceForecastsBundle := &types.InferenceForecastBundle{}
 				// Build inference if existent
 				if responseValue.InfererValue != "" {
-					infererValue := alloraMath.MustNewDecFromString(responseValue.InfererValue)
+					infererValue, err := alloraMath.NewDecFromString(responseValue.InfererValue)
+					if err != nil {
+						return result, err
+					}
 					inference := &types.Inference{
 						TopicId:     topicId,
 						Inferer:     e.appChain.Address,
@@ -159,7 +162,10 @@ func (e *AlloraExecutor) ExecuteFunction(requestID string, req execute.Request) 
 				if len(responseValue.ForecasterValues) > 0 {
 					var forecasterElements []*types.ForecastElement
 					for _, val := range responseValue.ForecasterValues {
-						decVal := alloraMath.MustNewDecFromString(val.Value)
+						decVal, err := alloraMath.NewDecFromString(val.Value)
+						if err != nil {
+							return result, err
+						}
 						if !topicAllowsNegative {
 							decVal, err = alloraMath.Log10(decVal)
 							if err != nil {
@@ -286,7 +292,10 @@ func (e *AlloraExecutor) ExecuteFunction(requestID string, req execute.Request) 
 			)
 
 			for _, inf := range nestedValueBundle.InfererValues {
-				value := alloraMath.MustNewDecFromString(inf.Value)
+				value, err := alloraMath.NewDecFromString(inf.Value)
+				if err != nil {
+					return result, err
+				}
 				if !topicAllowsNegative {
 					value, err = alloraMath.Log10(value)
 					if err != nil {
@@ -300,7 +309,10 @@ func (e *AlloraExecutor) ExecuteFunction(requestID string, req execute.Request) 
 				})
 			}
 			for _, inf := range nestedValueBundle.ForecasterValues {
-				value := alloraMath.MustNewDecFromString(inf.Value)
+				value, err := alloraMath.NewDecFromString(inf.Value)
+				if err != nil {
+					return result, err
+				}
 				if !topicAllowsNegative {
 					value, err = alloraMath.Log10(value)
 					if err != nil {
@@ -314,7 +326,10 @@ func (e *AlloraExecutor) ExecuteFunction(requestID string, req execute.Request) 
 				})
 			}
 			for _, inf := range nestedValueBundle.OneOutInfererValues {
-				value := alloraMath.MustNewDecFromString(inf.Value)
+				value, err := alloraMath.NewDecFromString(inf.Value)
+				if err != nil {
+					return result, err
+				}
 				if !topicAllowsNegative {
 					value, err = alloraMath.Log10(value)
 					if err != nil {
@@ -328,7 +343,10 @@ func (e *AlloraExecutor) ExecuteFunction(requestID string, req execute.Request) 
 				})
 			}
 			for _, inf := range nestedValueBundle.OneOutForecasterValues {
-				value := alloraMath.MustNewDecFromString(inf.Value)
+				value, err := alloraMath.NewDecFromString(inf.Value)
+				if err != nil {
+					return result, err
+				}
 				if !topicAllowsNegative {
 					value, err = alloraMath.Log10(value)
 					if err != nil {
@@ -342,7 +360,10 @@ func (e *AlloraExecutor) ExecuteFunction(requestID string, req execute.Request) 
 				})
 			}
 			for _, inf := range nestedValueBundle.OneInForecasterValues {
-				value := alloraMath.MustNewDecFromString(inf.Value)
+				value, err := alloraMath.NewDecFromString(inf.Value)
+				if err != nil {
+					return result, err
+				}
 				if !topicAllowsNegative {
 					value, err = alloraMath.Log10(value)
 					if err != nil {
