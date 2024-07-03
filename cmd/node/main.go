@@ -33,6 +33,8 @@ import (
 	"github.com/allora-network/b7s/node"
 	"github.com/allora-network/b7s/peerstore"
 	"github.com/allora-network/b7s/store"
+    "github.com/prometheus/client_golang/prometheus"
+    "github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 const (
@@ -40,6 +42,17 @@ const (
 	failure       = 1
 	notFoundValue = -1
 )
+
+var (
+    opsProcessed = prometheus.NewCounter(prometheus.CounterOpts{
+        Name: "allora_node_operations",
+        Help: "The total number of processed operations",
+    })
+)
+
+func init() {
+    prometheus.MustRegister(opsProcessed)
+}
 
 func main() {
 	os.Exit(run())
@@ -410,6 +423,8 @@ func (e *AlloraExecutor) ExecuteFunction(requestID string, req execute.Request) 
 			result.Result.Stdout = outputJson
 		}
 	}
+
+    opsProcessed.Inc()
 	return result, err
 }
 
@@ -432,6 +447,15 @@ func run() int {
 		return failure
 	}
 	log = log.Level(level)
+
+	// Start HTTP server for Prometheus metrics.
+    http.Handle("/metrics", promhttp.Handler())
+    go func() {
+        log.Info().Msg("Starting metrics server on :2112")
+        if err := http.ListenAndServe(":2112", nil); err != nil {
+			log.Error().Err(err).Str("level", cfg.Log.Level).Msg("could not start metric server")
+        }
+    }()
 
 	// Determine node role.
 	role, err := parseNodeRole(cfg.Role)
