@@ -448,15 +448,6 @@ func run() int {
 	}
 	log = log.Level(level)
 
-	// Start HTTP server for Prometheus metrics.
-    http.Handle("/metrics", promhttp.Handler())
-    go func() {
-        log.Info().Msg("Starting metrics server on :2112")
-        if err := http.ListenAndServe(":2112", nil); err != nil {
-			log.Error().Err(err).Str("level", cfg.Log.Level).Msg("could not start metric server")
-        }
-    }()
-
 	// Determine node role.
 	role, err := parseNodeRole(cfg.Role)
 	if err != nil {
@@ -667,6 +658,17 @@ func run() int {
 			close(failed)
 		} else {
 			close(done)
+		}
+
+		log.Info().Msg("Allora Node stopped")
+	}()
+
+	// Start HTTP server for Prometheus metrics.
+	http.Handle("/metrics", promhttp.Handler())
+	go func() {
+		log.Info().Str("role", role.String()).Msg("Starting metrics server on :2112")
+		if err := http.ListenAndServe(":2112", nil); err != nil {
+			log.Error().Err(err).Msg("could not start metric server")
 		}
 
 		log.Info().Msg("Allora Node stopped")
