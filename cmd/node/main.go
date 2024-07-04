@@ -45,13 +45,37 @@ const (
 
 var (
     opsProcessed = prometheus.NewCounter(prometheus.CounterOpts{
-        Name: "allora_node_operations",
+        Name: "allora_node_total_operations",
         Help: "The total number of processed operations",
     })
+
+	headRequests = prometheus.NewCounter(prometheus.CounterOpts{
+        Name: "allora_head_node_total_requests",
+        Help: "The total number of request made by head node",
+    })
+
+    headRequestEveryHour = prometheus.NewHistogram(
+        prometheus.HistogramOpts{
+            Name:    "allora_head_node_request_every_hour",
+            Help:    "The number of requests made by head node every hour",
+            Buckets: prometheus.LinearBuckets(0, 3600, 24), // 24 buckets, one for each hour
+        },
+    )
+
+    workerLatestInference = prometheus.NewSummary(
+        prometheus.SummaryOpts{
+            Name:       "allora_worker_node_latest_inference_value",
+            Help:       "The latest inference value from the worker node",
+            Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
+        },
+    )
 )
 
 func init() {
     prometheus.MustRegister(opsProcessed)
+    prometheus.MustRegister(headRequests)
+    prometheus.MustRegister(headRequestEveryHour)
+    prometheus.MustRegister(workerLatestInference)
 }
 
 func main() {
@@ -160,6 +184,8 @@ func (e *AlloraExecutor) ExecuteFunction(requestID string, req execute.Request) 
 				// Build inference if existent
 				if responseValue.InfererValue != "" {
 					infererValue := alloraMath.MustNewDecFromString(responseValue.InfererValue)
+					// record inferer value as summary
+					workerLatestInference.Observe(infererValue.SdkLegacyDec().MustFloat64())
 					inference := &types.Inference{
 						TopicId:     topicId,
 						Inferer:     e.appChain.Address,
@@ -424,6 +450,7 @@ func (e *AlloraExecutor) ExecuteFunction(requestID string, req execute.Request) 
 		}
 	}
 
+	// increament the number of operations processed by worker or reputer
     opsProcessed.Inc()
 	return result, err
 }
@@ -668,10 +695,10 @@ func run() int {
 	go func() {
 		log.Info().Str("role", role.String()).Msg("Starting metrics server on :2112")
 		if err := http.ListenAndServe(":2112", nil); err != nil {
-			log.Error().Err(err).Msg("could not start metric server")
+			log.Error().Err(err).Msg("Could not start metric server")
 		}
 
-		log.Info().Msg("Allora Node stopped")
+		log.Info().Msg("Metrics server stopped")
 	}()
 
 	// If we're a head node - start the REST API.

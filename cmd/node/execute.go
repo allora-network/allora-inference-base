@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/allora-network/b7s/api"
 	"github.com/allora-network/b7s/models/blockless"
@@ -109,6 +110,10 @@ func createExecutor(a api.API) func(ctx echo.Context) error {
 		if errors.Is(err, blockless.ErrRollCallTimeout) || errors.Is(err, blockless.ErrExecutionNotEnoughNodes) {
 			res.Message = err.Error()
 		}
+
+		// record metics
+		headRequestEveryHour.Observe(float64(time.Now().Hour()))
+		headRequests.Inc()
 
 		// Send the response.
 		return ctx.JSON(http.StatusOK, res)
