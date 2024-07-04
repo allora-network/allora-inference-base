@@ -38,7 +38,7 @@ jobs:
           ECR_REPOSITORY: worker-prometheus-test           
         run: |
 
-          IMAGE_TAG="test-latest"
+          IMAGE_TAG="test-latest -1"
 
           # compute-node HEADS
           ECR_REPOSITORY_HEAD="${ECR_REPOSITORY}-head"
