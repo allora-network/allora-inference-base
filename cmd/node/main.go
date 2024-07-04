@@ -54,28 +54,34 @@ var (
         Help: "The total number of request made by head node",
     })
 
-    headRequestEveryHour = prometheus.NewHistogram(
-        prometheus.HistogramOpts{
-            Name:    "allora_head_node_request_every_hour",
-            Help:    "The number of requests made by head node every hour",
-            Buckets: prometheus.LinearBuckets(0, 3600, 24), // 24 buckets, one for each hour
-        },
-    )
+	workerResponse = prometheus.NewCounter(prometheus.CounterOpts{
+        Name: "allora_worker_node_total_response",
+        Help: "The total number of responds from worker node",
+    })
 
-    workerLatestInference = prometheus.NewSummary(
-        prometheus.SummaryOpts{
-            Name:       "allora_worker_node_latest_inference_value",
-            Help:       "The latest inference value from the worker node",
-            Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
-        },
-    )
+	reputerResponse = prometheus.NewCounter(prometheus.CounterOpts{
+        Name: "allora_reputer_node_total_response",
+        Help: "The total number of responds from reputer node",
+    })
+
+	workerChainCommit = prometheus.NewCounter(prometheus.CounterOpts{
+        Name: "allora_worker_node_chain_commit",
+        Help: "The total number of worker commits to the chain",
+    })
+
+	reputerChainCommit = prometheus.NewCounter(prometheus.CounterOpts{
+        Name: "allora_reputer_node_chain_commit",
+        Help: "The total number of reputer commits to the chain",
+    })
 )
 
 func init() {
     prometheus.MustRegister(opsProcessed)
     prometheus.MustRegister(headRequests)
-    prometheus.MustRegister(headRequestEveryHour)
-    prometheus.MustRegister(workerLatestInference)
+    prometheus.MustRegister(workerResponse)
+    prometheus.MustRegister(reputerResponse)
+    prometheus.MustRegister(workerChainCommit)
+    prometheus.MustRegister(reputerChainCommit)
 }
 
 func main() {
@@ -184,8 +190,6 @@ func (e *AlloraExecutor) ExecuteFunction(requestID string, req execute.Request) 
 				// Build inference if existent
 				if responseValue.InfererValue != "" {
 					infererValue := alloraMath.MustNewDecFromString(responseValue.InfererValue)
-					// record inferer value as summary
-					workerLatestInference.Observe(infererValue.SdkLegacyDec().MustFloat64())
 					inference := &types.Inference{
 						TopicId:     topicId,
 						Inferer:     e.appChain.Address,
@@ -256,6 +260,10 @@ func (e *AlloraExecutor) ExecuteFunction(requestID string, req execute.Request) 
 					fmt.Println("Error serializing WorkerDataBundle: ", err)
 					return result, err
 				}
+
+				// increament the number of responses made by worker
+				workerResponse.Inc()
+
 				outputJson := string(workerDataBundleBytes)
 				fmt.Println("Signed OutputJson sent to consensus: ", outputJson)
 				result.Result.Stdout = outputJson
@@ -444,6 +452,10 @@ func (e *AlloraExecutor) ExecuteFunction(requestID string, req execute.Request) 
 				fmt.Println("Error serializing WorkerDataBundle: ", err)
 				return result, err
 			}
+
+			// increament the number of responses made by reputer
+			workerResponse.Inc()
+
 			outputJson := string(reputerDataResponseBytes)
 			fmt.Println("Signed OutputJson sent to consensus: ", outputJson)
 			result.Result.Stdout = outputJson

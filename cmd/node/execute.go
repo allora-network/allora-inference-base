@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/allora-network/b7s/api"
 	"github.com/allora-network/b7s/models/blockless"
@@ -68,8 +67,14 @@ func sendResultsToChain(log zerolog.Logger, appChainClient *AppChain, res node.C
 	}
 	if appChainClient.Config.WorkerMode == WorkerModeWorker { // for inference or forecast
 		appChainClient.SendWorkerModeData(reqCtx, topicId, aggregate.Aggregate(res.Data))
+
+		// increament the number of commits made by worker
+		workerChainCommit.Inc()
 	} else { // for losses
 		appChainClient.SendReputerModeData(reqCtx, topicId, aggregate.Aggregate(res.Data))
+
+		// increament the number of commits made by reputer
+		reputerChainCommit.Inc()
 	}
 }
 
@@ -111,8 +116,7 @@ func createExecutor(a api.API) func(ctx echo.Context) error {
 			res.Message = err.Error()
 		}
 
-		// record metics
-		headRequestEveryHour.Observe(float64(time.Now().Hour()))
+		// increament the number of responses made by reputer
 		headRequests.Inc()
 
 		// Send the response.
