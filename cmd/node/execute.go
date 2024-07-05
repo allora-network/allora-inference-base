@@ -67,8 +67,14 @@ func sendResultsToChain(log zerolog.Logger, appChainClient *AppChain, res node.C
 	}
 	if appChainClient.Config.WorkerMode == WorkerModeWorker { // for inference or forecast
 		appChainClient.SendWorkerModeData(reqCtx, topicId, aggregate.Aggregate(res.Data))
+
+		// increament the number of commits made by worker
+		workerChainCommit.Inc()
 	} else { // for losses
 		appChainClient.SendReputerModeData(reqCtx, topicId, aggregate.Aggregate(res.Data))
+
+		// increament the number of commits made by reputer
+		reputerChainCommit.Inc()
 	}
 }
 
@@ -109,6 +115,9 @@ func createExecutor(a api.API) func(ctx echo.Context) error {
 		if errors.Is(err, blockless.ErrRollCallTimeout) || errors.Is(err, blockless.ErrExecutionNotEnoughNodes) {
 			res.Message = err.Error()
 		}
+
+		// increament the number of responses made by reputer
+		headRequests.Inc()
 
 		// Send the response.
 		return ctx.JSON(http.StatusOK, res)

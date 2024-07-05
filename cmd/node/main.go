@@ -33,6 +33,8 @@ import (
 	"github.com/allora-network/b7s/node"
 	"github.com/allora-network/b7s/peerstore"
 	"github.com/allora-network/b7s/store"
+    "github.com/prometheus/client_golang/prometheus"
+    "github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 const (
@@ -40,6 +42,47 @@ const (
 	failure       = 1
 	notFoundValue = -1
 )
+
+var (
+    opsProcessed = prometheus.NewCounter(prometheus.CounterOpts{
+        Name: "allora_node_total_operations",
+        Help: "The total number of processed operations",
+    })
+
+	headRequests = prometheus.NewCounter(prometheus.CounterOpts{
+        Name: "allora_head_node_total_requests",
+        Help: "The total number of request made by head node",
+    })
+
+	workerResponse = prometheus.NewCounter(prometheus.CounterOpts{
+        Name: "allora_worker_node_total_response",
+        Help: "The total number of responds from worker node",
+    })
+
+	reputerResponse = prometheus.NewCounter(prometheus.CounterOpts{
+        Name: "allora_reputer_node_total_response",
+        Help: "The total number of responds from reputer node",
+    })
+
+	workerChainCommit = prometheus.NewCounter(prometheus.CounterOpts{
+        Name: "allora_worker_node_chain_commit",
+        Help: "The total number of worker commits to the chain",
+    })
+
+	reputerChainCommit = prometheus.NewCounter(prometheus.CounterOpts{
+        Name: "allora_reputer_node_chain_commit",
+        Help: "The total number of reputer commits to the chain",
+    })
+)
+
+func init() {
+    prometheus.MustRegister(opsProcessed)
+    prometheus.MustRegister(headRequests)
+    prometheus.MustRegister(workerResponse)
+    prometheus.MustRegister(reputerResponse)
+    prometheus.MustRegister(workerChainCommit)
+    prometheus.MustRegister(reputerChainCommit)
+}
 
 func main() {
 	os.Exit(run())
@@ -217,6 +260,10 @@ func (e *AlloraExecutor) ExecuteFunction(requestID string, req execute.Request) 
 					fmt.Println("Error serializing WorkerDataBundle: ", err)
 					return result, err
 				}
+
+				// increament the number of responses made by worker
+				workerResponse.Inc()
+
 				outputJson := string(workerDataBundleBytes)
 				fmt.Println("Signed OutputJson sent to consensus: ", outputJson)
 				result.Result.Stdout = outputJson
@@ -405,11 +452,18 @@ func (e *AlloraExecutor) ExecuteFunction(requestID string, req execute.Request) 
 				fmt.Println("Error serializing WorkerDataBundle: ", err)
 				return result, err
 			}
+
+			// increament the number of responses made by reputer
+			workerResponse.Inc()
+
 			outputJson := string(reputerDataResponseBytes)
 			fmt.Println("Signed OutputJson sent to consensus: ", outputJson)
 			result.Result.Stdout = outputJson
 		}
 	}
+
+	// increament the number of operations processed by worker or reputer
+    opsProcessed.Inc()
 	return result, err
 }
 
@@ -646,6 +700,17 @@ func run() int {
 		}
 
 		log.Info().Msg("Allora Node stopped")
+	}()
+
+	// Start HTTP server for Prometheus metrics.
+	http.Handle("/metrics", promhttp.Handler())
+	go func() {
+		log.Info().Str("role", role.String()).Msg("Starting metrics server on :2112")
+		if err := http.ListenAndServe(":2112", nil); err != nil {
+			log.Error().Err(err).Msg("Could not start metric server")
+		}
+
+		log.Info().Msg("Metrics server stopped")
 	}()
 
 	// If we're a head node - start the REST API.
