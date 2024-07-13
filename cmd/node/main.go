@@ -33,8 +33,8 @@ import (
 	"github.com/allora-network/b7s/node"
 	"github.com/allora-network/b7s/peerstore"
 	"github.com/allora-network/b7s/store"
-    "github.com/prometheus/client_golang/prometheus"
-    "github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 const (
@@ -44,44 +44,44 @@ const (
 )
 
 var (
-    opsProcessed = prometheus.NewCounter(prometheus.CounterOpts{
-        Name: "allora_node_total_operations",
-        Help: "The total number of processed operations",
-    })
+	opsProcessed = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "allora_node_total_operations",
+		Help: "The total number of processed operations",
+	})
 
 	headRequests = prometheus.NewCounter(prometheus.CounterOpts{
-        Name: "allora_head_node_total_requests",
-        Help: "The total number of request made by head node",
-    })
+		Name: "allora_head_node_total_requests",
+		Help: "The total number of request made by head node",
+	})
 
 	workerResponse = prometheus.NewCounter(prometheus.CounterOpts{
-        Name: "allora_worker_node_total_response",
-        Help: "The total number of responds from worker node",
-    })
+		Name: "allora_worker_node_total_response",
+		Help: "The total number of responds from worker node",
+	})
 
 	reputerResponse = prometheus.NewCounter(prometheus.CounterOpts{
-        Name: "allora_reputer_node_total_response",
-        Help: "The total number of responds from reputer node",
-    })
+		Name: "allora_reputer_node_total_response",
+		Help: "The total number of responds from reputer node",
+	})
 
 	workerChainCommit = prometheus.NewCounter(prometheus.CounterOpts{
-        Name: "allora_worker_node_chain_commit",
-        Help: "The total number of worker commits to the chain",
-    })
+		Name: "allora_worker_node_chain_commit",
+		Help: "The total number of worker commits to the chain",
+	})
 
 	reputerChainCommit = prometheus.NewCounter(prometheus.CounterOpts{
-        Name: "allora_reputer_node_chain_commit",
-        Help: "The total number of reputer commits to the chain",
-    })
+		Name: "allora_reputer_node_chain_commit",
+		Help: "The total number of reputer commits to the chain",
+	})
 )
 
 func init() {
-    prometheus.MustRegister(opsProcessed)
-    prometheus.MustRegister(headRequests)
-    prometheus.MustRegister(workerResponse)
-    prometheus.MustRegister(reputerResponse)
-    prometheus.MustRegister(workerChainCommit)
-    prometheus.MustRegister(reputerChainCommit)
+	prometheus.MustRegister(opsProcessed)
+	prometheus.MustRegister(headRequests)
+	prometheus.MustRegister(workerResponse)
+	prometheus.MustRegister(reputerResponse)
+	prometheus.MustRegister(workerChainCommit)
+	prometheus.MustRegister(reputerChainCommit)
 }
 
 func main() {
@@ -292,9 +292,6 @@ func (e *AlloraExecutor) ExecuteFunction(requestID string, req execute.Request) 
 				ReputerNonce: &types.Nonce{
 					BlockHeight: alloraBlockHeightCurrent,
 				},
-				WorkerNonce: &types.Nonce{
-					BlockHeight: alloraBlockHeightEval,
-				},
 			}
 
 			// Now get the string of the value, unescape it and unmarshall into ValueBundle
@@ -484,7 +481,7 @@ func (e *AlloraExecutor) ExecuteFunction(requestID string, req execute.Request) 
 	}
 
 	// increament the number of operations processed by worker or reputer
-    opsProcessed.Inc()
+	opsProcessed.Inc()
 	return result, err
 }
 

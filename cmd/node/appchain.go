@@ -533,7 +533,6 @@ func (ap *AppChain) SendReputerModeData(ctx context.Context, topicId uint64, res
 	var reputerAddrs []*string
 	var reputerAddrSet = make(map[string]bool) // Prevents duplicate reputer addresses from being counted in vote tally
 	var nonceCurrent *emissionstypes.Nonce
-	var nonceEval *emissionstypes.Nonce
 	var blockCurrentToReputer = make(map[int64][]string) // map blockHeight to addresses of reputers who sent data for current block height
 	var blockEvalToReputer = make(map[int64][]string)    // map blockHeight to addresses of reputers who sent data for eval block height
 
@@ -596,37 +595,31 @@ func (ap *AppChain) SendReputerModeData(ctx context.Context, topicId uint64, res
 	}
 
 	blockCurrentHeight, blockEvalHeight, err := ap.getStakeWeightedBlockHeights(ctx, topicId, &blockCurrentToReputer, &blockEvalToReputer, reputerAddrs)
+	ap.Logger.Info().Err(err).Int64("Current", blockCurrentHeight).Int64("Eval", blockEvalHeight).Msg("Weighted Block heights")
 	if err != nil {
 		ap.Logger.Error().Err(err).Msg("could not get stake-weighted block heights, not sending data to the chain")
 		return
 	}
-	if blockCurrentHeight == -1 || blockEvalHeight == -1 {
+	if blockCurrentHeight == -1 {
 		ap.Logger.Error().Msg("could not get stake-weighted block heights, not sending data to the chain")
 		return
 	}
-	if blockCurrentHeight < blockEvalHeight {
-		ap.Logger.Error().Int64("blockCurrentHeight", blockCurrentHeight).Int64("blockEvalHeight", blockEvalHeight).Msg("blockCurrentHeight < blockEvalHeight, not sending data to the chain")
-		return
-	}
 	nonceCurrent = &emissionstypes.Nonce{BlockHeight: blockCurrentHeight}
-	nonceEval = &emissionstypes.Nonce{BlockHeight: blockEvalHeight}
 
 	// Remove those bundles that do not come from the current block height
 	var valueBundlesFiltered []*emissionstypes.ReputerValueBundle
 
 	for _, valueBundle := range valueBundles {
-		if valueBundle.ValueBundle.ReputerRequestNonce.ReputerNonce.BlockHeight == blockCurrentHeight && valueBundle.ValueBundle.ReputerRequestNonce.WorkerNonce.BlockHeight == blockEvalHeight {
+		if valueBundle.ValueBundle.ReputerRequestNonce.ReputerNonce.BlockHeight == blockCurrentHeight {
 			ap.Logger.Debug().
 				Str("reputer", valueBundle.ValueBundle.Reputer).
 				Str("nonce reputer", strconv.FormatInt(valueBundle.ValueBundle.ReputerRequestNonce.ReputerNonce.BlockHeight, 10)).
-				Str("nonce worker", strconv.FormatInt(valueBundle.ValueBundle.ReputerRequestNonce.WorkerNonce.BlockHeight, 10)).
 				Msg("Valid nonce, adding to valueBundlesFiltered")
 			valueBundlesFiltered = append(valueBundlesFiltered, valueBundle)
 		} else {
 			ap.Logger.Warn().
 				Str("reputer", valueBundle.ValueBundle.Reputer).
 				Str("nonce reputer", strconv.FormatInt(valueBundle.ValueBundle.ReputerRequestNonce.ReputerNonce.BlockHeight, 10)).
-				Str("nonce worker", strconv.FormatInt(valueBundle.ValueBundle.ReputerRequestNonce.WorkerNonce.BlockHeight, 10)).
 				Msg("Rejected Bundle, non-matching nonces.")
 		}
 	}
@@ -636,7 +629,6 @@ func (ap *AppChain) SendReputerModeData(ctx context.Context, topicId uint64, res
 		Sender: ap.Address,
 		ReputerRequestNonce: &emissionstypes.ReputerRequestNonce{
 			ReputerNonce: nonceCurrent,
-			WorkerNonce:  nonceEval,
 		},
 		TopicId:             topicId,
 		ReputerValueBundles: valueBundles,
