@@ -8,14 +8,13 @@ DIALBACK_ADDRESS="${DIALBACK_ADDRESS:-my.dialback.address}"
 DIALBACK_PORT="${DIALBACK_PORT:-9010}"
 export APP_HOME="${APP_HOME:-./data}"
 
-INIT_FLAG="${APP_HOME}/.initialized"
-if [ ! -f $INIT_FLAG ]; then
+KEY_FILE="${APP_HOME}/keys/private.key"
+if [ ! -f $KEY_FILE ]; then
     echo "Generate p2p keys"
-    rm -rf ${APP_HOME}/keys
     mkdir -p ${APP_HOME}/keys
+    pushd ${APP_HOME}/keys
     allora-keys
-
-    touch $INIT_FLAG
+    popd
 fi
 
 HEADS=$(curl -Ls ${HEADS_URL})
@@ -26,7 +25,7 @@ allora-node \
     --peer-db=$APP_HOME/peer-database \
     --function-db=$APP_HOME/function-database \
     --workspace=/tmp/node \
-    --private-key=$APP_HOME/private.key \
+    --private-key=$APP_HOME/keys/priv.bin \
     --port=9010 \
     --rest-api=:6000 \
     --dialback-address=$DIALBACK_ADDRESS \

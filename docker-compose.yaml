@@ -5,7 +5,7 @@ services:
     image: "alloranetwork/allora-inference-base-head:latest"
     environment:
       - NETWORK=allora-testnet-1
-      - APP_HOME=./data
+      - APP_HOME=/data
       - DIALBACK_PORT=9010                         # P2P Port, the node will announce to the network
       - DIALBACK_ADDRESS=dns-name.to-access.head   # Name the node will announce to the network
     volumes:
