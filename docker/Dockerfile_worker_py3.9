@@ -23,7 +23,8 @@ RUN apt update && \
       tzdata \
       ca-certificates \
       libssl-dev \
-      gh && \
+      gh \
+      curl && \
     echo "deb http://deb.debian.org/debian testing main" >> /etc/apt/sources.list && \
     apt update && \
     apt install -y --no-install-recommends -t testing \
