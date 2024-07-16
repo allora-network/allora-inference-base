@@ -4,6 +4,8 @@ set -eu
 NETWORK="${NETWORK:-allora-testnet-1}"                 #! Replace with your network name
 HEADS_URL="https://raw.githubusercontent.com/allora-network/networks/main/${NETWORK}/heads.txt"
 
+DIALBACK_ADDRESS="${DIALBACK_ADDRESS:-my.dialback.address}"
+DIALBACK_PORT="${DIALBACK_PORT:-9010}"
 export APP_HOME="${APP_HOME:-./data}"
 
 INIT_FLAG="${APP_HOME}/.initialized"
