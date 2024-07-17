@@ -19,21 +19,10 @@ GOOS=linux GOARCH=amd64 make
 
 ## Head
 
-```
-./allora-node \
-  --role=head  \
-  --peer-db=/data/peerdb \
-  --function-db=/data/function-db \
-  --runtime-path=/app/runtime \
-  --runtime-cli=bls-runtime \
-  --workspace=/data/workspace \
-  --private-key=/var/keys/priv.bin \
-  --port=9010 \
-  --rest-api=:6000 \
-  --allora-chain-key-name=local-head \
-  --allora-chain-restore-mnemonic='your mnemonic words...' --allora-node-rpc-address=https://some-allora-rpc-address/ \
-  --allora-chain-initial-stake=1000
-```
+You can execute `docker compose up` to run head with docker compose.
+
+Or you can find all the required parameters in `scripts/head.sh` script.
+
 ## Worker
 
 Worker (for inference or forecast requests) node: 

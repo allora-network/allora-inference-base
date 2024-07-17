@@ -1,0 +1,18 @@
+# Change all occurrences of "sample_validator" to your prerferred name
+services:
+  head:
+    container_name: head
+    image: "alloranetwork/allora-inference-base-head:latest"
+    environment:
+      - NETWORK=allora-testnet-1
+      - APP_HOME=/data
+      - DIALBACK_PORT=9010                         # P2P Port, the node will announce to the network
+      - DIALBACK_ADDRESS=dns-name.to-access.head   # Name the node will announce to the network
+    volumes:
+      - ./data:/data
+      - ./scripts/:/scripts
+    ports:
+      - "9010:9010"                                # P2P Port
+      - "6000:6000"                                # API Port
+    user: "0:0"
+    entrypoint: /scripts/head.sh
