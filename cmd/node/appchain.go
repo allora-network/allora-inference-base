@@ -471,6 +471,7 @@ func (ap *AppChain) argmaxBlockByStake(
 
 		// Decide if voting power exceeds that of current front-runner
 		if firstIter || blockVotingPower.GT(highestVotingPower) {
+			highestVotingPower = blockVotingPower
 			blockOfMaxPower = block
 		}
 
